@@ -8,7 +8,6 @@
 \usepackage{tabularx}
 \usepackage[table]{xcolor}
 \usepackage{colortbl}
-\usepackage{tablestyles}
 \usepackage{mathtools}
 \usepackage{booktabs}     % szebb vonalak
 \usepackage{array}        % p{...} és oszlopbeállítások
@@ -21,7 +20,7 @@
 %\usepackage[round,authoryear]{natbib}
 %\usepackage{graphicx}
 
-\usepackage{hyperref}
+\usepackage[hyperfootnotes=false]{hyperref}
 \hypersetup{
  % colorlinks=true,
  % citecolor=blue,
@@ -29,12 +28,9 @@
   urlcolor=blue
 }
 
-\usepackage{hyperref}
-
 %\setlength{\parindent}{0pt}
 %\setlength{\parskip}{12pt}
 
-\usepackage{booktabs}
 \usepackage{lmodern}
 \usepackage[nopatch=footnote]{microtype}
 \usepackage{pdflscape}
@@ -46,16 +42,11 @@
 
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
+\usepackage{titlesec}
 
-% 1st-level heading (bold)
-\usepackage{sectsty}
-\sectionfont{\bfseries\large}
-
-% 2nd-level heading (bold italic)
-\subsectionfont{\bfseries\itshape\normalsize}
-
-% 3rd-level heading (italic)
-\subsubsectionfont{\itshape\normalsize}
+\titleformat{\section}{\bfseries\large}{\thesection}{1em}{}
+\titleformat{\subsection}{\bfseries\itshape\normalsize}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\itshape\normalsize}{\thesubsubsection}{1em}{}
 
 % 4th-level heading (bold italics, inline)
 \newcommand{\fourthlevelheading}[1]{%
@@ -71,7 +62,7 @@
 
 \title{\textbf{Absolute Market Unfairness - Measuring Market Inefficiency in Cryptocurrency Markets}}
 
-\author{Balázs Králik\footnote{Corresponding Author. Assistant Professor at Corvinus University of Budapest, Institute of Finance, Fővám square 8. Budapest, Hungary, 1093. E-mail: balazs.kralik@uni-corvinus.hu.}, Nóra Felföldi-Szűcs\footnote{Associate Professor at Corvinus University of Budapest, Institute of Finance.}, Tamás Rutai\footnote{Student at Corvinus University of Budapest.}, Kata Váradi\footnote{Associate Professor at Corvinus University of Budapest, Institute of Finance.}}
+\author{Balázs Králik\thanks{Corresponding Author. Assistant Professor at Corvinus University of Budapest, Institute of Finance, Fővám square 8. Budapest, Hungary, 1093. E-mail: balazs.kralik@uni-corvinus.hu.}, Nóra Felföldi-Szűcs\thanks{Associate Professor at Corvinus University of Budapest, Institute of Finance.}, Tamás Rutai\thanks{Student at Corvinus University of Budapest.}, Kata Váradi\thanks{Associate Professor at Corvinus University of Budapest, Institute of Finance.}}
 \date{}
 
 \maketitle
@@ -207,7 +198,7 @@ Option contracts may differ not only by their underlying (LU), but also by their
 \begin{table}[!htbp]\label{options}
 \centering
 \renewcommand{\arraystretch}{1.3}
-\begin{tabularx}{\textwidth}{|p{1.5cm}|p{2cm}|p{1.5cm}|p{2cm}|X|p{1.5cm}|}
+\begin{tabularx}{\textwidth}{|>{\RaggedRight\arraybackslash}p{1.5cm}|>{\RaggedRight\arraybackslash}p{2cm}|>{\RaggedRight\arraybackslash}p{1.5cm}|>{\RaggedRight\arraybackslash}p{2cm}|>{\RaggedRight\arraybackslash}X|>{\RaggedRight\arraybackslash}p{1.5cm}|}
 \hline
 \textbf{Option Type} & \textbf{Underlying Product} & \textbf{LU Formula} &
 \textbf{LU Currency} & \textbf{LC Payoff at $T$} & \textbf{LC Payoff Currency} \\
@@ -956,11 +947,12 @@ spx          &  0.25 &   61 bp  &   15 bp\\
     \label{tab:AMU}
 \end{table}
 
+
 \section{Discussion}
 
 
 \section{Conclusions}
-The final results of our investigation is in Table \ref{tab:apcpb_table}.
+The final results of our investigation is in Table \ref{tab:AMU}.
 We have shown that in the emerging crypto options market appreciable put-call parity breaking remains after all costs of putting on an arbitrage position are considered, and tradable pure arbitrage profits can be obtained by those enabled to short naked options. The analysis have been carried out on $Binance$ in the European options market on ETHUSDT. We derived a new measure, called Absolute Market Unfairness to quantify arbitrage profits that can be earned by the market makers. The determination of the arbitrage profit is model-free, since it depends on the put-call parity relation, but not e.g. on the pricing models. We propose to apply this measure by the regulators to evaluate the investor-friendlyness of a market.
 As all research, this report has some limitations as well. These are listed below:
 %However, there are three issues that are beyond the scope of this report, and would need further investigations.
@@ -980,11 +972,9 @@ The data that support the findings of this study are available through
 
 \section*{Supplemental Online Material}
 
-\textcolor{red}{MEGADJUNK VALAMI KÓDOKAT? AMIKRŐL BALÁZS ÉS TOMI SZOKTAK BESZÉLNI??? }
+% \textcolor{red}{MEGADJUNK VALAMI KÓDOKAT? AMIKRŐL BALÁZS ÉS TOMI SZOKTAK BESZÉLNI??? }
 
 \bibliography{bibl}
-\bibliographystyle{vancouver}
-
 %-----------------------------------------------
 % Appendix
 %-----------------------------------------------
