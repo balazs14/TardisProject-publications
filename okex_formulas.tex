@@ -1,0 +1,177 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+%\usepackage{cite}
+\usepackage[round,authoryear]{natbib}
+\usepackage{graphicx}
+
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  citecolor=blue,
+  linkcolor=black,
+  urlcolor=blue
+}
+
+\usepackage{hyperref}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{12pt}
+
+\title{Your Article Title Here}
+\author{Author Name \\ Institution}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+blabla
+\end{abstract}
+
+%-----------------------------------------------
+\section{OKEX futures and options}
+
+For notation, we use $S_t$ to denote the BTCUSD index at time $t$, and $S^{(U)}_t$ the BTCUSDT index at time $t$. These index prices are determined as an average of multiple exchanges' settlement prices. $U_t$ is the USDUSDT exchange rate at time $t$, and superscripts $(U)$ denote quantities in related to the BTCUSDT index (as opposed to the BTCUSD index). In this market, the futures and options payouts depend on the value of $S_t$, which is not a traded price itself, but is a published value. It has therefore no bid-ask spread.
+
+%-----------------------------------------------
+\subsection{OKEX Futures}
+
+We describe the crypto derivatives in a world where the numeraire is USDT, the stablecoin tied to the US dollar.
+
+%-----------------------------------------------
+\subsubsection{Crypto-margined (BTCUSD) Futures}
+
+BTCUSD futures are crypto-margined (settled in BTC), with a face value of 100 USD and a contract multiplier of 1. The forward contract corresponding to the position ``long 1 BTC-USD-250627 future'', has the following payoff at maturity $T$:
+
+\begin{equation}
+\text{Value}_T = 100\times(\frac{1}{F} - \frac{1}{S_T})   \quad\text{(in BTC)}
+\end{equation}
+
+where $T$ is 2025-06-27, and $F$ is the futures price at inception. Futures prices are quoted as a value of the BTCUSD index.
+
+
+%-----------------------------------------------
+\subsubsection{USDT-margined (BTCUSDT) Futures}
+
+BTCUSDT futures are stablecoin-margined (settled in USDT), with a face value of 0.01 BTC and a contract muultiplier of 1. The forward contract corresponding to the position ``long 1 BTC-USDT-250627 future'', has the following payoff at maturity $T$:
+
+\begin{equation}
+\text{Value}_T = 0.01\times(S^{(U)}_T - F^{(U)})   \quad\text{(in USDT)}
+\end{equation}
+
+where $T$ is 2025-06-27, and $F^{(U)}$ is the futures price at inception. Futures prices are quoted as a value of the BTCUSDT index.
+
+Analogous futures exist for ETHUSD and ETHUSDT.\cite{okx_futures}.
+
+%-----------------------------------------------
+\subsection{OKEX Options}
+
+OKX options are European style and settled in BTC — not into futures or stablecoins. The multiplier is 0.01. The underlying index is BTCUSD. The payout of one contract call BTC-USD-250627-80000-C option is
+
+\begin{align}
+\text{Value}_T &=  0.01\times\frac{\max\{0, S_T - K\}}{S_T} \quad\text{(in BTC)}\\
+\text{Value}_T &=  0.01\times\max\{0, S_T - K\} \quad\text{  (in USD, theoretically)}\\
+\text{Value}_T &=  0.01\times\max\{0, S_T - K\} \times U_T \quad\text{  (in USDT, after the sale of the BTC received)}\\
+\end{align}
+
+where $K=80000$ is the strike price, and $T$ is 2025-06-27 and $U_T$ is the USDUSDT exchange rate at maturity. The actual payout is in BTC, but in the put-call-parity arbitrage path, a BTC-USDT conversion will be necessary. If you are long one such call option, the premium you pay at inception is $0.01 \times c_t$ (in BTC), which defines the scaling of $c_t$. The put option is analogous in the usual way.
+
+Option premia are quoted in BTC. Analogous options exist for ETHUSD and ETHUSDT.\citet{okx_options}.
+
+%-----------------------------------------------
+\subsection{Put-Call Parity}
+
+From here on we assume the $U_T=1 \pm \sigma_U\%$, $\sigma_U\approx0.001\%$ \citet{usd_vs_usdt}. With this assumption, we can write down the put-call parity relationship between OKX options and the OKX USDT-margined futures with matching strikes and expirations:
+
+\begin{equation}
+(c_t - p_t)\times S_t = (F^{(U)}_t - K)\exp\left(-r(T-t)\right)
+\end{equation}
+
+Note the conversion of the option premia from BTC to USD on the left-hand side. $r$ is the USD interest rate over the period $[t,T]$. Also, note that we did not need the ''dividend yield'' for BTC, because the futures price is available.
+
+
+%-----------------------------------------------
+\subsection{Measuring PCP breaking in the data}
+
+In \citet{pcpb_frl1} we described the \textit{forward} and \textit{backward} arbitrage paths, and their depencence on various cost components. Here we adapt the definitions to the OKX crypto-derivatives market. The dominant cost component in \citet{pcpb_frl1} was the bid-ask spread of the options contracts. We therefore focus on those, with an approximate commission of $???\%$ charged on the notional of options, futures, or spot trades.
+
+We'll compute PCP breaking in units of USDT.
+
+For the \textit{forward} path, we sell the call for $c_t^\text{bid}$ BTC, then sell the BTC for $S_t^\text{bid}$ USDT, buy the BTC for $S_t^\text{ask}$ USDT, buy put for $p_t^\text{ask}$ BTC, and long the future at $F^{(U),\text{ask}}_t$. The strike is given in the USD-denominated index, so that has to be ''sold`` at $U_t^\text{bid}$.
+
+For a transaction size of 1 contract , the profit of the forward path is given by
+
+\begin{equation}
+    \text{Profit}_\text{forward} = \left[ c_t^\text{bid}\times S_t^\text{bid} - p_t^\text{ask}\times S_t^\text{ask} - (F^{(U),\text{ask}}_t - K)\exp\left(-r(T-t)\right) U_t^\text{bid} - \text{comm} \right] \times 0.01
+\end{equation}
+
+a commission rate of 30 bps on the notional of each trade would give us
+
+\begin{equation}
+\text{comm} = 0.003 \quad \text{BTC} \quad = \quad 0.003 \times S_t^\text{bid} \quad \text{USDT}
+\end{equation}
+
+
+
+
+%-----------------------------------------------
+% Appendix
+%-----------------------------------------------
+\section{Appendix}
+
+\subsection{ Call Parity for Foreign Currency Options}
+
+Forward price of foreign currency: $F_{t,T} = S_t \exp\left((r - r_{BTC})(T-t)\right)$, where $r$ is the domestic interest rate (USD), and $r_{BTC}$ is the foreign interest rate (BTC). The put-call parity for foreign currency options is
+\begin{equation}
+c_t - p_t = S_t \exp\left(-r_{BTC}(T-t)\right) - K \exp\left(-r(T-t)\right)
+\end{equation}
+Rearranging, we have
+\begin{equation}(c_t - p_t) = (F_{t,T} - K)\exp\left(-r(T-t)\right)
+\end{equation}\citet{Hull}
+
+%-----------------------------------------------
+% Bibliography
+%-----------------------------------------------
+\begin{thebibliography}{99}
+
+\bibitem[OKX(2024a)]{okx_options}
+OKX.
+\newblock 2024a.
+\newblock \textit{OKX Options Introduction}.
+\newblock Retrieved from
+\url{https://www.okx.com/en-eu/help/i-okx-options-introduction\#2-okx-options-contract-specification}.
+
+\bibitem[OKX(2024b)]{okx_futures}
+OKX.
+\newblock 2024b.
+\newblock \textit{OKX Futures Introduction}.
+\newblock Retrieved from
+\url{https://www.okx.com/en-eu/help/i-future-contracts}.
+
+\bibitem[Binance(2024)]{usd_vs_usdt}
+Binance.
+\newblock 2024.
+\newblock \textit{USD vs.\ USDT Price Comparison}.
+\newblock Retrieved from
+\url{https://www.binance.com/en/price/tether}.
+
+\bibitem[Hull(2017)]{Hull}
+Hull, J.~C.
+\newblock 2017.
+\newblock \textit{Options, Futures, and Other Derivatives}.
+\newblock 10th ed.
+\newblock Pearson.
+
+\bibitem[Author(s)(Year)]{pcpb_frl1}
+Author(s).
+\newblock Year.
+\newblock \textit{Title of the Paper}.
+\newblock Journal Name, volume(issue), pages.
+
+\end{thebibliography}
+
+
+\end{document}

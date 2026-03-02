@@ -1,0 +1,1017 @@
+\documentclass[12pt]{article}
+\usepackage{graphicx}
+% TEMP editing mode: disable bibliography/citation processing while drafting
+%\usepackage{natbib}
+%\bibliographystyle{agsm}
+\usepackage{xparse}
+\RenewDocumentCommand{\cite}{o m}{}
+\NewDocumentCommand{\citep}{o o m}{}
+\NewDocumentCommand{\citet}{o o m}{}
+\NewDocumentCommand{\citeauthor}{o m}{}
+\NewDocumentCommand{\citeyear}{o m}{}
+\AtBeginDocument{%
+    \RenewDocumentCommand{\ref}{m}{}%
+    \RenewDocumentCommand{\pageref}{m}{}%
+    \RenewDocumentCommand{\eqref}{m}{}%
+}
+%\PassOptionsToPackage{hyphens}{xurl}\usepackage{hyperref}
+
+\usepackage{outlines}
+\usepackage{tabularx}
+\usepackage[table]{xcolor}
+\usepackage{colortbl}
+\usepackage{tablestyles}
+\usepackage{mathtools}
+\usepackage{booktabs}     % szebb vonalak
+\usepackage{array}        % p{...} és oszlopbeállítások
+\usepackage{ragged2e}     % szebb, „ragged right” tördeléshez
+
+%\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+%\usepackage{cite}
+%\usepackage[round,authoryear]{natbib}
+%\usepackage{graphicx}
+
+\usepackage{hyperref}
+\hypersetup{
+ % colorlinks=true,
+ % citecolor=blue,
+  linkcolor=black,
+  urlcolor=blue
+}
+
+\usepackage{hyperref}
+
+%\setlength{\parindent}{0pt}
+%\setlength{\parskip}{12pt}
+
+\usepackage{booktabs}
+\usepackage{lmodern}
+\usepackage[nopatch=footnote]{microtype}
+\usepackage{pdflscape}
+
+\usepackage{newtxtext,newtxmath}
+\usepackage[a4paper, margin=2.5cm]{geometry}
+\usepackage{setspace}
+\doublespacing
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+% 1st-level heading (bold)
+\usepackage{sectsty}
+\sectionfont{\bfseries\large}
+
+% 2nd-level heading (bold italic)
+\subsectionfont{\bfseries\itshape\normalsize}
+
+% 3rd-level heading (italic)
+\subsubsectionfont{\itshape\normalsize}
+
+% 4th-level heading (bold italics, inline)
+\newcommand{\fourthlevelheading}[1]{%
+  \vspace{1em}
+  \noindent\textbf{\textit{#1.}}\ } % full stop at the end
+
+% 5th-level heading (italics, inline)
+\newcommand{\fifthlevelheading}[1]{%
+  \vspace{1em}
+  \noindent\textit{#1.}\ }
+
+\begin{document}
+
+\title{\textbf{Absolute Market Unfairness - Measuring Market Inefficiency in Cryptocurrency Markets}}
+
+\author{Balázs Králik\footnote{Corresponding Author. Assistant Professor at Corvinus University of Budapest, Institute of Finance, Fővám square 8. Budapest, Hungary, 1093. E-mail: balazs.kralik@uni-corvinus.hu.}, Nóra Felföldi-Szűcs\footnote{Associate Professor at Corvinus University of Budapest, Institute of Finance.}, Tamás Rutai\footnote{Student at Corvinus University of Budapest.}, Kata Váradi\footnote{Associate Professor at Corvinus University of Budapest, Institute of Finance.}}
+\date{}
+
+\maketitle
+
+% Quantitative finance: Your paper should be compiled in the following order: title page; abstract; keywords; main text introduction, materials and methods, results, discussion; acknowledgments; declaration of interest statement; references; appendices (as appropriate); table(s) with caption(s) (on individual pages); figures; figure captions (as a list).
+
+%A typical paper for this journal should be NO MORE THAN 35 PAGES!!!!!!!! inclusive of references and footnotes.
+
+\begin{abstract}
+
+This paper introduces the concept of \textit{Absolute Market Unfairness} (\textit{AMU}), quantifying pure arbitrage profits obtainable by market makers in any option market, utilizing the put-call parity relationship. This paper primarily focuses on market efficiency through the no-arbitrage pricing perspective. The results are completely model-free, do not depend on any previous assumptions related to pricing, and represent arbitrage profits over reasonable compensation for liquidity risk and selection bias. We compare our results on different crypto trading platforms, and different cryptocurrencies on high-frequency data in case of \textcolor{red}{inverse and perpetual derivative???} assets. \textcolor{red}{...Our results show that...} The AMU measure could be used to evaluate the investor-friendliness of options markets for regulatory purposes. As a single figure, AMU is easy to interpret and be compared between different markets. \textcolor{red}{azt kéne kihangsúlyozni, hogy bemutatjuk a PCP-t a sima opciók és sima quantó eseten túl inverse, és inverse quantó esetekben. Majd adatokon az inverse??? quantó??? esetben vizsgáljuk meg a breakinget... További kutatások témája majd az inverse quantó??? esetében is bemutatni. Melyiket is vizsgáljuk most pontosan???}
+
+
+% az abstract 200 szó lehet!
+
+\medskip
+
+\textbf{Keywords:} cryptocurrency, put-call parity, market efficiency, market maker, bid-ask spread, inverse derivatives
+
+\medskip
+
+\textbf{JEL classification:} G12, G14, G23
+
+\end{abstract}
+
+\section{Introduction}
+
+The rapidly expanding landscape of crypto trading platforms and exchanges—both in terms of their number and traded volume—offers investors a highly heterogeneous array of opportunities. Beyond cryptocurrencies as underlying assets, market participants trade a wide range of derivative products even compounded ones, or including instruments in which the underlying is itself a derivative. Although there is a large body of literature on the consistent pricing of typical derivatives in mature markets and asset classes (e.g. \cite{BlackScholes1973, sharma2024review}), relatively little comparable research has been conducted on crypto exchanges (e.g., \cite{alexander2023crypto, lucic2024valuation}. This is notable given that applying well-documented research questions from mature markets to these emerging asset classes has always been a natural and promising avenue of inquiry. One reason for this research gap may be that the set of available derivative products differs substantially between platforms, resulting in a highly fragmented market structure. Although cryptocurrency futures markets tend to be liquid, in crypto options markets, market makers typically quote a substantially wider variety of contract types, strikes, and maturities than those ultimately traded by investors.
+
+In this paper, where we restrict our analysis to the liquid price range where actual trading takes place, we compare the market maker quoting practices of different cryptocurrency derivatives platforms within the framework of market efficiency. Within the broader context of market efficiency, we evaluate quoted option prices from the perspective of no-arbitrage pricing, based on the put–call parity (hereinafter: PCP) relationship.
+
+Our main objective is to introduce a new efficiency measure, the \textit{Absolute Market Unfairness} (hereinafter: \textit{AMU}), which quantifies the risk-free arbitrage profit available to market makers arising from their quoting practices. The \textit{AMU} ranks trading platforms according to the additional costs that uninformed investors incur when entering the market at bid–ask prices that deviate from the arbitrage-free benchmark. This cost is incurred in addition to trading fees or costs explained by illiquidity. We focus our analysis on cryptocurrency markets by examining the pricing of options on different cryptocurrencies (e.g., Ethereum (ETHUSDT) and Bitcoin (BTCUSDT)) traded across platforms such as Binance, OKX, and Deribit.
+%NEM AZ VAN, HOGY BALÁZS GONDOLATAI ALAPJÁN EZ MÁR RÉGEN NEM AMU, HANEM INKÁB RMU, RELATIVE MARKET UNFAIRNESS? AZT BESZÉLTÜK, HOGY AZ ABSZOLÚT ÉRTÉKE, MAGA A SZÁM NEM BÍR JELENTÉSSEL?
+%CRYPTODERIVATIVE MARKETS ARE INCOMPLETE - NOT TRADED LU, ezt vhol még bele kell írnom. .(Nóri)
+The literary novelty of our paper is as follows. \textcolor{red}{First, we provide a concise overview of current platforms, their product offerings, structural characteristics, and trading volumes. LEHET EZT MOST A KONFERENCIA BEADÁSI NEM TUDJUK MEGCSINÁLNI, DE A CIKKHEZ MAJD KELL...} Second, a theoretical survey is presented to help readers understand the key features of the products described in the market overview. Third, we demonstrate how cross-market derivative pricing parity relations (such as put–call parity) can be adapted—after appropriate modifications—to the selected products. Fourth, we examine how put–call parity manifests under the quoting practices of different exchanges and product types. Fifth, we introduce the Average Market Unfairness (\textit{AMU}) measure as a relative metric for comparing the efficiency and consistency of pricing across different trading platforms and across different points of time. As the cryptocurrency markets create a huge challenge for regulators and are the focus of intense academic debate, our research also contributes to the field of market regulation, as \textit{AMU} quantifies the inefficiency of quoted prices. The interpretation of this single figure is rather intuitive: it measures the average profit rate a market maker can generate in a risk-free manner purely based on inefficient pricing. The presence of these risk-free profit opportunities shows a lack of competition among market makers.
+
+According to the Efficient Market Hypothesis (EMH) of \citep{fama1970efficient}, one expects that the prices of traded financial assets reflect all information and no market player can generate excess returns even if they have a special access to information.  Research related to the efficiency of crypto markets at first sight show contradictory results (\citep{urquhart2016inefficiency}, \citep{le2020efficiency}, \citep{kristoufek2018bitcoin}, \citep{nan2019market}, \citep{kochling2019does}, \citep{vidal2019weak}, \citep{wei2018liquidity}, \citep{noda2021evolution}) but most of them agree on that that there is an evolution of efficiency over time (\citep{urquhart2016inefficiency}, \citep{le2020efficiency}, \citep{kochling2019does}, \citep{vidal2019weak}, \citep{wei2018liquidity}).
+
+A special topic within market efficiency is the area of no-arbitrage pricing, as the pricing of derivative assets on financial markets is based on the principles of no-arbitrage, which assumes efficient markets. A key implication of these principles is that certain relationships between related financial instruments must hold to prevent the possibility of risk‑free profit. One of the most important no‑arbitrage relationships is the put–call parity, which defines the theoretical link between European call and put options written on the same underlying asset and that underlying asset itself, or equivalently, between the call and put option and a forward contract on the same underlying. Under ideal conditions — e.g., frictionless trading, perfect liquidity, and competitive market making — PCP ensures that risk‑free profit cannot be generated simply by trading with the options, the underlying asset, or the forward contract \citep{klemkosky1979put}. The idea of testing put-call parity (PCP) and market efficiency is not a recent one (e.g. \citep{klemkosky1979put}, \citep{kamara1995daily}, \citep{el1998put}, \citep{cremers2010deviations}), however it has been tested or analyzed on cryptocurrency markets only recently by \cite{alexander2023arbitrage, zhou2023checking, felfoldi2024put} and \cite{johnson2022arbitrage}.  In general, results published from the 1970s to nowadays show that considering only options at mid-price or last traded price, there is a significant frequency of PCP violations on the investigated financial markets. Once the models rely on higher frequency data \citep{wagner1996factors}, \citep{el1998put}, incorporate transaction costs \citep{nisbet1992put} and the bid-ask spread, and synchronise data by matching the prices of derivatives and the underlying to one another, only a minor part of the deviations from PCP persist \citep{felfoldi2024put}.
+
+%In traditional, mature option markets, deviations from PCP are typically small and short‑lived due the liquid market, and to intense arbitrage competition \citep{cremers2010deviations}. In contrast, recent empirical studies show that in cryptocurrency derivatives markets arbitrage opportunities exists \citep{alexander2023arbitrage}, and also persistent and significant PCP violations can be found, even after controlling for bid‑ask spreads, funding costs, and trading expenses \citep{felfoldi2024put}.
+
+%The cryptocurrency markets are an emerging segments of financial markets, and have shown extreme development over the last years. They represent a total traded volume per day of 50 billion USD, and the total market cap reached the 1 trillion USD in November, 2022. These figures are still lower than those of classical instruments: the daily FX volume for USD is  2.2 trillion, the global foreign exchange markets are 6.6 trillion USD. In the same period, the S\&P Index is traded at a daily volume of 2.4 trillion USD. As the crypto markets are catching up in terms of volume, they have drawn the attention of regulators as well. Due to some of their special characteristics they five rise to an emerging field of research as well. %\textbf{FORRÁS KÉNE AZ ADATOKHOZ}
+
+Central to our study of the pricing inefficiency is the fair value of the bid-ask spread. The bid-ask spread is a measure of market liquidity, and in the last decades several papers have been published that were focusing on finding the factors that can effect its size - like adverse selection, inventory cost or order processing cost \citep{foucault2013market} -, or to explain the price setting behavior of market makers e.g. \citep{glosten1985bid}, \citep{brunnermeier2009market}, \citep{ding1999determinants}.  In this paper we go further we show  that a certain portion of the bid-ask spread is just purely risk-free profit of the market makers. The aim of our research is to shed light on how mature the crypto options market is by studying the incidence of this risk-free profit using PCP arbitrage arguments. This kind of result has never been reported in any other option market.
+
+Finally, from the viewpoint of our research question, the different crypto option contract designs are important. \cite{alexander2023crypto} gives a summary of these contracts, as crypto exchanges differ fundamentally in contract design. The authors distinguish inverse options (e.g., Deribit) where collateral and payoff are defined in cryptocurrency; direct options, where crypto–stablecoin pairs are exchanged; quanto options, a new type of currency-protected options; and inverse-quanto option. Their main contribution is to show that crypto options create market incompleteness due to payoff currency mismatch, collateral denomination, embedded FX exposure and inability to perfectly hedge all risks. Their paper provides the first rigorous mathematical framework for pricing and hedging the main types of crypto exchange-traded options—especially inverse, direct, and quanto options—within a Black–Scholes setting. Their results create a strong theoretical background for our research: since crypto derivative markets are heterogeneous and fragmented, original pricing relations cannot be naïvely ported from traditional markets, PCP must be adjusted for contract specification.
+
+The structure of the papers as follows. In chapter 2 we provide an overview of different platforms from the viewpoint of traded derivative assets, and we also show the descriptive statistics of those assets which will be in the focus of our research. Chapter 3 presents the methodology of defining the put-call parity in case of different option setting: standard options, quanto options, inverse options; and inverse quanto options. In chapter 4 we show our results... Chapter 5 discussion, Chapter 6 conclusion...
+
+
+
+%Based on the literature, we can assume that refining the applied methodology and smoothing data properly, PCP holds or -- at least -- violations are not tradable in mature markets. But is the crypto options market mature? As \citep{kamara1995daily} show, markets go through a learning process in which PCP breaking might be present initially.
+
+\section{Dataset}
+
+\subsection{Cryptocurrency platforms}
+
+Itt kéne leírni, hogy a Tardis milyen adatokat tartalmaz. SZámos crypto tőzsde: Binance, Deribit, OKX,... Hol milyen termékek érhetőek el: inverse option, futures, perpetual futures, spot termékek... Kiemelni, hogy mi melyikekre koncentráltunk... OKX quantó, Deribit...
+
+%Exchanges: BitMEX, Deribit, Binance, FTX, OKX, Huobi, Bitfinex, Coinbase, Kraken, Bitstamp, Gemini, Poloniex, Bybit, dYdX, Upbit, Phemex, Gate.io, OKCoin, bitFlyer, HiBTC forrás: https://docs.tardis.dev/faq/data
+
+
+\subsection{Data description}
+
+The data used in this paper is sourced from Tardis, a comprehensive provider of high-frequency financial data. Tardis offers granular market data across a wide range of cryptocurrency exchanges, including but not limited to Binance, Deribit, and OKX. The dataset encompasses various types of derivative products such as standard and inverse futures and options. We are able to arrange these data to study mathematically rigorous put-call parity relationships. Approximate PCP relationships also exist which involve perpetual futures and spot trading, but in this paper we focus on expiration futures and options.
+
+The current paper is based on the OKEX data from Tardis, for approximately 1 year from the beginning of 2025 to the end of february 2026. The table \ref{fig:summary_df} is a summary of how many put-call pairs we have been able to study.
+
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.9\textwidth]{summary_df_display.png}
+\caption{Summary statistics of OKX put-call pairs: number of contracts, daily average volume, and liquidity measures.}
+\label{fig:summary_df}
+\end{figure}
+
+
+
+\section{Methodology}
+
+Inverse options... \citep{alexander2023crypto}, \citep{bouchouev1997inverse}, \citep{lucic2024valuation}
+% KATA, EZEK MÁR VANNAK VHOL? VAGY TEGYEM BELE MÉG ÉN? (Nóri)
+The article is based on arbitrage pricing; specifically, the PCP defines the relationship between option and spot market prices. But the derivative products traded on crypto platforms go far more beyond standard options on standard underlying. Therefore, as a first step in the methodological chapter, we collect the most frequent type contracts traded on platforms, and we provide a general introduction to the underlyings and the option contracts in general, without platform specific details. Then, we define the modified versions of PCP equations for all product types. These theoretical results of our paper are generally valid PCP equations. Third, we add the transaction fees and all platform specific modifications to the PCP constraints, where the needed adjustments vary according to the given platform, and the validity of these PCP constraints is restricted to the given platform.
+
+\subsection{Underlying products and options on crypto derivative markets}
+% LU: sima btc vagy index v index átlag, sima future, inerse future, perpetuail future
+%derivativ: standard option, inverse option, quanto
+In the universe of crypto derivatives, the most commonly used underlyings are the spot version of the given cryptocurrency, and the cryptocurrency index often incorporating prices of different platforms over the given period of time (for later, see \cite{alexander2023crypto}). The valuation of options become more challanging, when even the underlying is a derivative contract. One can observe linear (standard), inverse and perpetual futures serving as underlying for crypto options.
+%szerintem itt jobb a forward-dal kezdeni (Nóri)
+In the case of standard long forward contracts, the investor enters into an agreement at time $t=0$ to purchase the quantity of the underlying asset specified in the contract at time $t=T$ (the expiry date) at the forward price $F_0$. At the moment of expiry, when the investor buys at the forward price $F_0$, the value of the position is:
+
+    \begin{equation}
+    \label{fut}
+    (S_T-F_0)
+    \end{equation}
+
+However, for futures, those are exchange-traded contracts, profits and losses do not need to be realized at expiry, as mark-to-market settlement is continuous, meaning that there is a settlement at the end of each trading day or, in the case of cryptocurrency futures, usually at the end of every 8 hours, as the trading on these exchanges are often 24/7.
+
+
+The value of a futures contract $f_t$ at an arbitrary time $t$, and at maturity $T$ within the interval $(0, T)$ is:
+
+    \begin{equation}\label{futvalue}
+    f_t = (F_t - F_0), \quad \text{final payoff: } F_T = (F_T - F_0)
+    \end{equation}
+
+, and will be added to or deducted from the variable margin of the investor.
+
+The inverse futures keep the well-defined expiry date of standard futures, but changes the denomination of the contract. While the contract itself is quoted in USD, the margin, the profit and loss, and the settlement are defined in the underlying asset (e.g. cryptocurrency like Bitcoin) which makes the original linear value and final payoff shown in Equation \ref{futvalue} to become nonlinear according to:
+
+
+    \begin{equation}\label{invfutvalue}
+    f_t = \left(\frac{1}{F_0} - \frac{1}{F_t}\right), \quad
+    \text{final payoff: } f_T=\left(\frac{1}{F_0} - \frac{1}{F_T}\right)
+    \end{equation}.
+
+Trading platforms offer not only inverse futures but also perpetual futures, which have gained importance recently, but are not part of our research since PCP constraints can not be adapted to them in a closed format. In contrast to the previous products, a perpetual future is a futures-like contract starting in $t=0$ but with no expiration date ($T$) which means that it never settles automatically, and investors trade it continuously like in the case of a spot instrument. The expiry date and the convergence-to-spot-at-expiry is replaced by a funding rate mechanism to anchor the futures price to the spot price. At each funding interval (e.g. every 8 hours), if $F_1>S_1$, investors with long futures position pay $(F_1-S_1)$ to the short investors, or short position investors pay $(S_1-F_1)$ if $F_1<S_1$. For further insight into perpetual futures, see \cite{he2022fundamentals} who provide both a theoretical framework for the pricing and an empirical analysis based on a constant arbitrage strategy demonstrating that real-world perpetual futures often trade at significant deviations from these fundamentals in cryptocurrency markets. While \cite{ackerer2025perpetual} offers a general no-arbitrage pricing framework, it is applicable to both linear and inverse perpetual futures.
+
+Option contracts may differ not only by their underlying (LU), but also by their payoff structure or their payoff currency. As \cite{alexander2023crypto} provides a step-by-step guide for understanding inverse, linear, and inverse quanto options, we simply refer to their summarised results in \ref{options}.
+%SZERINTEM NEM JÓL HIVATKOZIK. ÉN AZT SZERETTEM VOLNA, HOGY TABLE 1-RE MUTASSON EZ A MONDAT. PLUSZ VKI LÉCCI HELYEZZE EL a táblázatot ide a szövegben RENDESEN, nekem nem sikerül :( KÖSZI!(Nóri)
+\begin{landscape}
+
+
+%\footnotesize
+%\scriptsize
+%\setlength{\tabcolsep}{4pt}
+%\begin{tabularx}{\textwidth}{|p{0.3cm}|p{1.5cm}|p{1.5cm}|p{2cm}|X|}
+%\hline
+%\toprule
+%\textbf{Nr} & \textbf{Country} & \textbf{Authors} & \textbf{Title} & \textbf{Conclusion related to gender pay gap} \\
+%\hline
+
+\begin{table}[!htbp]\label{options}
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{|p{1.5cm}|p{2cm}|p{1.5cm}|p{2cm}|X|p{1.5cm}|}
+\hline
+\textbf{Option Type} & \textbf{Underlying Product} & \textbf{LU Formula} &
+\textbf{LU Currency} & \textbf{LC Payoff at $T$} & \textbf{LC Payoff Currency} \\
+\hline
+
+Standard Option
+& Spot BTC/USD
+& $S_T$
+& USD per BTC
+& $\max(S_T - K,0)$
+& USD \\
+\hline
+
+Inverse Option
+& Inverse BTC/USD Contract
+& $\displaystyle \frac{1}{S_T}$
+& BTC per USD
+& $\displaystyle \max\!\left(\frac{1}{S_T}-\frac{1}{K},0\right)$
+& BTC \\
+\hline
+
+Standard Quanto Option
+& BTC/USD settled in BTC
+& $S_T$
+& USD per BTC
+& $\displaystyle \frac{1}{S_0}\max(S_T-K,0)$
+& BTC \\
+\hline
+
+Inverse Quanto Option
+& Inverse BTC/USD settled in USD
+& $\displaystyle \frac{1}{S_T}$
+& BTC per USD
+& $\displaystyle S_0 \max\!\left(\frac{1}{S_T}-\frac{1}{K},0\right)$
+& USD \\
+\hline
+
+\end{tabularx}
+\caption{Comparison of Standard, Inverse, and Quanto Crypto Options (In the table, the USD is seen as Domestic Currency and BTC represents the Cryptocurrency.)}
+\end{table}
+
+\end{landscape}
+
+\subsection{Adjusted Put-Call-Parities for Commonly Traded Crypto Options}
+As a second step, we need to adapt the textbook version of PCP to our specific derivative position, since that equation will serve as the central theory for our paper. As part of efficient markets, one needs parities, such as put-call, forward-option, box spread, or futures-spot parities, to ensure consistent prices across markets, as applications of no-arbitrage pricing principles. There are several other consequences of no-arbitrage principles as well; consistent prices should be quoted across instruments, maturities, strike prices, and synthetic and replicated positions.
+Originally, \textit{put–call parity} defines the theoretical relationship between European call and put options on the same underlying asset and that asset itself, or, equivalently, between the call and put options and a forward contract on the same underlying. In Equation \ref{pcp}, $c$ and $p$ denote the option prices for a European call and put option, while $S$ represents the price of the underlying product, $K$ stands for the strike price, and $r$ is the risk-free rate.
+
+    \begin{equation}\label{pcp}
+    %\begin{align}
+    C-P=S_0-Ke^{-rT}
+    %\end{align}
+    \end{equation}
+
+The original format of the PCP assumes that the underlying asset pays no income before the $T$ expiry date and usually treats it as a stock without dividends before $T$. Once the contract becomes more complex in the sense that the underlying is a derivative itself, even the PCP should be rewritten.
+Derivative parities (put–call parity, futures–options parity, etc.) in general do not depend on the spot asset per se, but rather on the payoff structure of the underlying and on the no-arbitrage replication, and thus do not depend on the option pricing model.
+
+\subsubsection{Adjustments in Put Call Parity for special underlying products}
+First, we provide a step-by-step guide for options on linear futures and futures as derivatives on special underlyings.
+
+When the underlying is a linear futures price $F$, the PCP still works since the futures require zero initial investment and the final payoff is linear in the underlying price:
+
+    \begin{equation}\label{pcpfut}
+    %\begin{align}
+    C-P=e^{-rT} (F_0-K)
+    %\end{align}
+    \end{equation}
+
+But as soon as the underlying is an inverse futures contract, the key assumption behind standard parity, namely the linearity and additivity, is broken. In this case, the payoff of the inverse future is non-linear in the underlying price and denominated in the underlying asset rather than in currency units. Any parity relationship must therefore be formulated under an alternative numéraire and expressed in transformed price variables. PCP must be reformulated relative to that numéraire, not in fiat terms, and discounting is calculated under a different martingale measure.
+For options on inverse futures, the natural numéraire is the underlying asset itself; terms will be quoted in BTC, and PCP uses the reciprocal price $1/F_t$. Therefore, in Equation\ref{pcpinv}, the $C$ and $P$ denote the BTC-denominated option premia, $\frac{1}{F_0}$ is the BTC value of the underlying inverse futures, and K is the strike price, while $\frac{1}{K}$ is its BTC-denominated value:
+
+    \begin{equation}\label{pcpinv}
+    %\begin{align}
+    C-P=(\frac{1}{F_0} - \frac{1}{K})
+    %\end{align}
+    \end{equation}
+
+, where the option and the underlying future share the same maturity $T$.
+In a real trading situation, the occurrence of bid-ask spreads breaks the Equation \ref{pcp} into Equation \ref{fwdleg} (forward PCP breaking) and Equation \ref{backleg} (backward PCP breaking).
+
+    \begin{equation}\label{fwdleg}
+    %\begin{align}
+    Ke^{-rT}-S_{ask}+C_{bid}-P_{ask} \geq 0
+    %\end{align}
+    \end{equation}
+
+\hfill
+
+    \begin{equation}\label{backleg}
+    %\begin{align}
+    - Ke^{-rT}+S_{bid}-C_{ask}+P_{bid} \geq 0
+    %\end{align}
+    \end{equation}
+
+\hfill
+
+Similarly, PCP for options on inverse futures described in Equation \ref{pcpinv} split into Equation \ref{fwdleg_inv} and Equation \ref{backleg_inv}:
+
+    \begin{equation}\label{fwdleg_inv}
+    %\begin{aligned}
+     \frac{1}{K}-\frac{1}{F_{ask}}-C_{bid}+P_{ask}\ge 0
+    %\end{aligned}
+    \end{equation}
+
+    \begin{equation}\label{backleg_inv}
+    %\begin{aligned}
+    -\frac{1}{K}+\frac{1}{F_{bid}}+C_{ask}-P_{bid}\ge 0
+    %\end{aligned}
+    \end{equation}
+
+%TALÁN EZ INNENTŐL MEHET BALÁZSÉK RÉSZÉBE, DE ELŐTTE LÉVŐ MARADHAT? (Nóri)
+%Considering trading fees, borrowing, and lending rates, we need further modifications on the PCP constraints. Only for the inverse future options, the full expression for the forward arbitrage resuis:
+
+ %   \begin{equation}\label{fwdleg_inv_full}
+    %\begin{aligned}
+  %  \frac{1}{K}e^{-r_L T}
+   % -\frac{1}{F_{ask}(1+\phi_F)}
+    %- C_{bid}(1-\phi_C)
+    %+ P_{ask}(1+\phi_P)
+    %\ge 0
+    %\end{aligned}
+    %\end{equation}
+
+    %\begin{equation}\label{backleg_inv_full}
+    %\begin{aligned}
+    %-\frac{1}{K}e^{-r_B T}
+    %+\frac{1}{F_{bid}(1-\phi_F)}
+    %+ C_{ask}(1+\phi_C)
+    %- P_{bid}(1-\phi_P)
+    %\ge 0
+    %\end{aligned}
+    %\end{equation}
+
+%, where $r_B$ and $r_L$ are the borrowing and lending rates in BTC and $\phi_C$, $\phi_P$ and $\phi_F$ are the call, put and futures fees respectively. Equations \ref{fwdleg_inv_full}  and \ref{backleg_inv_full} abstract from margin constraints and assume proportional transaction costs.
+
+\subsubsection{Adjustments in PCP for special option payoffs}
+
+Not only the type of underlying, but also the modified pay-off structure compared to the standard option contract requires adjustments in PCP equations. As \cite{alexander2023crypto} already published a detailed overview of inverse, standard and inverse quanto options including the pay-off functions and the formulae for pay-offs, we immediately present the adjusted PCP parities based on their results in XXXX?? %HOGY A FENÉBE KELL EZT AZ ALÁBBI VACKOT BEHIVATKOZNI? SORRY, NEM SIKERÜL.(Nóri)
+
+\begin{center}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Option Type} & \textbf{Put--Call Parity} \\
+\midrule
+Standard (vanilla)
+& $C - P = S_0 - K e^{-rT}$ \\[4pt]
+Inverse
+& $C^{\mathrm{inv}} - P^{\mathrm{inv}} = \dfrac{1}{S_0} - K e^{-rT}$ \\[8pt]
+Standard quanto
+& $C^{Q} - P^{Q} = S_0 e^{-q^{Q}T} - K e^{-r_dT}$,
+\qquad $q^{Q} = q + \rho\sigma_S\sigma_{FX}$ \\[8pt]
+Inverse quanto
+& $C^{\mathrm{invQ}} - P^{\mathrm{invQ}}
+ = \dfrac{1}{S_0} e^{-q_X^{Q}T} - K e^{-r_dT}$,
+\qquad $q_X^{Q} = q_X + \rho_{S,FX}\sigma_S\sigma_{FX}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+In the presence of quanto features or inverse (reciprocal) underlyings,
+The parity generalises but preserves the same structural form:
+\[
+C - P = \text{PV}(\text{effective underlying}) - K e^{-rT}.
+\]
+Inverse options simply have a different effective underlying:
+\[
+X_t = \frac{1}{S_t}.
+\]
+In this case, the parity is structurally identical to the vanilla case. Put--call parity is
+applied to $X$, not $S$ (see \ref{invoptpcp}), nothing else changes from a no-arbitrage perspective. As we have already performed the same transformation in \ref{invfutvalue} for inverse futures.
+
+\begin{equation}\label{invoptpcp}
+C^{\mathrm{inv}} - P^{\mathrm{inv}} = \frac{1}{S_0} - K e^{-rT}.
+\end{equation}
+
+%ITT HAGYTAM EGYELŐRE ABBA. KATA, JÓ LESZ ÍGY? HA IGEN, MEGYEK TOVÁBB EBBEN A STÍLUSBAN. (Nóri)
+In contrast, a standard quanto option
+
+has:
+\begin{itemize}
+    \item underlying denominated in a \emph{foreign} currency,
+    \item payoff delivered in a \emph{domestic} currency,
+    \item FX risk is removed via a quanto structure.
+\end{itemize}
+
+The key consequence: the drift of the foreign-denominated asset under the
+domestic measure contains the \emph{quanto adjustment}:
+\[
+q^{Q} = q + \rho \sigma_S \sigma_{FX}.
+\]
+
+This modification enters the domestic forward price of the underlying.
+
+\subsection*{Parity}
+\begin{equation}
+C^{Q} - P^{Q}
+= S_0 \, e^{-q^{Q}T} - K e^{-r_d T},
+\qquad q^{Q} = q + \rho \sigma_S \sigma_{FX}.
+\end{equation}
+
+\subsection*{Interpretation}
+The structure resembles the vanilla parity, but the quanto-adjusted dividend
+rate $q^{Q}$ replaces the standard yield $q$. The strike is discounted at the
+\emph{domestic} risk-free rate $r_d$.
+
+The quanto adjustment reflects the correlation between the underlying
+and the FX rate. A positive correlation increases the effective dividend
+yield and lowers the domestic forward price; a negative correlation does the opposite.
+
+\section*{4.\ Inverse Quanto Options}
+
+\subsection*{Core idea}
+Here the effective underlying is:
+\[
+X_t = \frac{1}{S_t}.
+\]
+The payoff is in domestic currency and FX risk is neutralized (quanto).
+Thus, a quanto adjustment still appears, but because the underlying is
+a reciprocal, the sign changes relative to the standard quanto case.
+
+\subsection*{Quanto-adjusted yield for the reciprocal}
+Let $q_X$ be the effective dividend rate of $X = 1/S$.
+Then the quanto-adjusted yield is:
+\[
+q_X^{Q} = q_X + \rho_{S,FX}\sigma_S\sigma_{FX}.
+\]
+
+\subsection*{Parity}
+\begin{equation}
+C^{\mathrm{invQ}} - P^{\mathrm{invQ}}
+= \frac{1}{S_0}
+ \, e^{-q_X^{Q} T}
+- K e^{-r_d T}.
+\end{equation}
+
+\subsection*{Interpretation}
+This is a direct analogue of the standard quanto parity, but with
+$1/S_0$ as the effective underlying. Because $1/S$ has opposite
+sensitivity to $S$, the quanto effect changes accordingly.
+
+\section{Results}
+
+\subsection*{AMU arbitrage paths}
+
+The mechanism for the theoretical arbitrage is as follows: The market maker observes that \textit{if} she joined the top of the market on the bid/ask of the put/call contract (these are the 4 arbitrage paths), then when filled a risk-free profit could be realized by completing the full arbitrage cycle. The \textit{fwd\_call} path corresponds to the forward direction, with the market maker joining the bid of the call leg. The \textit{bck\_put} path corresponds to the backward direction, with the market maker joining the bid of the put leg, and so on.
+
+
+From a market maker's perspective these are very weak opportuities, since in order to profit, another market participant must cross with the market maker's passive order. However, since keeping an order out has no cost associated with it, and often market makers a required to present a reasonable market for a substantial time and contract fraction, it makes sense to have such quotes out. In a well functioning market such opportunities would then disappear, since market makers have an incentive to improve the bid/ask prices in competition with each other.
+
+In the following we present AMU results in basis point units so that ETH and BTC results can be easily compared. AMU in bp is the average dollar AMU per observed put-call pair divided by the value of the underlying, accounting properly for the contract size.
+
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{okex_4_spreads.png}
+\caption{Distribution of the 4 versions of the AMU arbitrage on OKX. Both BTC and ETH are shown. Note that only the positive tail corresponds to actual tradable opportunities}
+\label{okex_4_spreads}
+\end{figure}
+
+In figure \ref{okex_4_spreads} we show the distribution of the 4 versions of the AMU arbitrage on OKX. Only the positive tail corresponds to actual tradable opportunities, while the negative tail corresponds to non-tradable situations. The peak around -30 bp shows that most of the time, quoting is NOT profitable as a path to risk-free profit via the PCP breaking relationship.
+
+
+\subsection*{The time evolution of the AMU arbitrage}
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{okex_amu_bps_by_date.png}
+\caption{Time evolution of AMU (in basis points) on OKX for BTC and ETH options}
+\label{okex_amu_by_date}
+\end{figure}
+
+In figure \ref{okex_amu_by_date} we show the time evolution of the AMU in OKEX. When superimposed with the BTCUSD spot value, it is notable how the AMU becomes much higher during times of market stress, namely times of sudden BTC price drops.
+
+The bottom pane of figure \ref{okex_amu_by_date} shows how often the AMU arbitrage actually sets up out of all times when we have valid put and call markets. The notable weekly structure of the number of ticks has to do with a data artifact pertaining to Fridays in the raw Tardis data.
+
+\subsection*{AMU by Time-to-Expiration}
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{okex_amu_bps_by_tte.png}
+\caption{AMU (in basis points) on OKX stratified by time-to-expiration (TTE) for BTC and ETH options}
+\label{okex_amu_by_tte}
+\end{figure}
+
+TTE refers to the time to expiration of the option pairs observed, measured in years. As shown in figure \ref{okex_amu_by_tte}, the AMU is worse for farther dated options. However, there are very few observations available for longer dated contracts, most of the data is for options expiring in two weeks or less.
+
+\subsection*{AMU by Relative Strike}
+
+Relative strike is the conventional measure $K/F$, where $K$ is the strike price and $F$ is the forward price of the underlying. Relative strike = 1 corresponds to a put-call pair where both contracts are at the money. For relative strike < 1, the call is in the money and the put is out of the money, while for relative strike > 1, the put is in the money and the call is out of the money. As shown in figure \ref{okex_amu_by_strike}, the AMU is worse for out-of-the-money options, and is best for at-the-money options. This is consistent with the fact that liquidity is usually the best for at-the-money options, and the worst for out-of-the-money options, which makes it more likely to observe PCP breaking.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{okex_amu_bps_by_rel_strike.png}
+\caption{AMU (in basis points) on OKX stratified by relative strike (moneyness) for BTC and ETH options}
+\label{okex_amu_by_strike}
+\end{figure}
+
+\section*{Unified Structure}
+
+Across all cases, put--call parity can be written as:
+\[
+C - P = \text{PV}\!\left(\text{effective underlying}\right)
+- K e^{-(\text{discount rate})T}.
+\]
+
+The differences between the four versions arise entirely from what the
+``effective underlying'' is and whether a quanto adjustment modifies its
+domestic-currency forward price.
+
+
+\section*{Final Remarks}
+
+\begin{itemize}
+    \item Put--call parity does not depend on the drift of the underlying under
+    the real-world measure. It is purely a no-arbitrage statement.
+    \item Quanto structures modify the domestic forward price because the change
+    of measure introduces correlation-dependent drift corrections.
+    \item Inverse structures modify the underlying itself, replacing $S$ by $1/S$.
+    \item Combining these features (inverse + quanto) yields inverse quanto parity.
+\end{itemize}
+
+
+\section*{Formulas (Standalone)}
+\paragraph{1.\ Standard (vanilla) options.}
+Underlying $S_t$; same payoff currency; no quanto/FX effect:
+\begin{equation}
+C - P = S_0 - K e^{-rT}.
+\end{equation}
+
+\paragraph{2.\ Inverse options.}
+Underlying $X_t = 1/S_t$; same payoff currency:
+\begin{equation}
+C^{\mathrm{inv}} - P^{\mathrm{inv}} = \frac{1}{S_0} - K e^{-rT}.
+\end{equation}
+
+\paragraph{3.\ Standard quanto options.}
+Underlying $S_t$ in foreign currency; payoff in domestic currency; FX risk neutralized via quanto.
+With domestic discounting rate $r_d$ and quanto-adjusted dividend yield $q^{Q} = q + \rho \sigma_S \sigma_{FX}$:
+\begin{equation}
+C^{Q} - P^{Q} = S_0 \, e^{-q^{Q}T} - K e^{-r_d T}.
+\end{equation}
+
+\paragraph{4.\ Inverse quanto options.}
+Underlying $X_t = 1/S_t$; payoff in domestic currency; FX risk neutralized via quanto.
+Let $q_X^{Q} = q_X + \rho_{S,FX}\sigma_S \sigma_{FX}$ denote the quanto-adjusted yield for the reciprocal underlying:
+\begin{equation}
+C^{\mathrm{invQ}} - P^{\mathrm{invQ}} = \frac{1}{S_0} \, e^{-q_X^{Q} T} - K e^{-r_d T}.
+\end{equation}
+
+\section*{Assumptions (Common)}
+\begin{itemize}
+  \item No arbitrage; frictionless markets; continuous compounding.
+  \item $r$ is the constant risk-free rate in the payoff currency (for quanto cases use $r_d$, the domestic rate).
+  \item $q$ is the continuous dividend (or convenience yield) of $S$; volatilities $\sigma_S$, $\sigma_{FX}$ are constant in Black--Scholes setups.
+  \item $\rho$ (or $\rho_{S,FX}$) denotes the instantaneous correlation between the underlying and the FX (for quanto cases).
+  \item For quanto cases, the FX risk is hedged/fixed so that the payoff is delivered in the domestic currency without FX uncertainty.
+\end{itemize}
+
+\section*{Notation}
+\begin{itemize}
+  \item $C, P$: call and put prices with maturity $T$ and strike $K$ (prices in the payoff currency).
+  \item $S_0$: spot price of the underlying asset at $t=0$.
+  \item $r$: risk-free rate in the payoff currency (standard/inverse cases).
+  \item $r_d$: domestic risk-free rate (quanto cases).
+  \item $q$: dividend (or yield) of $S$; $q^{Q} = q + \rho \sigma_S \sigma_{FX}$ (standard quanto adjustment).
+  \item $X = 1/S$: reciprocal (inverse) underlying; $q_X^{Q} = q_X + \rho_{S,FX}\sigma_S\sigma_{FX}$ (inverse quanto adjustment).
+\end{itemize}
+
+\section*{Remarks}
+\begin{itemize}
+  \item Put--call parity has the same structure across all cases:
+  \[
+    C - P = \text{PV}(\text{effective underlying}) - K e^{-\text{(discount rate)} \, T}.
+  \]
+  \item Quanto effects enter through a \emph{quanto-adjusted yield} in the present value of the effective underlying.
+  \item Inverse options simply replace $S$ by $1/S$ as the effective underlying; inverse quanto adds the corresponding quanto adjustment for $1/S$.
+\end{itemize}
+
+\textcolor{red}{IDÁIG TART AMIT A COPILOT ÍRT! EZ CSAK ÉRDEKESSÉG, ÉS ÉRDEMES LENNE FELDOGOLOZNI...}
+%-----------------------------------------------
+\subsection{Platform Specific Contracts and Put-Call Parities}
+
+\subsubsection{OKEX futures and options}
+
+For notation, we use $S_t$ to denote the BTCUSD index at time $t$, and $S^{(U)}_t$ the BTCUSDT index at time $t$. These index prices are determined as an average of multiple exchanges' settlement prices. $U_t$ is the USDUSDT exchange rate at time $t$, and superscripts $(U)$ denote quantities in related to the BTCUSDT index (as opposed to the BTCUSD index). In this market, the futures and options payouts depend on the value of $S_t$, which is not a traded price itself, but is a published value. It has therefore no bid-ask spread.
+
+%\subsubsection{OKEX Futures}
+
+For OKEX futures, we describe the crypto derivatives in a world where the numeraire is USDT, the stablecoin tied to the US dollar \citep{okx_futures}.
+
+%\subsubsection{Crypto-margined (BTCUSD) Futures}
+
+Crypto-margined BTCUSD futures are margined and settled in BTC, with a face value of 100 USD and a contract multiplier of 1. The forward contract corresponding to the position ``long 1 BTC-USD-250627 future'', has the following payoff at maturity $T$:
+
+    \begin{equation}
+    \text{Value}_T = 100\times(\frac{1}{F} - \frac{1}{S_T})   \quad\text{(in BTC)}
+    \end{equation}
+
+where $T$ is 2025-06-27, and $F$ is the futures price at inception. Futures prices are quoted as a value of the BTCUSD index.
+
+
+%\subsubsection{USDT-margined (BTCUSDT) Futures}
+
+USDT-margined BTCUSDT futures are settled and margined in stablecoin-margined (USDT), with a face value of 0.01 BTC and a contract multiplier of 1. The forward contract corresponding to the position ``long 1 BTC-USDT-250627 future'', has the following payoff at maturity $T$:
+
+    \begin{equation}
+    \text{Value}_T = 0.01\times(S^{(U)}_T - F^{(U)})   \quad\text{(in USDT)}
+    \end{equation}
+
+where $T$ is 2025-06-27, and $F^{(U)}$ is the futures price at inception. Futures prices are quoted as a value of the BTCUSDT index.
+
+Analogous futures exist for ETHUSD and ETHUSDT.\cite{okx_futures}.
+
+\subsubsection{OKEX Options}
+
+Regarding OKX options, the platform offers European-style options settled in BTC — not in futures or stablecoins \citep{okx_options}. The multiplier is 0.01. The underlying index is BTCUSD. The payout of one contract call BTC-USD-250627-80000-C option is
+
+    \begin{align}
+    \text{Value}_T &=  0.01\times\frac{\max\{0, S_T - K\}}{S_T} \quad\text{(in BTC)}\\
+    \text{Value}_T &=  0.01\times\max\{0, S_T - K\} \quad\text{  (in USD, theoretically)}\\
+    \text{Value}_T &=  0.01\times\max\{0, S_T - K\} \times U_T \quad\text{  (in USDT, after the sale of the BTC received)}\\
+    \end{align}
+
+where $K=80000$ is the strike price, and $T$ is 2025-06-27 and $U_T$ is the USDUSDT exchange rate at maturity. The actual payout is in BTC, but in the put-call-parity arbitrage path, a BTC-USDT conversion will be necessary. If you are long one such call option, the premium you pay at inception is $0.01 \times c_t$ (in BTC), which defines the scaling of $c_t$. The put option is analogous in the usual way.
+
+Option premia are quoted in BTC. Analogous options exist for ETHUSD and ETHUSDT.\citet{okx_options}.
+
+\subsubsection{Put-Call Parity in OKEX}
+
+From here on we assume the $U_T=1 \pm \sigma_U\%$, $\sigma_U\approx0.001\%$ \textcolor{red}{biztos, hogy a Binance kell nekünk?}\citet{usd_vs_usdt}. With this assumption, we can write down the put-call parity relationship between OKX options and the OKX USDT-margined futures with matching strikes and expirations:
+
+    \begin{equation} \label{okexpcp}
+    (c_t - p_t)\times S_t = (F^{(U)}_t - K)\exp\left(-r(T-t)\right)
+    \end{equation}
+
+Note the conversion of the option premia from BTC to USD on the left-hand side. The $r$ is the USD interest rate over the period $[t,T]$. Also, note that we did not need the ''dividend yield'' for BTC, because the futures price is available.
+As \ref{pcp} splits after considering bid-ask prices, \ref{okexpcp} behaves similarly as seen in \ref{okex_fwdleg} and \ref{okex_backleg}:
+
+\begin{equation}\label{okex_fwdleg}
+(F^{(U)}_t - K)e^{-r(T-t)}
+- (c_{ask,t} - p_{bid,t}) S_{ask,t}
+\;\geq\; 0
+\end{equation}
+
+\begin{equation}\label{okex_backleg}
+- (F^{(U)}_t - K)e^{-r(T-t)}
++ (c_{bid,t} - p_{ask,t}) S_{bid,t}
+\;\geq\; 0
+\end{equation}
+
+\subsection{A Measure of PCP breaking in the data}
+
+In \citet{felfoldi2024put} we described the \textit{forward} and \textit{backward} arbitrage paths, and their dependence on various cost components. The general concept was to define the forward and backward arbitrage profit as \ref{profitfwd} and \ref{profitback} when violating \ref{fwdleg} or \ref{backleg} type constraints for simple, textbook-version options.
+
+\begin{equation}\label{profitfwd}
+\text{Profit}^\text{Simple}_{\text{forward}}
+=
+S_{ask} - C_{bid} + P_{ask} - Ke^{-rT}
+\end{equation}
+
+\begin{equation}\label{profitback}
+\text{Profit}^\text{Simple}_{\text{backward}}
+=
+Ke^{-rT} - S_{bid} + C_{ask} - P_{bid}
+\end{equation}
+In this paper, we perform the same on the contracts of OKX crypto-derivatives market. The dominant cost component in \citet{felfoldi2024put} was the bid-ask spread of the options contracts. We therefore focus on those, with an approximate commission of \textcolor{red}{BALÁZS!  $???\%$} charged on the notional of options, futures, or spot trades.
+
+We'll compute PCP breaking in units of USDT.
+
+For the \textit{forward} path, we sell the call for $c_t^\text{bid}$ BTC, then sell the BTC for $S_t^\text{bid}$ USDT, buy the BTC for $S_t^\text{ask}$ USDT, buy put for $p_t^\text{ask}$ BTC, and long the future at $F^{(U),\text{ask}}_t$. The strike is given in the USD-denominated index, so that has to be ''sold`` at $U_t^\text{bid}$.
+%azóta sajnos elcsúsztak a képlet sorszámok, de szerintem látszik: A 29 ÉS 24 EGYSZERRE SZERINTEM NEM LEHET. VAGY A 29 VAGY A 24,25,26 ÁT KELL ÍRNI.
+%ILLETVE NEKEM A 22 STB EGYENLETEK UTÁN MEGLEPŐ A FUTURES-OS OPCIÓ FORMA, ELSŐ VERZIÓBAN SZERINTEM NE EZEN RUGÓZZUNK (Nóri)
+For a transaction size of 1 contract , the profit of the forward path is given by
+
+    \begin{equation}
+    \text{Profit}_\text{forward} = \left[ c_t^\text{bid}\times S_t^\text{bid} - p_t^\text{ask}\times S_t^\text{ask} - (F^{(U),\text{ask}}_t - K)\exp\left(-r(T-t)\right) U_t^\text{bid} - \text{comm} \right] \times 0.01
+    \end{equation}
+
+a commission rate of 30 bps on the notional of each trade would give us
+
+    \begin{equation}
+    \text{comm} = 0.003 \quad \text{BTC} \quad = \quad 0.003 \times S_t^\text{bid} \quad \text{USDT}
+    \end{equation}
+Finally, for a transaction size of 1 contract, the profit of the backward path is given by
+
+\begin{equation}
+\text{Profit}_\text{backward}
+=
+\left[
+p_t^{\text{bid}} S_t^{\text{bid}}
+-
+c_t^{\text{ask}} S_t^{\text{ask}}
++
+(F^{(U),\text{bid}}_t - K)e^{-r(T-t)} U_t^{\text{ask}}
+-
+\text{comm}
+\right]\times 0.01
+\end{equation}
+
+
+%\section{Data}
+
+%Tardis: What is the difference between futures and perpetual swaps contracts?
+
+%Futures contract is a contract that has expiry date (for example quarter ahead for quarterly futures). Futures contract price converges to spot price as the contract approaches expiration/settlement date.
+%After futures contract expires, exchange settles it and replaces with a new contract for the next period (next quarter for our previous example).
+
+%Perpetual swap contract also commonly called "perp", "swap", "perpetual" or "perpetual future" in crypto exchanges nomenclature is very similar to futures contract, but does not have expiry date (hence perpetual). In order to ensure that the perpetual swap contract price stays near the spot price exchanges employ mechanism called funding rate. When the funding rate is positive, Longs pay Shorts. When the funding rate is negative, Shorts pay Longs. This mechanism can be quite nuanced and vary between exchanges, so it's best to study each contract specification to learn all the details (funding periods, mark price mechanisms etc.).
+
+%The dataset was built from live market data at the {\it Binance.com} trading platform. Binance started offering markets in USDT settled European options written on the BTCUSDT and ETHUSDT spot indices (an average of multiple exchanges' mark prices). The range of underlying products is growing, at the time of writing this paper BNBUSDT denominated options contracts are also listed.  The bid-ask prices, trading volumes, market price of underlying, and 24-hour statistics for all available options were collected every second. We focused on the ETH contracts, those being available first. At any given time, there are approximately 200 contracts (various expirations and strike prices) actively listed. Usually, only a fragment of these contracts are actively traded, and only 1-2 trades take place per day on average, which means that only ca. 1\% of the observed intervals contain trades. Trading is concentrated near expiration.
+
+%The main parameters of our dataset are the following:
+
+%  \begin{outline}
+%  \1 European options written on ETHUSDT
+%    \1 2022-10-30 to 2023-02-09
+%    \1 At any given time there are listed options 1,2 days out, 1,2 weeks out (expiring Friday) and 1,2 months out.
+%    \1 Altogether 1096 contract pairs (put + call at the same strike, expiration) observed, not all live at all times.
+%    \1 Approximately 140M rows of data at original resolution = 104days * 86400seconds/day * (about 200 contracts alive at any given date)
+%   \1 bid/ask/last every second. 40Bytes * 150M=6G, in practice about 30G (other info like mark    price, 24 hour statistics etc. also included).
+%    \1 filter rows: option bid/ask/last exists for both call and put, underlying bid/ask/last exists, not outlier.
+%    \1 subsampled every minute, dataset has 1M 1-minute snapshot observations of put-call-parity.
+
+% \end{outline}
+
+
+%\section{Methodology}
+
+% In order to be able to quantify the inefficient price setting of the market makers, we need to calculate the value of the put-call parity breaking (PCPB) events. To understand the testing of PCPBs, first we need to understand how a PCP arbitrage strategy is designed. The PCP not only assumes the EMH, but also requires the consistency of markets and between the prices of different assets. If there are competing trading strategies available which replicate the same final payoff or position, the occurring costs of these strategies should be equal to each other as well. The underlying assumption of PCP is that the exercise price and the expiry date of the options are the same, and the repayment of the loans takes place at the expiry of the options. We dististinguish \textit{forward} and \textit{backward} arbitrage directions based on whether the underlying is long or short in the arbitrage. Fig \ref{fig:fwd_pcpb_diagram} illustrates the payout at expiration of a forward arbitrage.
+
+%\begin{figure}
+%    \centering
+%    \includegraphics[width=\linewidth]{PCPillustration.png}
+%    \caption{Payout at maturity for a forward PCP arbitrage portfolio}
+%    \label{fig:fwd_pcpb_diagram}
+%\end{figure}
+
+%Fair price relationships between products rely on the argument that if there is a tradeable arbitrage, some market participant will trade it away.
+% The naive textbook definition of PCP is based on the following self-funded (forward version) arbitrage strategy:
+
+% \begin{outline}
+%    \1 Let $C$, $P$, $U$ be the market prices of the underlying, put option, and the call option at time $t=0$.  $K$, $T$ are strike price and time to expiration of the pair of option contracts. $\Delta_{\$}$ is the present value of the final cash of the strategy, and $r$ is the rate at which the trader is able to borrow or lend the numeraire.
+%    \1 at time $t=0$:
+%    \2 borrow $(U-C+P)$ at the rate $r$.
+%    \2 Buy underlying, Sell call, Buy put, for $(U-C+P)$.
+%    \1 At expiration $t=T$:
+%    \2 Exercise long put or short call, Sell underlying for $K$
+%    \2 Pay back $(U-C+P)e^{rT}$. Whatever is left is your risk-free profit.
+%    \1 Value of arbitrage at $t=T$:
+%    $\Delta^{forward}_{\$} = K-(U-C+P)e^{rT}$
+%    \1[] This risk-free present value should be $\leq 0$ in a perfect market.
+%  \end{outline}
+%  The same arbitrage could be performed in the backward direction (in which we short the underlying). It is easy to see that the value of the backward arbitrage would need to be $\Delta^{backward}_{\$} = e^{-rT}(-K+(U-C+P)e^{rT}) = -Ke^{-rT}+U-C+P = -\Delta^{forward}_{\$} \leq 0$. This implies that in an arbitrage free market we would necessarily have $Ke^{-rT}-U = P-C$, which is the textbook put call parity relationship.
+
+% In a real market, products are not traded at their fair price, but rather at the price some other participant (typically but not necessarily a market maker) offers. There are also additional fees and trading costs, and in practice borrowing and lending coins does not happen at the same rate. The occurrence of bid-ask spreads breaks the $Ke^{-rT}-U = P-C$ textbook PCP relationship into two parts where $U_{bid}=<U_{ask}$, $C_{bid}=<C_{ask}$ and $P_{bid}=<P_{ask}$ are the bid-ask quotes: $U_{ask}-C_{bid}+P_{ask}+ Ke^{-rT}<=0$ and $-P_{bid}+C_{ask}-U_{bid}- Ke^{-rT}<=0$.
+
+% Considering trading fees, borrowing and lending rates, we need further modifications on the PCP constraints. Our related assumptions already linked to our Binance-dataset are as follows.
+
+%The borrowing and lending rates for ETH and USDT, as well as the trading fees, are time varying and dependent on the status of the market participant (the volume she trades). We are going to assume an elite status trader, with taker trading fees $\tau$, and rates $r_{U}$ and $r_\$$ for short and long positions. In this study, the underlying $U$ is ETH, and the numeraire $\$$ is USDT.
+
+%We will rely on a snapshot of Binance trading costs collected on 2023 Apr 29 as our baseline cost structure:
+%\begin{outline}
+%\1 $r^{lend}_{U} = 0.55\%$,$r^{borr}_{U} = 1.52\%$ (floating rates)
+%\1 $r^{lend}_{\$}=3.0\%$, $r^{borr}_{\$}=3.81\%$ (floating rates)
+%\1 exercise fee (based on exercise price $K$) is $\tau^{exer}=0.015\%$\footnote{In the actual fee specifications, further complicated rules are used to reduce these fees for extreme situations (such as far out of the money options trading, and nearly at the money exercise). In order to specify the full arbitrage transaction, we would also need knowledge of the expiration market of the underlying ($U^{(T)}_A$, $U^{(T)}_B$ as well as the mark price $U^{(T)}_{mark}$ which the exchange specifies as a moving average of trade prices over the last half hour of trading. Financial settlement as opposed to physical settlement also introduce complexity in the after-fee payoff of an option exercise. The fee structure and its dependency on a trailing average price, as well as the dependence of the total fees on the actual final price of the underlying introduce small, but measurable complexity to the study of PCP breaking, and will be left for future work}
+
+%\1 transaction fee (based on price of underlying $U$) $\tau^{opt}=0.02, \%$, $\tau^{und}=0.04, 0.1\%$
+%\end{outline}
+
+%In order for the above arbitrage to be tradeable, the following transactions have to take place ({\it forward} arbitrage), for each unit of the underlying:
+
+%  \begin{outline}
+%  \1 Define    $X=[U_A (\exp(-r^{lend}_U T)+2\tau^{opt} + \tau^{und})-C_B+P_A ]$, $R^{borr*}_{\$}T=r^{borr}_{\$}T$  if $X>0$  else $r^{len}_{\$}T$
+%    \1 $t=0$: Borrow $X$ dollars (or lend, if negative). Buy $\exp(-r^{lend}_U T)$ units of underlying, Sell call, Buy put.
+%    \1 $t=T$: Exercise put or (short) call: Settle to get $K(1-\tau^{exer})$
+%    \1 $t=T$: Pay back $X\exp(R^{borr*}_{\$}T)$
+%    \1 (Dollar) value of arbitrage at $t=T$:
+%    $\Delta_{\$}^{fwd} =
+%    K(1-\tau^{exer}) - X\exp(R^{borr*}{_\$}T)$
+%    \1 As a fraction of the notional value of this transaction, the profit is  $\Delta^{fwd} = \exp(-R^{lend}_{\$}T)\Delta_{\$}^{fwd}/U$.
+%    \end{outline}
+
+% The same for the {\it backward} direction is :
+%  \begin{outline}
+%  \1 Define $X=[U_B(\exp(-r^{borr}_{U}T) -2\tau^{opt} - \tau^{und})-C_A+P_B]$, $R^{lend*}_{\$}T = r^{lend}_{\$}T$ if $X>0$ else  $r^{borrow}_{\$}T $
+%    \1 $t=0$:  Borrow $\exp(-r^{borr}_{U}T)$ units of underlying, Sell it, Buy one call, Sell one put, deposit $X$ dollars (or borrow, if negative)
+%    \1 $t=T$: Receive $X\exp(R^{lend*}_{\$}T)$
+%    \1 $t=T$: Exercise (short) put or call: Buy one underlying for  $K(1+\tau^{exer})$ and return it.
+%    \1 (Dollar) value of arbitrage at $t=T$:
+%    $\Delta_{\$}^{back} = X\exp(R^{lend*}_{\$}T) - K(1+\tau^{exer})$
+%    \1 As a fraction of the notional value of this transaction, the profit is  $\Delta^{bak} = \exp(-R^{lend}_{\$}T)\Delta_{\$}^{bak}/U$.
+%  \end{outline}
+
+% We can obtain a more revealing expression for the arbitrage values, if we expand around the midquote prices ($U,C,P$) and only keep first order terms (assuming spreads, trading costs, and interest rates are small). $\delta_{U,C,P}$ are the bid-ask spreads.
+
+
+%\begin{equation}
+%\label{eq:fwd_delta}
+%\begin{align}
+%    \Delta_{\$}^{fwd} & =  K - (U+P-C)(1 + R^{borr*}_{\$}T) &\text{   naive}\\
+%    & -  (\delta_U+\delta_C+\delta_P)/2  &\text{    spread}\\
+%    & -  K\tau^{exer} - U(2\tau^{opt}  + \tau^{und})  &\text{    trading fees}\\
+%    & +  U r^{lend}_U T  &\text{    carry of U}
+%\end{align}
+%\end{equation}
+
+%\begin{equation}\label{eq:bak_delta}
+%\begin{align}
+%    \Delta_{\$}^{bak} & =  (U+P-C)(1 + R^{lend*}_{\$}T) -K &\text{   naive}\\
+%    & -  (\delta_U+\delta_C+\delta_P)/2  &\text{    spread}\\
+%    & -  K\tau^{exer} - U(2\tau^{opt}  + \tau^{und})  &\text{    trading fees}\\
+%    & -  U r^{borr}_U T  &\text{    carry of U}
+%\end{align}
+%\end{equation}
+
+%Even these detailed transactions are simplifications, especially in terms of details of the fee structures. In addition it is to be noted that at the moment retail investors are not allowed to go naked short options, therefore the above arbitrage opportunities are only available to insiders at the exchange or participants with special license to act as market makers.
+
+%\subsubsection{Critique of PCPB studies using Tobit regression  Talán hagyjuk ki, esetleg másik publikáció. Esetleg újra csinálunk valami Tobit-os study-t és mutatjuk hogy mi lesz a különbség. }
+%Based on the no-arbitrage argument of PCP, we expect high frequency of observations for arbitrage profit in a small range around zero (representing non tradable opportunities), and a rare occurrence of positive arbitrage profits from the point of view of the traders.  Earlier publications (MELYIK??) used Tobit-regression to study the dependence of PCPB on various exogenous variables such as time of day. Our analysis however shows how that this is a mistaken approach. Negative profits from \textit{e.g} the \textit{forwad} arbitrage trade occur just as much as positive ones -- They just happen to be the positive profits from the point of view of the \textit{backward} arbitrage trade.
+
+%Our methodology consists of looking at the above proxies for forward and backward arbitrage trading strategies as a function of the trading parameters. Based on the no-arbitrage argument of PCP, we expect high frequency of observations for arbitrage profit in a small range around zero (representing not tradable opportunities), and a rare occurrence of positive arbitrage profits from the point of view of the traders. Since the PCP testing literature often applies Tobit-regression to explain PCP breakings, we do not expect any quotes indicating negative arbitrage profit.
+
+
+\section{Results}
+ %As we mention above, according to the textbook definition, $\Delta = Ke^{-rT}-U - P + C$ should always be exactly zero for a pair of European put and call options with time to expiration $T$, strike $K$, and current prices for the underlying $U$, the call $C$ and the put $P$ per contract.
+ %The original focus of PCP research was studying the frequency and tradability of PCP violations by calculating the achievable arbitrage profit, e.g \cite{nisbet1992put}. Later, the direction of research changed, and finding reasons for the apparent PCP violations gained importance. Many authors tried to find factors explaining the size of apparent PCP breaking via Tobit-regressions of a normal distribution for the log transformed PCP violation vs moneyness (proxied by C-P), time to maturity, time of day or the time difference between the last transaction on the corresponding call an put contracts(for example: \cite{el1998put} Our paper on the other hand focuses on detailed market data and practical trading considerations to conclude that in fact PCP violations do not occur even in very low-volume, immature markets such as the emerging crypto option market.
+
+%\subsection{PCP Breaking}
+%To start the analysis, we observe significant naive PCP breaking when we neglect all costs and market microstructure by comparing the last traded prices (or the midquote in case there is no trading).
+%We find that there are many large occurrences of PCP breaking. Fig. \ref{fig:histplot_pcpbreak_naive} histograms all PCP observations by the basis point PCP breaking measure ( $10^4\exp(-R^{lend}_{\$}T)\Delta_{\$}/U$ ). The right side shows {\it forward}, the left side {\it backward} PCP violations. The reason for the overwhelming (in fact 100\%!) prevalence of the apparent PCP violations is that the naive prices are purely theoretical, there is no possibility of trading at them.
+
+%For comparison, we show SPX futures options on the same graph to illustrate the relative size of the crypto PCP breaking to that of a mature market. Clearly, the SPX futures options market keeps put, call and underlying prices much closer to the theoretical PCP relation.
+%\begin{figure}
+%    \centering
+%    \includegraphics[width=\linewidth]{histplot_pcpbreak_naive.png}
+%    \caption{Naive forward PCP breaking. For comparison, similar computations are performed for SPX futures options.}
+%    \label{fig:histplot_pcpbreak_naive}
+%\end{figure}
+
+
+%In order to characterize the market failure, we introduce the quantity $APCPB$, {\it average put-call-parity breaking}, defined in Eq. \ref{eq:APCPB}.
+%\begin{equation}
+%    \label{eq:APCPB}
+%APCPB =  \text {mean}[\max(0, \Delta^{fwd}, \Delta^{bak})]
+%\end{equation}
+%where the mean is taken over those observations that do show PCP breaking. $APCPB$ is the arbitrage opportunity an aggressive trader has, expressed as a fraction of the underlying price, conditional on there being a non-zero opportunity at all.  For the naive setup, $APCPB$ for the ETH option market is a whopping 149 bp, while for the futures options market it is only 5.4 bp.
+
+
+%\subsection{The Effect of the Bid-Ask Spread, Margin and Deposit rates}
+%The introduction of the Bid-Ask Spread in the modeling forces the distinction between {\it forward} and {\it backward} arbitrage, as they involve different prices.
+
+
+%Further, on Binance both the numeraire (the stablecoin USDT) and the underlying coin, ETH can be borrowed or deposited to earn interest. Interest is earned in kind, USDT deposits earn USDT and ETH deposits earn ETH. The rates are dynamically adjusted. In this study we use a snapshot of the rates, as specified above. The inclusion of these rate effects have a negligible influence.
+
+
+%Trading fees are quite different for retail investors and high-volume elite traders or market makers. They introduce a significant reduction in tradeable opportunities. For a retail trader, the trading costs on the underlying are significantly higher, $\tau^{und}=0.1\%$. Correspondingly, the proportion of tradeable opportunities is reduced to 8.5\%.
+%\begin{figure}
+%    \centering
+%   \includegraphics[width=\linewidth]{histplot_pcpbreak_normal_onesided.png}
+%    \caption{Crypto aggressive PCP arbitrage profits after spread, interest rate and fee effects are included. We show the \textit{forward} and \textit{backward} arbitrage separately}
+%    \label{fig:histplot_pcpbreak_normal_onesided}
+%\end{figure}
+
+
+%\begin{table}[]
+%    \centering
+%    \begin{tabular}{l|c|c|c}
+%     Assumptions    &  $\phi$ & APCPB  &  APCPB * $\phi$\\ \hline
+%     Naive (Crypto)                           &  100\% &  149 {\text bp} & 149 {\text bp}\\
+%     Naive (SPX)                              &  100\% &  5.4 {\text bp} & 5.4 {\text bp}\\
+%     Spread + interest effects                & 14.8\% & 58 {\text bp}  & 8.6 {\text bp}\\
+%     Spread + interest effects + fees         & 10.3\% & 72 {\text bp}  & 7.4 {\text bp}\\
+%     Spread + interest effects + retail fees  & 8.5\% & 80 {\text bp}  & 6.8 {\text bp}\\
+%     \end{tabular}
+%    \caption{Proportion and value PCP violations among all observations. $\phi$ stands for the fraction of all observations where an aggressive PCP breaking is observed, therefored $\phi * APCPB$ is an aggregate dimensionless measure of market inefficiency in any given market}
+%    \label{tab:apcpb_table}
+%\end{table}
+%\subsection{Indirect observation of volatility skew in the crypto options market}
+%Figure  \ref{fig:histplot_pcpbreak_normal_onesided} shows how both \textit{forward} and \textit{backward} arbitrage is possible for a retail investor -- albeit only in a fraction of the observations.  But \textit{forward} arbitrage appears to be much rarer. Recall that the aggressive \textit{forward} arbitrage involves buying the put. Since this is typically a more competitive part of the market than call buying, it is not surprising that this is the more efficient leg.
+
+%\subsection{Price setting by market makers }
+%section{How retail investors are harmed}
+%\begin{figure}
+%    \centering
+%    \includegraphics[width=\linewidth]{histplot_mm_onesided.png}
+%    \caption{The distribution of PCP arbitrage opportunities for marketmakers}
+%    \label{fig:histplot_mm_twosided}
+%s\end{figure}
+
+%\begin{figure}
+%    \centering
+%    \includegraphics[width=\linewidth]{histplot_pcpbreak_normal_twosided.png}
+%    \caption{PCP breaking after spread, interest rate and fee effects are included }
+%    \label{fig:histplot_pcpbreak_normal_twosided}
+%\end{figure}
+
+%When examining put-call parity, most of the data points represent neither PCP holding, nor an opportunity for the aggressive trader to make an arbitrage profit. In fact in most cases the market maker appears to keep bid ask spreads so wide, that she, the market maker, is almost guaranteed to make an arbitrage profit.
+
+%The mechanism for the market maker to make a risk-free profit is the following: she joins the the book at the top for the option with the wider absolute spread, on the appropriate side, and waits until a retail trader matches her order. Then she crosses the market on both the underlying and the other option to close the arbitrage trade. In this way, there is no selection bias to contend with, the market maker truly realizes risk-free profit.
+
+%The cost-adjusted occurrence of arbitrage opportunities for the market maker is shown in Fig. \ref{fig:histplot_mm_twosided}. This plot includes all costs: trading costs and financing costs for options, cash, and underlying.
+
+%Because of the unavailability of shorting an option in the Binance market, retail investors are unable to act as market makers. Only the exchange itself or privileged traders can do that, at the discretion of the exchange listing the options. Therefore the existence of such arbitrage profits for the market maker can be considered a novel measure of a market inefficiency causing harm to retail investors.
+
+\subsection{The concept of Absolute Market Unfairness (AMU)}
+We introduce the concept of {\it absolute market unfairness}($AMU$) to characterize the unfairness of an options market to retail investors:
+
+\begin{equation}
+    \label{eq:AMU}
+AMU =  mean[\max(0, \Delta^{mm-fwd}, \Delta^{mm-bak})]
+\end{equation}
+where the mean is taken over all observations.
+
+The market maker's (or passive trader's) value of the {\it forward} arbitrage is
+\begin{equation}\label{eq:fwd_mm_delta}
+\begin{aligned}
+\Delta_{\$}^{mm-fwd} &= -\Delta_{\$}^{bak} && \text{naive}\\
+&\quad - U(4\tau^{opt} + 2\tau^{und}) && \text{correct for trading cost}\\
+&\quad + \max(\delta_U, \delta_C, \delta_P) && \text{gain the biggest spread}
+\end{aligned}
+\end{equation}
+As usual $\Delta = \Delta_{\$}/U$ is the dimensionless version of the dollar quantity.
+
+ A similar expression applies to the {\it backward} passive arbitrage. This quantity includes all trading and carrying costs \footnote{For simplicity we assume that aggressive and passive trading costs are the same -- which in fact is not the case, because passive traders typically face lower costs}, but it assumes that the passive trader waits at the passive side of the largest-spread leg of the arbitrage.
+
+The value of the $AMU$, together with the incidence of positive arbitrage opportunities ($\phi$) for the examined Binance option market is shown in Table \ref{tab:AMU}. As a comparison, equivalent numbers are presented for the SPX futures options market.
+
+There exists some obvious reasons why bid-ask spreads are wide in a crypto option market where trading was just launched in 2022. The high volatility of cryptocurrencies is proverbial, and the trading volumes of Binance in the options markets are low.
+
+Traditionally it has been accepted that market makers do not trade at the fair price. They offer a bid-ask market, where the bid-ask-spread is the compensation for the market maker for the uncertainty in the fair price, for adverse selection risk, and for liquidity risk (\citep{foucault2013market}). In such instances, it is difficult to ascertain what the {\it fair} spread is without very restrictive model assumptions. Adverse selection cost and liquidity risk are even harder to quantify in any market.
+
+In contrast, $AMU$ is based on pure arbitrage arguments, where no liquidity or adverse selection risk is present, and there is no concept of a fair price. In an efficient market, it is in the interest of market makers to tighten their spreads until the $AMU$ is reduced to zero. If this does not happen, the market makers are unfairly compensated for their activities. Even if the $AMU$ is zero, it is not guaranteed that the market is \textit{fair}. However, a positive $AMU$ does imply unfairness.
+
+The reason we can introduce this measure in options markets is the possibility of synthetically reproducing contracts through the PCP arbitrage relationship. Without this, there would be no arbitrage argument to establish a measure of unfairness. For most markets such arbitrage arguments are not available. The closest is the US equity market where trading in fully fungible securities takes place on several platforms ($ECN$-s). In the latter case, the regulatory requirement to execute retail trades at the $NBBO$  (national best bid offer) ensures that no market maker is able to profit from a pure arbitrage.
+
+We propose $AMU$ as a measure of the unfairness of a given trading platform in particular and as a signal for market inefficiency in general. It quantifies the risk free arbitrage profit of market makers that is paid on the other side of the transactions by uninformed traders. The $AMU$, or $\phi * AMU$,  is a single number characterizing an options market. Especially in the case of crypto options which are traded on many exchanges, these quantities offer a convenient way to characterize their inefficiency. As regulation of crypto exchanges is on the agenda, this quantity would be a good way to evaluate the extent to which exchanges prey on retail investors.
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{l|r|r|r}
+             & $\phi$  &  $AMU$           & $AMU*\phi$ \\ \hline
+crypto       &  0.53 & 1237 bp  &  650 bp\\
+spx          &  0.25 &   61 bp  &   15 bp\\
+    \end{tabular}
+    \caption{Average amount (in bp) of PCP breaking for passive traders ($AMU$)}
+    \label{tab:AMU}
+\end{table}
+
+\section{Discussion}
+
+
+\section{Conclusions}
+The final results of our investigation is in Table \ref{tab:apcpb_table}.
+We have shown that in the emerging crypto options market appreciable put-call parity breaking remains after all costs of putting on an arbitrage position are considered, and tradable pure arbitrage profits can be obtained by those enabled to short naked options. The analysis have been carried out on $Binance$ in the European options market on ETHUSDT. We derived a new measure, called Absolute Market Unfairness to quantify arbitrage profits that can be earned by the market makers. The determination of the arbitrage profit is model-free, since it depends on the put-call parity relation, but not e.g. on the pricing models. We propose to apply this measure by the regulators to evaluate the investor-friendlyness of a market.
+As all research, this report has some limitations as well. These are listed below:
+%However, there are three issues that are beyond the scope of this report, and would need further investigations.
+
+\begin{outline}
+    \1 Retail investors are not allowed to write options, meaning they are not able to form a self-financing arbitrage portfolio that contains a short options portfolio. Only the exchange itself can, and it might not care enough to eliminate this inefficiency as it encourages investors to investigate, perhaps generate volume.
+    \1 The options are settled not at the spot price at expiration, but at a half-hour moving average price of the underlying. It requires further research to see if the idiosyncrasies of the contract specification can explain the persistence of PCP violations.
+    \1 The high $APCPB$ results from a very fat tailed distribution.  A few extreme cases result in  a high average.
+\end{outline}
+
+
+
+\section*{Data Availability Statement}
+
+The data that support the findings of this study are available through
+\href{https://tardis.dev/}{Tardis} \citep{tardis_main}. Historical datasets for the first day of each month are openly accessible without an API key, as documented in the Tardis dataset description \cite{tardis_main,turn3search3}. Access to data for all other days of the month requires an active subscription.
+
+\section*{Supplemental Online Material}
+
+\textcolor{red}{MEGADJUNK VALAMI KÓDOKAT? AMIKRŐL BALÁZS ÉS TOMI SZOKTAK BESZÉLNI??? }
+
+% TEMP editing mode
+%\bibliography{bibl}
+%\bibliographystyle{vancouver}
+
+%-----------------------------------------------
+% Appendix
+%-----------------------------------------------
+\section{Appendix}
+
+\subsection{ Call Parity for Foreign Currency Options}
+
+Forward price of foreign currency: $F_{t,T} = S_t \exp\left((r - r_{BTC})(T-t)\right)$, where $r$ is the domestic interest rate (USD), and $r_{BTC}$ is the foreign interest rate (BTC). The put-call parity for foreign currency options is
+\begin{equation}
+c_t - p_t = S_t \exp\left(-r_{BTC}(T-t)\right) - K \exp\left(-r(T-t)\right)
+\end{equation}
+Rearranging, we have
+\begin{equation}(c_t - p_t) = (F_{t,T} - K)\exp\left(-r(T-t)\right)
+\end{equation}\citet{Hull}
+
+
+\end{document}
