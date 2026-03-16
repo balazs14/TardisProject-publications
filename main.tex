@@ -90,28 +90,25 @@ This paper introduces \textit{Absolute Market Unfairness} (\textit{AMU}), a mode
 
 \section{Introduction}
 
-The rapidly expanding landscape of crypto trading platforms and exchanges—both in terms of their number and traded volume—offers investors a highly heterogeneous array of opportunities. Beyond cryptocurrencies as underlying assets, market participants trade a wide range of derivative products even compounded ones, or including instruments in which the underlying is itself a derivative. Although there is a large body of literature on the consistent pricing of typical derivatives in mature markets and asset classes (e.g. \cite{BlackScholes1973, sharma2024review}), relatively little comparable research has been conducted on crypto exchanges (e.g., \cite{alexander2023crypto, lucic2024valuation}. This is notable given that applying well-documented research questions from mature markets to these emerging asset classes has always been a natural and promising avenue of inquiry. One reason for this research gap may be that the set of available derivative products differs substantially between platforms, resulting in a highly fragmented market structure. Although cryptocurrency futures markets tend to be liquid, in crypto options markets, market makers typically quote a substantially wider variety of contract types, strikes, and maturities than those ultimately traded by investors.
+The rapidly expanding landscape of crypto trading platforms and exchanges, both in number and volume, offers investors a highly heterogeneous set of opportunities. Beyond cryptocurrencies as underlying assets, market participants trade a wide range of derivatives, including products whose underlyings are themselves derivatives. Although there is a large literature on consistent derivative pricing in mature markets and asset classes (e.g. \cite{BlackScholes1973, sharma2024review}), relatively little comparable research has focused on crypto exchanges (e.g., \cite{alexander2023crypto, lucic2024valuation}). This gap is notable because extending established questions from mature markets to emerging asset classes is a natural research path. One reason for the gap may be strong cross-platform heterogeneity in contract design, which fragments market structure. While cryptocurrency futures are often liquid, options markets still feature a broad range of contract types, strikes, and maturities, many of which are thinly traded.
 
-In this paper, where we restrict our analysis to the liquid price range where actual trading takes place, we compare the market maker quoting practices of different cryptocurrency derivatives platforms within the framework of market efficiency. Within the broader context of market efficiency, we evaluate quoted option prices from the perspective of no-arbitrage pricing, based on the put–call parity (hereinafter: PCP) relationship.
+In this paper, we study quoted option prices from a no-arbitrage perspective using put-call parity (PCP), focusing on the liquid part of cryptocurrency derivatives markets where actionable pricing comparisons are meaningful. We introduce \textit{Absolute Market Unfairness} (\textit{AMU}), a measure of the risk-free arbitrage profit implied by quoted bid-ask prices, and use it to compare investor-facing pricing quality across platforms.
 
-Our main objective is to introduce a new efficiency measure, the \textit{Absolute Market Unfairness} (hereinafter: \textit{AMU}), which quantifies the risk-free arbitrage profit available to market makers arising from their quoting practices. The \textit{AMU} ranks trading platforms according to the additional costs that uninformed investors incur when entering the market at bid–ask prices that deviate from the arbitrage-free benchmark. This cost is incurred in addition to trading fees or costs explained by illiquidity. We focus our analysis on cryptocurrency markets by examining the pricing of options on different cryptocurrencies (e.g., Ethereum (ETHUSDT) and Bitcoin (BTCUSDT)) traded across platforms such as Binance, OKX, and Deribit.
-%NEM AZ VAN, HOGY BALÁZS GONDOLATAI ALAPJÁN EZ MÁR RÉGEN NEM AMU, HANEM INKÁB RMU, RELATIVE MARKET UNFAIRNESS? AZT BESZÉLTÜK, HOGY AZ ABSZOLÚT ÉRTÉKE, MAGA A SZÁM NEM BÍR JELENTÉSSEL?
-%CRYPTODERIVATIVE MARKETS ARE INCOMPLETE - NOT TRADED LU, ezt vhol még bele kell írnom. .(Nóri)
-The literary novelty of our paper is as follows. \textcolor{red}{First, we provide a concise overview of current platforms, their product offerings, structural characteristics, and trading volumes. LEHET EZT MOST A KONFERENCIA BEADÁSI NEM TUDJUK MEGCSINÁLNI, DE A CIKKHEZ MAJD KELL...} Second, a theoretical survey is presented to help readers understand the key features of the products described in the market overview. Third, we demonstrate how cross-market derivative pricing parity relations (such as put–call parity) can be adapted—after appropriate modifications—to the selected products. Fourth, we examine how put–call parity manifests under the quoting practices of different exchanges and product types. Fifth, we introduce the Average Market Unfairness (\textit{AMU}) measure as a relative metric for comparing the efficiency and consistency of pricing across different trading platforms and across different points of time. As the cryptocurrency markets create a huge challenge for regulators and are the focus of intense academic debate, our research also contributes to the field of market regulation, as \textit{AMU} quantifies the inefficiency of quoted prices. The interpretation of this single figure is rather intuitive: it measures the average profit rate a market maker can generate in a risk-free manner purely based on inefficient pricing. The presence of these risk-free profit opportunities shows a lack of competition among market makers.
+Our contribution is threefold. First, we provide a unified PCP framework for standard, inverse, standard quanto, and inverse quanto contracts. Second, we adapt PCP relationships to platform-specific contract details and trading frictions. Third, we implement this framework on high-frequency BTCUSD and ETHUSD option and futures data from OKX and Deribit, and use AMU (in basis points) to compare market efficiency across exchanges, underlyings, and market states.
 
-According to the Efficient Market Hypothesis (EMH) of \citep{fama1970efficient}, one expects that the prices of traded financial assets reflect all information and no market player can generate excess returns even if they have a special access to information.  Research related to the efficiency of crypto markets at first sight show contradictory results (\citep{urquhart2016inefficiency}, \citep{le2020efficiency}, \citep{kristoufek2018bitcoin}, \citep{nan2019market}, \citep{kochling2019does}, \citep{vidal2019weak}, \citep{wei2018liquidity}, \citep{noda2021evolution}) but most of them agree on that that there is an evolution of efficiency over time (\citep{urquhart2016inefficiency}, \citep{le2020efficiency}, \citep{kochling2019does}, \citep{vidal2019weak}, \citep{wei2018liquidity}).
+According to the Efficient Market Hypothesis (EMH) \citep{fama1970efficient}, asset prices should reflect available information, so no participant can systematically earn excess returns from informational advantages alone. Evidence on crypto-market efficiency appears mixed at first sight (\citep{urquhart2016inefficiency, le2020efficiency, kristoufek2018bitcoin, nan2019market, kochling2019does, vidal2019weak, wei2018liquidity, noda2021evolution}), but many studies agree that efficiency evolves over time (\citep{urquhart2016inefficiency, le2020efficiency, kochling2019does, vidal2019weak, wei2018liquidity}).
 
-A special topic within market efficiency is the area of no-arbitrage pricing, as the pricing of derivative assets on financial markets is based on the principles of no-arbitrage, which assumes efficient markets. A key implication of these principles is that certain relationships between related financial instruments must hold to prevent the possibility of risk‑free profit. One of the most important no‑arbitrage relationships is the put–call parity, which defines the theoretical link between European call and put options written on the same underlying asset and that underlying asset itself, or equivalently, between the call and put option and a forward contract on the same underlying. Under ideal conditions — e.g., frictionless trading, perfect liquidity, and competitive market making — PCP ensures that risk‑free profit cannot be generated simply by trading with the options, the underlying asset, or the forward contract \citep{klemkosky1979put}. The idea of testing put-call parity (PCP) and market efficiency is not a recent one (e.g. \citep{klemkosky1979put}, \citep{kamara1995daily}, \citep{el1998put}, \citep{cremers2010deviations}), however it has been tested or analyzed on cryptocurrency markets only recently by \cite{alexander2023arbitrage, zhou2023checking, felfoldi2024put} and \cite{johnson2022arbitrage}.  In general, results published from the 1970s to nowadays show that considering only options at mid-price or last traded price, there is a significant frequency of PCP violations on the investigated financial markets. Once the models rely on higher frequency data \citep{wagner1996factors}, \citep{el1998put}, incorporate transaction costs \citep{nisbet1992put} and the bid-ask spread, and synchronise data by matching the prices of derivatives and the underlying to one another, only a minor part of the deviations from PCP persist \citep{felfoldi2024put}.
+No-arbitrage pricing is a central dimension of market efficiency, because derivative valuation relies on price relationships that must hold in the absence of risk-free profit opportunities. A core relationship is put-call parity (PCP), which links European call and put prices to the underlying (or equivalently to a forward) at the same strike and maturity. Under ideal conditions (frictionless trading, liquidity, and competitive market making), PCP violations should be arbitraged away \citep{klemkosky1979put}. Testing PCP as an efficiency benchmark has a long tradition (e.g. \citep{klemkosky1979put, kamara1995daily, el1998put, cremers2010deviations}), but crypto evidence is more recent \citep{alexander2023arbitrage, zhou2023checking, felfoldi2024put, johnson2022arbitrage}. Across studies, violations are frequent when using mid or last prices, but become much smaller once high-frequency synchronization, transaction costs, and bid-ask spreads are incorporated \citep{wagner1996factors, el1998put, nisbet1992put, felfoldi2024put}.
 
 %In traditional, mature option markets, deviations from PCP are typically small and short‑lived due the liquid market, and to intense arbitrage competition \citep{cremers2010deviations}. In contrast, recent empirical studies show that in cryptocurrency derivatives markets arbitrage opportunities exists \citep{alexander2023arbitrage}, and also persistent and significant PCP violations can be found, even after controlling for bid‑ask spreads, funding costs, and trading expenses \citep{felfoldi2024put}.
 
 %The cryptocurrency markets are an emerging segments of financial markets, and have shown extreme development over the last years. They represent a total traded volume per day of 50 billion USD, and the total market cap reached the 1 trillion USD in November, 2022. These figures are still lower than those of classical instruments: the daily FX volume for USD is  2.2 trillion, the global foreign exchange markets are 6.6 trillion USD. In the same period, the S\&P Index is traded at a daily volume of 2.4 trillion USD. As the crypto markets are catching up in terms of volume, they have drawn the attention of regulators as well. Due to some of their special characteristics they five rise to an emerging field of research as well. %\textbf{FORRÁS KÉNE AZ ADATOKHOZ}
 
-Central to our study of the pricing inefficiency is the fair value of the bid-ask spread. The bid-ask spread is a measure of market liquidity, and in the last decades several papers have been published that were focusing on finding the factors that can effect its size - like adverse selection, inventory cost or order processing cost \citep{foucault2013market} -, or to explain the price setting behavior of market makers e.g. \citep{glosten1985bid}, \citep{brunnermeier2009market}, \citep{ding1999determinants}.  In this paper we go further we show  that a certain portion of the bid-ask spread is just purely risk-free profit of the market makers. The aim of our research is to shed light on how mature the crypto options market is by studying the incidence of this risk-free profit using PCP arbitrage arguments. This kind of result has never been reported in any other option market.
+Our analysis is also tied to bid-ask spread economics. Spreads capture liquidity conditions, and prior work explains their size through adverse selection, inventory costs, and order-processing costs \citep{foucault2013market}, as well as market-maker pricing behavior \citep{glosten1985bid, brunnermeier2009market, ding1999determinants}. We extend this literature by quantifying the spread component that corresponds to risk-free arbitrage implied by PCP violations. This provides a direct lens on the maturity and competitiveness of crypto options markets.
 
 Finally, from the viewpoint of our research question, the different crypto option contract designs are important. \cite{alexander2023crypto} gives a summary of these contracts, as crypto exchanges differ fundamentally in contract design. The authors distinguish inverse options (e.g., Deribit) where collateral and payoff are defined in cryptocurrency; direct options, where crypto–stablecoin pairs are exchanged; quanto options, a new type of currency-protected options; and inverse-quanto option. Their main contribution is to show that crypto options create market incompleteness due to payoff currency mismatch, collateral denomination, embedded FX exposure and inability to perfectly hedge all risks. Their paper provides the first rigorous mathematical framework for pricing and hedging the main types of crypto exchange-traded options—especially inverse, direct, and quanto options—within a Black–Scholes setting. Their results create a strong theoretical background for our research: since crypto derivative markets are heterogeneous and fragmented, original pricing relations cannot be naïvely ported from traditional markets, PCP must be adjusted for contract specification.
 
-The structure of the papers as follows. In chapter 2 we provide an overview of different platforms from the viewpoint of traded derivative assets, and we also show the descriptive statistics of those assets which will be in the focus of our research. Chapter 3 presents the methodology of defining the put-call parity in case of different option setting: standard options, quanto options, inverse options; and inverse quanto options. In chapter 4 we show our results... Chapter 5 discussion, Chapter 6 conclusion...
+The remainder of the paper is structured as follows. Chapter 2 describes the analyzed platforms and the key descriptive statistics of the selected derivatives. Chapter 3 presents the PCP methodology for standard, quanto, inverse, and inverse-quanto option settings. Chapter 4 reports empirical results, followed by discussion and conclusion.
 
 
 
@@ -121,11 +118,11 @@ The structure of the papers as follows. In chapter 2 we provide an overview of d
 
 \subsection{Cryptocurrency platforms}
 
-There are several crypto trading platforms, and they differ in terms of their product offerings, trading volumes, and market structure. Some of the most prominent platforms include Binance, OKX, Deribit, and BitMEX. Each platform offers a variety of derivative products, including standard futures, inverse futures, perpetual futures, and options with different underlying assets and payoff structures. The liquidity and trading volume can vary significantly across these platforms, which can impact the efficiency of the markets and the presence of arbitrage opportunities. Since our research focuses on the efficiency of options markets using put-call parity, we will focus on platforms offering expiration (i.e. not perpetual) futures where the underlyings and expirations match with the options we analyze. In this paper we'll compare inverse options and inverse futures based on the same index (e.g. BTCUSDT) on OKX and deribit. While options and futures on other underlyings are also traded, by far the most liquid options are those on the BTCUSD and ETHUSD indexes, and thus we focus on these.
+There are several crypto trading platforms, and they differ in terms of product offerings, trading volumes, and market structure. Some of the most prominent platforms include Binance, OKX, Deribit, and BitMEX. Each platform offers a variety of derivative products, including standard futures, inverse futures, perpetual futures, and options with different underlying assets and payoff structures. Liquidity and trading volume can vary significantly across these platforms, which can affect market efficiency and the presence of arbitrage opportunities. Since our research focuses on options-market efficiency using put-call parity, we focus on platforms offering expiration (i.e., non-perpetual) futures where underlyings and expirations match the options we analyze. In this paper, we compare inverse options and inverse futures based on the same index (e.g., BTCUSDT) on OKX and Deribit. While options and futures on other underlyings are also traded, by far the most liquid options are those on the BTCUSD and ETHUSD indices, and thus we focus on these.
 
 \subsection{Data description}
 
-The current paper is based on the OKEX and deribit options data from Tardis, for approximately 1 year from the beginning of 2025 to the end of february 2026. The table \ref{fig:summary_df} is a summary of how many put-call pairs we have been able to study.
+This paper is based on OKX and Deribit options data from Tardis, covering approximately one year from the beginning of 2025 to the end of February 2026. Table \ref{fig:summary_df} summarizes how many put-call pairs we were able to study.
 
 Tardis provides tick level intraday data for a wide range of cryptocurrency derivatives, including options and futures contracts. The data includes detailed information on bid and ask prices, trade volumes, and timestamps for each contract. For our analysis, we subsampled the tick-level data on a 5 minute grid, which gives us intra-day resolution on the occurrence of arbitrage opportunities. Since most contracts only trade very few times within a day, this subsampling is not expected to distort the results.
 
@@ -139,7 +136,7 @@ Tardis provides tick level intraday data for a wide range of cryptocurrency deri
 
 \section{Methodology}
 
-Typically, we think of options and futures contracts where the payoffs and strike parameters are defined in terms of a currency (like USD), as a function of the difference of currency-denominated prices of the underlying. Such (so called \textit {linear}) options do trade on crypto platforms, but we found that \textit{inverse} options, where the payoff is defined in terms of the underlying asset (e.g. BTC) rather than in currency units, are more liquid and more frequently traded. Therefore, we focus on \textit{inverse} options in our research, but we also provide the theoretical framework for other types of options. \citep{alexander2023crypto}, \citep{bouchouev1997inverse}, \citep{lucic2024valuation}
+Typically, we think of options and futures contracts whose payoffs and strike parameters are defined in currency units (such as USD), as functions of differences in currency-denominated underlying prices. Such (so-called \textit{linear}) options do trade on crypto platforms, but we found that \textit{inverse} options, where payoffs are defined in terms of the underlying asset (e.g., BTC) rather than currency units, are more liquid and more frequently traded. Therefore, we focus on \textit{inverse} options in our research, while also providing the theoretical framework for other option types \citep{alexander2023crypto, bouchouev1997inverse, lucic2024valuation}.
 
 In what follows we first provide a general introduction to the most frequently traded derivative products on crypto platforms, and then we define the modified versions of PCP equations for all product types. These theoretical results of our paper are generally valid PCP equations. Third, we add the transaction fees and all platform specific modifications to the PCP constraints, where the needed adjustments vary according to the given platform, and the validity of these PCP constraints is restricted to the given platform.
 
@@ -151,7 +148,7 @@ Beyond index prices, some platforms offer options and futures contracts settled 
 
 Although index prices are not directly tradable and lack their own bid-ask spreads, they provide a consistent and standardized reference for computing payoffs in derivative contracts. This allows for uniform settlement and valuation across products and platforms, regardless of the trading venue or asset denomination.
 
-The fact that settlement is not actually based on the index introduces a layer of complexity to the valuation, since settlement will eventually happen in either the underlying asset of the index (like the BTC coin is one of the assets in the underlying BTCUSD index), or in a stablecoin (like USDT, which corresponds to the other asset in the underlying BTCUSD index). Since a payoffs to the options and the futures are all defined in terms of the same conversion procedure from the index to the coin, the put-call parity should still holds.
+The fact that settlement is not actually based on the index introduces a layer of complexity to valuation, since settlement eventually happens either in the underlying asset of the index (e.g., BTC for BTCUSD) or in a stablecoin (e.g., USDT, the other asset in BTCUSD). Since payoffs to options and futures are defined through the same conversion from index value to coin units, put-call parity should still hold.
 
 \subsection{Put-call parity for crypto options}
 
@@ -174,7 +171,7 @@ The value of a futures contract $f_t$ at an arbitrary time $t$, and at maturity 
 
 This will be added to or deducted from the variable margin of the investor.
 
-The inverse futures keep the well-defined expiry date of standard futures, but changes the denomination of the contract. While the contract itself is quoted in USD, the margin, the profit and loss, and the settlement are defined in the underlying asset (e.g. cryptocurrency like Bitcoin) which makes the original linear value and final payoff shown in Equation \ref{futvalue} to become nonlinear according to:
+Inverse futures keep the well-defined expiry date of standard futures, but change the denomination of the contract. While the contract itself is quoted in USD, margin, profit and loss, and settlement are defined in the underlying asset (e.g., a cryptocurrency such as Bitcoin), which makes the original linear value and final payoff shown in Equation \ref{futvalue} nonlinear, as follows:
 
 
     \begin{equation}\label{invfutvalue}
@@ -182,7 +179,7 @@ The inverse futures keep the well-defined expiry date of standard futures, but c
     \text{final payoff: } f_T=\left(\frac{1}{F_0} - \frac{1}{F_T}\right)
     \end{equation}.
 
-Trading platforms offer not only inverse futures but also perpetual futures, which have gained importance recently, but are not part of our research since PCP constraints can not be adapted to them in a closed format. In contrast to the previous products, a perpetual future is a futures-like contract starting in $t=0$ but with no expiration date ($T$) which means that it never settles automatically, and investors trade it continuously like in the case of a spot instrument. The expiry date and the convergence-to-spot-at-expiry is replaced by a funding rate mechanism to anchor the futures price to the spot price. At each funding interval (e.g. every 8 hours), if $F_1>S_1$, investors with long futures position pay $(F_1-S_1)$ to the short investors, or short position investors pay $(S_1-F_1)$ if $F_1<S_1$. For further insight into perpetual futures, see \cite{he2022fundamentals} who provide both a theoretical framework for the pricing and an empirical analysis based on a constant arbitrage strategy demonstrating that real-world perpetual futures often trade at significant deviations from these fundamentals in cryptocurrency markets. While \cite{ackerer2025perpetual} offers a general no-arbitrage pricing framework, it is applicable to both linear and inverse perpetual futures.
+Trading platforms offer not only inverse futures but also perpetual futures, which have gained importance recently, but are not part of our research since PCP constraints cannot be adapted to them in a closed form. In contrast to the previous products, a perpetual future is a futures-like contract starting at $t=0$ but with no expiration date ($T$), which means it never settles automatically, and investors trade it continuously as they would a spot instrument. The expiry date and convergence-to-spot-at-expiry are replaced by a funding-rate mechanism to anchor futures prices to spot prices. At each funding interval (e.g., every 8 hours), if $F_1>S_1$, investors with long futures positions pay $(F_1-S_1)$ to short investors; if $F_1<S_1$, short investors pay $(S_1-F_1)$. For further insight into perpetual futures, see \cite{he2022fundamentals}, who provide both a theoretical pricing framework and an empirical analysis based on a constant-arbitrage strategy demonstrating that real-world perpetual futures often trade at significant deviations from these fundamentals in cryptocurrency markets. While \cite{ackerer2025perpetual} offers a general no-arbitrage pricing framework, it applies to both linear and inverse perpetual futures.
 
 Option contracts may differ not only by their underlying (LU), but also by their payoff structure or their payoff currency. As \cite{alexander2023crypto} provides a step-by-step guide for understanding inverse, linear, and inverse quanto options, we simply refer to their summarised results in Table \ref{options_by_other_authors}.
 
@@ -280,19 +277,19 @@ An important feature of our inefficiency definition is that it is completely mod
 
 \subsection{Comparing platforms using the AMU measure}
 
-The \textit{AMU} or \textit{Average Market Unfairness} measure is defined as the average of the positive \textit{MU arbitrage} opportunities observed over a certain period of time, expressed in basis points of the underlying asset's value. This measure allows us to compare the efficiency of different trading platforms and to track the evolution of market efficiency over time. A higher \textit{AMU} indicates a greater degree of market inefficiency, as it reflects more frequent or larger risk-free profit opportunities for market makers due to wide bid-ask spreads that deviate from put-call parity.
+The \textit{AMU} measure is defined as the average of the positive \textit{MU arbitrage} opportunities observed over a certain period of time, expressed in basis points of the underlying asset's value. This measure allows us to compare the efficiency of different trading platforms and to track the evolution of market efficiency over time. A higher \textit{AMU} indicates a greater degree of market inefficiency, as it reflects more frequent or larger risk-free profit opportunities for market makers due to wide bid-ask spreads that deviate from put-call parity.
 
 \subsection{MU arbitrage paths}
 
 The mechanism for the theoretical arbitrage is as follows: The market maker observes that \textit{if} she joined the top of the market on the bid/ask of the put/call contract (these are the 4 arbitrage paths), then when filled a risk-free profit could be realized by completing the full arbitrage cycle. The \textit{fwd\_call} path corresponds to the forward direction, with the market maker joining the bid of the call leg. The \textit{bck\_put} path corresponds to the backward direction, with the market maker joining the bid of the put leg, and so on.
 
-From a market maker's perspective these are very weak opportuities, since in order to profit, another market participant must cross with the market maker's passive order. However, since keeping an order out has no cost associated with it, and often market makers a required to present a reasonable market for a substantial time and contract fraction, it makes sense to have such quotes out. In a well functioning market such opportunities would then disappear, since market makers have an incentive to improve the bid/ask prices in competition with each other.
+From a market maker's perspective, these are very weak opportunities, since profit requires another market participant to cross the market maker's passive order. However, keeping an order in the book has no direct cost, and market makers are often required to maintain a reasonable market for a substantial share of time and contracts, so posting such quotes can still be rational. In a well-functioning market, such opportunities would disappear, since market makers have incentives to improve bid-ask prices in competition with each other.
 
 \section{Results}
 
 In the following we present AMU results in basis point units so that ETH and BTC results can be easily compared. AMU in bp is the average dollar AMU per observed put-call pair divided by the value of the underlying, accounting properly for the contract size.
 
-Even though AMU can be expressed in dollar terms too (after all arbitrage opportunities have a definite size), when we compare platform we don't want to penalize the more liquid one where a smaller proportional AMU can correspond to a larger dollar amount. Therefor in what follows focus on AMU measured in basis points.
+Even though AMU can also be expressed in dollar terms (arbitrage opportunities have a definite dollar size), cross-platform comparisons should not penalize more liquid markets where smaller proportional AMU can still correspond to larger dollar amounts. Therefore, in what follows, we focus on AMU measured in basis points.
 
 \begin{figure}[!htbp]
 \centering
@@ -326,7 +323,7 @@ Figures \ref{okex_btcusd_4_spreads}, \ref{okex_ethusd_4_spreads}, \ref{deribit_b
 
 \subsection{Trading costs and the AMU arbitrage}
 
-Trading costs are crucial in evaluating the actual value of the AMU arbitrage. While we carefully dealt with the issue of bid-ask spreads, the issue of trading fees has not yet been addressed. We assume a simple fee structure where the total cost of the arbitrage round trip is 30 basis points. This is a reasonable value for all the exchanges we analyze. But more imprtant is that the effect of the fees is a simple leftward shift of the AMU distribution, which does not distort the cross-exchange comparison of inefficiency; it only shifts the feasible arbitrage region in a directly measurable and comparable way. After accounting for trading fees, the actual tradable AMU arbitrage opportunities are those that exceed 30 basis points.
+Trading costs are crucial in evaluating the actual value of the AMU arbitrage. While we carefully addressed bid-ask spreads, trading fees must also be considered. We assume a simple fee structure where the total cost of an arbitrage round trip is 30 basis points, a reasonable value across the analyzed exchanges. More important, fees shift the AMU distribution leftward without distorting cross-exchange comparisons of inefficiency; they only shift the feasible arbitrage region in a directly measurable and comparable way. After accounting for trading fees, tradable AMU opportunities are those above 30 basis points.
 
 \subsection*{The time evolution of the AMU arbitrage}
 
@@ -377,11 +374,11 @@ Relative strike is the conventional measure $K/F$, where $K$ is the strike price
 %-----------------------------------------------
 \subsection{Platform Specific Contracts and Put-Call Parities}
 
-\subsubsection{OKEX futures and options}
+\subsubsection{OKX futures and options}
 
-For notation, we use $S_t$ to denote the BTCUSD index at time $t$, and $S^{(U)}_t$ the BTCUSDT index at time $t$. These index prices are determined as an average of multiple exchanges' settlement prices. $U_t$ is the USDUSDT exchange rate at time $t$, and superscripts $(U)$ denote quantities in related to the BTCUSDT index (as opposed to the BTCUSD index). In this market, the futures and options payouts depend on the value of $S_t$, which is not a traded price itself, but is a published value. It has therefore no bid-ask spread.
+For notation, we use $S_t$ to denote the BTCUSD index at time $t$, and $S^{(U)}_t$ the BTCUSDT index at time $t$. These index prices are determined as averages of multiple exchanges' settlement prices. $U_t$ is the USDUSDT exchange rate at time $t$, and superscripts $(U)$ denote quantities related to the BTCUSDT index (as opposed to the BTCUSD index). In this market, futures and options payouts depend on the value of $S_t$, which is a published index value rather than a directly traded price. It therefore has no bid-ask spread.
 
-For OKEX futures, we describe the crypto derivatives in a world where the numeraire is USDT, the stablecoin tied to the US dollar \citep{okx_futures}.
+For OKX futures, we describe the crypto derivatives in a world where the numeraire is USDT, the stablecoin tied to the US dollar \citep{okx_futures}.
 
 \subsubsection{Crypto-margined (BTCUSD) Futures}
 
@@ -417,9 +414,9 @@ where $K=80000$ is the strike price, and $T$ is 2025-06-27 and $U_T$ is the USDU
 
 Option premia are quoted in BTC. Analogous options exist for ETHUSD and ETHUSDT.\citet{okx_options}.
 
-\subsubsection{Put-Call Parity in OKEX}
+\subsubsection{Put-Call Parity in OKX}
 
-From here on we assume the $U_T=1 \pm \sigma_U\%$, $\sigma_U\approx0.001\%$ \textcolor{red}{biztos, hogy a Binance kell nekünk?}\citet{usd_vs_usdt}. With this assumption, we can write down the put-call parity relationship between OKX options and the OKX USDT-margined futures with matching strikes and expirations:
+From here on we assume $U_T=1 \pm \sigma_U\%$, with $\sigma_U\approx0.001\%$ \citep{usd_vs_usdt}. With this assumption, we can write down the put-call parity relationship between OKX options and the OKX USDT-margined futures with matching strikes and expirations:
 
     \begin{equation} \label{okexpcp}
     (c_t - p_t)\times S_t = (F^{(U)}_t - K)\exp\left(-r(T-t)\right)
@@ -440,7 +437,7 @@ As \ref{pcp} splits after considering bid-ask prices, \ref{okexpcp} behaves simi
 \;\geq\; 0
 \end{equation}
 
-\subsection{Computing of AMU in the data}
+\subsection{Computing AMU in the data}
 
 In \citet{felfoldi2024put} we described the \textit{forward} and \textit{backward} arbitrage paths, and their dependence on various cost components. The general concept was to define the forward and backward arbitrage profit as \ref{profitfwd} and \ref{profitback} when violating simple, textbook-version options.
 
@@ -456,7 +453,7 @@ S_{ask} - C_{bid} + P_{ask} - Ke^{-rT}
 Ke^{-rT} - S_{bid} + C_{ask} - P_{bid}
 \end{equation}
 
-In this paper, we performed the same on the contracts of several crypto-derivatives markets. The dominant cost component in \citet{felfoldi2024put} was the bid-ask spread of the options contracts. We therefore focus on those, with an approximate additive commission discussed above.
+In this paper, we apply the same approach to contracts across several crypto-derivatives markets. The dominant cost component in \citet{felfoldi2024put} was the options bid-ask spread, so we focus on that, with the approximate additive commission discussed above.
 
 We'll compute PCP breaking in units of USDT, and then convert to basis points of the underlying by dividing by the value of the underlying corresponding to one contract.
 
@@ -499,15 +496,19 @@ The final formula for AMU as used in our empirical analysis is then given by
 
 Note that AMU does not depend on the multiplier.
 
-\subsection{OKEX ETHUSD, and deribit BTCUSD and ETHUSD futures and options}
+\subsection{OKX ETHUSD, and Deribit BTCUSD and ETHUSD futures and options}
 
-Inverse options and futures and options on OKEX and Deribit have identical payoff structures, even though contract multipliers can be different. Since
+Inverse options, futures, and options on OKX and Deribit have identical payoff structures, even though contract multipliers can differ. It follows that, without any change, the formula also applies to other inverse contracts on both exchanges.
 
 \section{Discussion}
 
-General liquidity considerations can explain that ETHUSD options are less efficient than BTCUSD options, and OTM/ITM options are less efficient that ATM options. Longer dated options are more efficient than shorter dated ones. However there are nontrivial observations:
+General liquidity considerations can explain why ETHUSD options are less efficient than BTCUSD options, and why OTM/ITM options are less efficient than ATM options. Longer-dated options are more efficient than shorter-dated ones. However, there are nontrivial observations:
 
-We can conclude overall that OKEX is a fairer market than Deribit, see Table \ref{amu_summary}. But it is important to note that the main driver of the difference is that spreads on OKEX are much more reasonable away from ATM options. OKEX option markets also remain more reasonable in times of stress.
+We can conclude overall that OKX is a fairer market than Deribit (see Figure \ref{amu_summary}). It is important to note that the main driver of this difference is that spreads on OKX are much more reasonable away from ATM options. OKX option markets also remain more reasonable during periods of stress.
+
+\subsection{Effect of trading costs on the AMU arbitrage}
+
+What should be done if costs differ across exchanges? For example, if we assume 60 bps for OKX and 30 bps for Deribit, then the AMU distribution on OKX would shift leftward by 30 bps, which would make OKX AMU appear even better (we would observe a much smaller part of the MU tail). To make the comparison fair, we assume the same reasonable cost level, because we should not penalize an exchange in our evaluation for having lower costs.
 
 
 \section*{Data Availability Statement}
@@ -516,8 +517,6 @@ The data that support the findings of this study are available through
 \href{https://tardis.dev/}{Tardis} \citep{tardis_main}. Historical datasets for the first day of each month are openly accessible without an API key, as documented in the Tardis dataset description \cite{tardis_main,turn3search3}. Access to data for all other days of the month requires an active subscription.
 
 \section*{Supplemental Online Material}
-
-% \textcolor{red}{MEGADJUNK VALAMI KÓDOKAT? AMIKRŐL BALÁZS ÉS TOMI SZOKTAK BESZÉLNI??? }
 
 \bibliography{bibl}
 %-----------------------------------------------
