@@ -404,7 +404,7 @@ Inverse options, futures, and options on OKX and Deribit have identical payoff s
 
 \section{Results}
 
-In the following we present AMU results in basis point units so that ETH and BTC results can be easily compared. AMU in bp is the average dollar AMU per observed put-call pair divided by the value of the underlying, accounting properly for the contract size.
+In the following we present AMU results in basis point units so that ETH and BTC results can be easily compared. AMU in bp is the average dollar MU per observed put-call pair divided by the value of the underlying, accounting properly for the contract size.
 
 Even though AMU can also be expressed in dollar terms (arbitrage opportunities have a definite dollar size), cross-platform comparisons should not penalize more liquid markets where smaller proportional AMU can still correspond to larger dollar amounts. Therefore, in what follows, we focus on AMU measured in basis points.
 
@@ -453,7 +453,6 @@ Trading costs are crucial in evaluating the actual value of the AMU arbitrage. W
 
 In figure \ref{multi_exchange_amu_by_date} we show the time evolution of the AMU across exchanges. When superimposed with the BTCUSD spot value, it is notable how the AMU becomes much higher during times of market stress, namely times of sudden BTC price drops.
 
-The bottom pane of figure \ref{multi_exchange_amu_by_date} shows how often the AMU arbitrage actually sets up out of all times when we have valid put and call markets. The notable weekly structure of the number of ticks has to do with a data artifact pertaining to Fridays in the raw Tardis data.
 
 \subsection{AMU by Time-to-Expiration}
 
@@ -464,7 +463,7 @@ The bottom pane of figure \ref{multi_exchange_amu_by_date} shows how often the A
 \label{multi_exchange_amu_by_tte}
 \end{figure}
 
-TTE refers to the time to expiration of the option pairs observed, measured in years. As shown in figure \ref{multi_exchange_amu_by_tte}, the AMU is worse for farther dated options. However, there are very few observations available for longer dated contracts, most of the data is for options expiring in two weeks or less.
+TTE refers to the time to expiration of the option pairs observed, measured in years. As shown in figure \ref{multi_exchange_amu_by_tte}, the AMU is worse for shorter dated options. However, there are very few observations available for longer dated contracts, most of the data is for options expiring in two weeks or less.
 
 \subsection{AMU by Relative Strike}
 
@@ -498,6 +497,8 @@ We calculated the AMU measure using high‑frequency intraday data for BTCUSD an
 In sum general liquidity considerations can explain why ETHUSD options are less efficient than BTCUSD options, and why OTM/ITM options are less efficient than ATM options. Longer-dated options are more efficient than shorter-dated ones. 
 
 Future research could examine the role of transaction costs more explicitly. An important question is how to compare exchanges when their trading costs differ. For example, if we assume a cost of 60 bps on OKX and 30 bps on Deribit, the AMU distribution on OKX would shift left by 30 bps, making the platform appear even more efficient (as a substantially smaller portion of the MU tail would remain). To ensure a fair comparison in the current paper, we assumed the same reasonable cost level across exchanges, as an exchange should not be penalized simply for offering lower fees. Nevertheless, future work could incorporate more accurate transaction‑cost estimates into the AMU calculation, allowing the indicator to reflect actual trading conditions more closely, and providing a more precise assessment of market efficiency.
+
+A clear limitation of our analysis is the relative short period (2026 Q1) under investigation. While raw data is available for much longer, the size of files is sufficiently large to make processing time consuming. We'll expand the analysis as the processed data becomes availeble.  
 
 Another promising direction for future research is to examine how spillover effects across platforms and across different crypto assets influence the AMU indicator. Since liquidity, volatility, and order‑flow conditions on one exchange can spillover to others, and shocks in major assets such as BTC or ETH can rapidly spread accross to other correlated markets, these cross‑market linkages may have a meaningful impact on observed AMU levels. Investigating such spillovers would help determine whether deviations from put–call parity are driven primarily by platform‑specific microstructure features or by broader market dynamics. Understanding these interactions could provide a deeper perspective on how arbitrage conditions evolve across the crypto derivatives markets.
 
