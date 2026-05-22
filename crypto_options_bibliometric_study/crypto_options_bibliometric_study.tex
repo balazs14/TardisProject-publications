@@ -1,0 +1,388 @@
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=0.85in]{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{titlesec}
+\usepackage{natbib}
+\usepackage{caption}
+
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+\setlist{nosep}
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+\setlength{\parskip}{0.35em}
+\setlength{\parindent}{0em}
+
+\title{\textbf{A Bibliometric and Grey-Literature Review of Cryptocurrency Options Research}}
+\author{Prepared from Scopus, Google Scholar and SSRN search outputs}
+\date{May 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This short bibliometric study maps the emerging literature on cryptocurrency options, with emphasis on Bitcoin and Ethereum options, Deribit market data, implied volatility, arbitrage, market efficiency, and intraday or tick-level market microstructure. An iterative Scopus search was combined with grey-literature discovery through Google Scholar and SSRN. The final working corpus contains \textbf{71 core or near-core records}: a locked Scopus core and four screened grey-literature additions. The evidence points to a small but rapidly expanding field, concentrated after 2020 and especially in 2021--2026. The literature is fragmented across finance, quantitative finance, financial innovation, derivatives, machine learning, and practitioner venues. Three themes dominate: (i) pricing and volatility-surface modelling, (ii) risk premia, hedging, and option returns, and (iii) microstructure, informed trading, and intraday effects. The most notable gap is that high-frequency market-efficiency research using order-book or transaction-level crypto-options data remains thin despite the availability of Deribit tick data. This creates a clear opening for research on intraday efficiency, settlement-time effects, informed trading, liquidity, arbitrage bounds, and execution-aware option pricing.
+\end{abstract}
+
+\section{Introduction}
+
+Cryptocurrency options have moved from a niche derivatives product to a major venue for trading volatility, tail risk, and institutional crypto exposure. Deribit dominates much of the Bitcoin and Ethereum options market, while CME, Binance, OKX, LedgerX, and decentralised option venues form a smaller but relevant ecosystem. Compared with spot and futures markets, however, the academic literature on crypto options is still young.
+
+This study provides a concise bibliometric map of that literature. Its practical motivation is a research agenda focused on \emph{crypto options market efficiency at intraday or tick frequency}. That target is narrower than general cryptocurrency volatility or even general crypto derivatives. A paper is treated as core only when cryptocurrency options are the central object of study rather than a passing example or explanatory variable. General Bitcoin volatility, crypto futures, safe-haven, or uncertainty-spillover papers are treated as adjacent or background unless options data are essential to the analysis.
+
+The study follows the structure of compact bibliometric reviews in finance: data construction, analytic approach, performance analysis, thematic interpretation, and research agenda. The search process is deliberately documented in detail because keyword searching in this field is difficult. Terms such as \texttt{option}, \texttt{ether}, \texttt{ETH}, \texttt{volatility}, \texttt{premia}, \texttt{ribbon}, and \texttt{derivative} produce many false positives in chemistry, engineering, generic finance, energy, and computer science. The final corpus therefore resulted from iterative search design, screening, and stopping rules rather than from a single broad Boolean query.
+
+\section{Data}
+
+\subsection{Scopus corpus}
+
+The indexed academic corpus was built in Scopus through a sequence of keyword, proximity, venue, and cited-reference queries. The seed query required cryptocurrency asset terms such as Bitcoin, BTC, Ethereum, ETH, Ether, cryptocurrency, cryptoasset, or digital asset, together with option-market terms such as options, implied volatility, volatility surface, volatility smile, put-call parity, risk-neutral density, and related efficiency terms. Subsequent rounds added proximity conditions, named venues such as Deribit, LedgerX and CME Bitcoin options, and cited-reference snowballing from known core papers.
+
+The Scopus stage was stopped after a final targeted recall query produced no new records. The locked Scopus dataset contained 294 deduplicated candidate records, of which 67 were classified as strict core crypto-options papers, 155 as adjacent/background, and 72 as excluded. The strictness of this classification is important: a paper that merely uses Bitcoin implied volatility as a control, or mentions crypto options in a broader volatility context, was not counted as core.
+
+\subsection{Grey-literature corpus}
+
+Grey literature was added because the frontier of crypto-options research is partly located in working papers, SSRN papers, preprint versions, industry notes, and market-data research. Google Scholar and SSRN were searched manually with exact phrases such as \texttt{"Bitcoin options" "Deribit"}, \texttt{"Ethereum options" "Deribit"}, \texttt{"crypto options" arbitrage Deribit}, \texttt{"Deribit" "order book" "options"}, \texttt{"Deribit" "tick data" "options"}, and \texttt{"Bitcoin options" "intraday"}. SSRN was searched separately, because several newly relevant papers appeared there before being indexed or fully incorporated into bibliographic databases.
+
+Four grey-literature items were added to the core or near-core corpus after full-text screening. Three are academic working papers: \emph{Time-of-day effects in the Bitcoin options market}, \emph{Empirical Evidence of Rough Volatility in Bitcoin Options: A Rough Bergomi Approach}, and \emph{Optimal Strike Distance for Daily Crypto Strangles}. One practitioner/research note, \emph{Do Gamma Walls Actually Move Bitcoin Prices at Deribit?}, was retained as near-core grey literature because it directly tests a market-microstructure claim using Deribit option data, but it is classified separately from academic work.
+
+The combined core corpus therefore contains \textbf{71} records.
+
+\begin{table}[h!]
+\centering
+\caption{Combined core corpus by source platform}
+\begin{tabular}{lr}
+\toprule
+Source platform & Records \\
+\midrule
+Scopus & 67 \\
+SSRN & 3 \\
+SSRN / Halcyon Waters & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Analytic approach}
+
+The study uses performance analysis and light scientific mapping. Performance analysis summarises publication timing, source type, and source platform. Scientific mapping is implemented qualitatively through topic clustering rather than through a full VOSviewer or bibliometrix co-citation network, because the corpus is small and the grey-literature records have heterogeneous metadata. This is a limitation, but also a finding: cryptocurrency options is still an emerging literature rather than a mature field with a stable citation network.
+
+The topical clusters used in the combined corpus are intentionally practical:
+\begin{enumerate}
+    \item \textbf{Pricing and volatility modelling}: implied volatility, volatility surfaces, rough volatility, jump diffusion, stochastic volatility, neural networks, and inverse/quanto option design.
+    \item \textbf{Risk premia, option returns, and hedging}: variance risk premia, delta hedging, volatility-selling strategies, option returns, and pricing kernels.
+    \item \textbf{Market efficiency, arbitrage, and put-call parity}: arbitrage bounds, completeness, put-call parity, price discovery, efficiency tests, and limits to arbitrage.
+    \item \textbf{Market microstructure and high-frequency data}: tick-level Deribit data, order-book data, informed trading, net buying pressure, time-of-day effects, expiration effects, gamma exposure, and settlement mechanics.
+    \item \textbf{Adjacent theory and practitioner material}: broad structural Bitcoin option models and industry research notes.
+\end{enumerate}
+
+This approach is conservative. It avoids treating every crypto volatility paper as part of the options literature, even if options or implied volatility are mentioned.
+
+\section{Findings}
+
+\subsection{Growth over time}
+
+The literature is recent. The strict core begins in 2018--2019, expands in 2020--2021, and becomes much more visible from 2023 onward. The combined corpus is especially concentrated in 2024--2026, reflecting both the maturation of Deribit option markets and the growth of academic interest in crypto volatility, option risk premia, and high-frequency data.
+
+\begin{table}[h!]
+\centering
+\caption{Core corpus by year}
+\begin{tabular}{lr}
+\toprule
+Year & Records \\
+\midrule
+2018 & 1 \\
+2019 & 3 \\
+2020 & 4 \\
+2021 & 13 \\
+2022 & 5 \\
+2023 & 10 \\
+2024 & 14 \\
+2025 & 14 \\
+2026 & 7 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The shape of the publication timeline suggests that crypto-options research is in an early growth stage. Unlike broad Bitcoin research, which is now large and diffuse, crypto-options research remains small enough that a specialised researcher can still identify most of the field manually. This is useful for bibliometric completeness, but it also means that performance rankings by author, institution, or country should be interpreted cautiously.
+
+\subsection{Source and quality structure}
+
+The Scopus core remains the backbone of the corpus. The grey-literature additions are few, but they are important because they capture the frontier of intraday, rough-volatility, and strategy-oriented research. The final corpus distinguishes indexed academic publications from academic working papers and practitioner notes.
+
+\begin{table}[h!]
+\centering
+\caption{Core corpus by quality tier}
+\begin{tabular}{lr}
+\toprule
+Quality tier & Records \\
+\midrule
+Indexed academic literature & 67 \\
+Academic working paper & 3 \\
+Practitioner research note & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+One finding is that grey literature is not merely filler. The most relevant paper for the target topic---intraday market efficiency in Bitcoin options---was discovered through SSRN/Scholar screening and uses Deribit transaction-level data to identify time-of-day effects. This suggests that a bibliometric review relying only on Scopus would understate the newest high-frequency research frontier.
+
+\subsection{Thematic clusters}
+
+\begin{table}[h!]
+\centering
+\caption{Core corpus by broad topical cluster}
+\begin{tabularx}{\textwidth}{Xr}
+\toprule
+Cluster & Records \\
+\midrule
+Unclassified core Scopus record & 67 \\
+Intraday / microstructure / settlement effects & 1 \\
+Market microstructure / gamma exposure / expiration mechanics & 1 \\
+Pricing / rough volatility / hedging & 1 \\
+Trading strategy / volatility risk premium / short-dated options & 1 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The largest theme is pricing and volatility modelling. This includes papers on Bitcoin option pricing, inverse and quanto inverse options, volatility surfaces, stochastic volatility, jumps, rough volatility, and machine-learning option pricing. This cluster reflects the fact that crypto options initially attracted attention because standard derivative models do not translate cleanly to inverse settlement, 24/7 trading, non-standard funding rates, jumps, and unstable volatility smiles.
+
+A second theme concerns risk premia, hedging, and option returns. Papers in this cluster use Deribit and related data to study variance risk premia, pricing kernels, delta hedging, informed trading, and option returns. These papers connect crypto options to the traditional empirical options literature, but their results are shaped by the distinctive microstructure of crypto venues.
+
+A third theme concerns efficiency and arbitrage. Put-call parity, completeness, price discovery, and limits to arbitrage appear repeatedly, but often at daily or lower frequencies. This literature is directly relevant to market efficiency but does not yet provide a large body of tick-level or order-book evidence.
+
+The most underdeveloped theme is microstructure at intraday or tick frequency. Several key papers exist: studies of net buying pressure, tick data, informed trading, Deribit order-book or transaction data, and time-of-day effects. But compared with the size of the market and the availability of API-level data, the literature is still thin.
+
+\section{Key papers and frontier grey literature}
+
+The most important grey-literature additions sharpen the research agenda. \emph{Time-of-day effects in the Bitcoin options market} uses Deribit transaction-level data from the first Bitcoin option transaction on 29 November 2016 through 17 August 2025. It finds two intraday peaks, 8:00--9:00 GMT and 14:00--15:00 GMT. The first is tied to Deribit settlement and expiration mechanics; the second is associated with NYSE opening-hour spillovers. This paper is especially important because it links a continuous 24/7 crypto-options market to both internal option-market design and external traditional-market trading hours.
+
+\emph{Empirical Evidence of Rough Volatility in Bitcoin Options} belongs to the pricing frontier. It uses high-frequency Deribit data, arbitrage-free SSVI surfaces, and rBergomi calibration, reporting an ultra-low Hurst exponent near 0.07 and improved delta-hedging performance relative to classical models. Its future-research discussion explicitly points toward execution-aware and microstructure-informed analysis.
+
+\emph{Optimal Strike Distance for Daily Crypto Strangles} moves from pricing accuracy to trading-decision quality. It studies one-day BTC short strangles on Deribit and treats strike distance as a state-dependent decision variable. This is useful because it connects option-market modelling to implementable trading rules and realised P\&L.
+
+The practitioner note \emph{Do Gamma Walls Actually Move Bitcoin Prices at Deribit?} tests a popular market narrative. It concludes that gamma-wall effects are theoretically plausible but economically negligible in Bitcoin because aggregate gamma exposure is tiny relative to options and spot volume. It should not be treated as equivalent to peer-reviewed empirical finance, but it is useful evidence of practitioner hypotheses that academic research could formalise.
+
+\begin{table}[h!]
+\centering
+\caption{New grey-literature additions after full-text screening}
+\small
+\begin{tabularx}{\textwidth}{X p{2.8cm} p{0.7cm} p{3.0cm} p{1.8cm}}
+\toprule
+Title & Authors & Year & Theme & Status \\
+\midrule
+Time-of-day effects in the Bitcoin options market & Hoang and Phan & 2026 & Intraday / settlement effects & Core \\
+Empirical Evidence of Rough Volatility in Bitcoin Options & Sun, He and Xu & 2026 & Rough volatility / hedging & Core \\
+Optimal Strike Distance for Daily Crypto Strangles & Wen and Yu & 2026 & Short-dated strangles / volatility selling & Core \\
+Do Gamma Walls Actually Move Bitcoin Prices at Deribit? & Lachowicz & 2025 & Gamma exposure / market microstructure & Core? practitioner note \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Research agenda}
+
+The literature creates a clear opportunity for research on crypto-options market efficiency at intraday and tick frequency. Five gaps stand out.
+
+First, \textbf{intraday efficiency and settlement mechanics} are underexplored. Deribit option settlement at 8:00 GMT creates a natural laboratory for studying rollover, margin release, expiration-day effects, and liquidity concentration. The time-of-day paper shows that these mechanisms matter, but it leaves open questions about bid--ask spreads, quote revisions, price impact, and arbitrage bounds around settlement.
+
+Second, \textbf{order-book and transaction-level liquidity} remain thinly studied. Several papers use tick data, but the literature has not converged on standard measures of crypto-options liquidity, effective spreads, depth, quote resiliency, or execution cost. This is a particularly promising area because options-market efficiency cannot be assessed from closing prices alone.
+
+Third, \textbf{put-call parity and arbitrage tests should be brought to higher frequency}. Existing efficiency tests typically rely on relatively coarse prices. Crypto options trade continuously, with funding, inverse settlement, stablecoin collateral, and exchange-specific margin rules. These features create a rich setting for intraday no-arbitrage tests that account for execution costs and liquidity.
+
+Fourth, \textbf{model-implied signals should be tested against tradable strategies}. Rough volatility, stochastic volatility, volatility-surface models, and machine-learning pricing models are often evaluated by pricing errors or hedging error. A natural next step is to ask whether model errors are persistent, tradeable, and robust after transaction costs.
+
+Fifth, \textbf{Bitcoin and Ethereum options should be compared systematically}. The Ethereum-specific literature is thinner than the Bitcoin literature. Yet ETH options share venue design with BTC options while differing in underlying ecosystem, volatility, event risk, and institutional demand. This creates a useful matched-market design.
+
+\section{Conclusion}
+
+Cryptocurrency options research is small, young, and rapidly expanding. The Scopus core is now stable enough for bibliometric treatment, but the frontier cannot be captured from indexed journals alone. SSRN and Google Scholar identify several recent working papers that are directly relevant to intraday, high-frequency, and market-microstructure questions.
+
+The central conclusion is that the field is not yet dominated by a single journal, author group, or method. It is fragmented across derivative pricing, empirical market microstructure, risk premia, volatility modelling, and practitioner research. This fragmentation creates an opportunity. A researcher with access to intraday or tick-level Deribit data can contribute to a still-forming literature by linking option-market efficiency, settlement mechanics, liquidity, arbitrage bounds, and execution-aware pricing.
+
+\clearpage
+\appendix
+\section{Search process and corpus construction}
+
+\subsection{Scopus search iterations}
+
+\begin{longtable}{p{0.16\textwidth}p{0.36\textwidth}p{0.08\textwidth}p{0.30\textwidth}}
+\caption{Search-process log}\\
+\toprule
+Stage & Query logic & Hits & Outcome \\
+\midrule
+\endfirsthead
+\toprule
+Stage & Query logic & Hits & Outcome \\
+\midrule
+\endhead
+Scopus Round 1 & TITLE-ABS-KEY terms requiring crypto asset terms and option-market terms & 29 & High-precision seed set. \\
+Scopus Round 2 & Bitcoin/Ethereum + implied volatility/volatility surface/put-call parity + efficiency & 113 & Useful but noisy; crypto volatility spillover papers entered. \\
+Scopus Round 3 & Proximity query: bitcoin/btc/ethereum/crypto within 5--8 words of option*, plus Deribit/LedgerX/CME & 114 & Useful expansion; exposed ETH/ether ambiguity. \\
+Scopus Round 4 & DeFi / exchange / platform expansion & 79 & Low recall value; many decentralized non-finance false positives. \\
+Scopus Round 5 & Corrected named venue/protocol query requiring option and crypto context & 42 & Low marginal yield. \\
+Scopus Round 6 & Cited-reference snowball query from known core crypto-options papers & 47 & Only one new core item; stabilization begins. \\
+Scopus Round 7 & Final targeted title-phrase query & 24 & Zero new candidates; Scopus stopped. \\
+Google Scholar & "Bitcoin options" "Deribit"; "Ethereum options" "Deribit"; "Ether options" "Deribit"; "crypto options" arbitrage Deribit; order-book/tick/intraday phrases & multiple & Mostly rediscovered known core papers; a few grey candidates. \\
+SSRN & Deribit options; Bitcoin options intraday; targeted full-text downloads & 17 for Deribit options & Added three academic working papers plus one practitioner note; intraday query only rediscovered Time-of-day paper. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Inclusion and exclusion rules}
+
+Records were classified as \textbf{Core} when the main object of study was cryptocurrency options. Records were classified as \textbf{Adjacent} when they studied crypto volatility, futures, derivatives, implied volatility, or market efficiency but did not make crypto options the central object. Records were excluded when crypto options were mentioned only incidentally, when the record was about unrelated uses of \texttt{option}, \texttt{ether}, or \texttt{ETH}, or when it was a duplicate of a canonical Scopus or published record.
+
+The most common false positives were:
+\begin{itemize}
+    \item \texttt{option} as a generic choice or policy option;
+    \item \texttt{ether} in chemistry;
+    \item \texttt{ETH} as extended trading hours;
+    \item \texttt{derivative} in mathematics, chemistry, or engineering;
+    \item DeFi words such as \texttt{decentralized option} in non-financial infrastructure contexts;
+    \item generic Bitcoin volatility or safe-haven papers where options were not central.
+\end{itemize}
+
+\subsection{Grey-literature stopping rule}
+
+Grey-literature searching was stopped when two conditions were met. First, the SSRN query \texttt{Bitcoin options intraday} returned only the already collected \emph{Time-of-day effects in the Bitcoin options market}. Second, the Google Scholar query \texttt{"Bitcoin options" "intraday"} produced no new core items after three result pages. Earlier Deribit/order-book/tick-data searches had also mostly rediscovered already-known Scopus records or preprint versions. This satisfied the stopping rule: additional keyword searches were yielding duplicates, background literature, or practitioner material rather than new core research papers.
+
+\section{Data appendix: combined core corpus}
+
+The table below provides the combined core corpus used for this draft. The complete CSV file should be treated as the authoritative data appendix.
+
+\begingroup
+\renewcommand{\arraystretch}{1.35}
+\scriptsize
+\begin{longtable}{p{0.08\textwidth}p{0.40\textwidth}p{0.17\textwidth}p{0.05\textwidth}p{0.11\textwidth}p{0.07\textwidth}}
+\caption{Combined core corpus, Scopus plus grey literature}\\
+\toprule
+ID & Title & Authors & Year & Source & Status \\
+\midrule
+\endfirsthead
+\toprule
+ID & Title & Authors & Year & Source & Status \\
+\midrule
+\endhead
+s-core-001 & A Synergetic Approach to Ethereum Option Valuation Using XGBoost and Soft Reordering 1D Convolu & Sapna S.; Mohan B.R. & 2026 & Scopus & Core \\
+s-core-002 & Equilibrium Pricing of Bitcoin Options With Stochastic Volatility, Jumps, and Liquidity Risk & Li J. & 2026 & Scopus & Core \\
+s-core-003 & Gambling on Bitcoin options? & Flynn M.; Liu Y. & 2026 & Scopus & Core \\
+s-core-004 & Recovering risk aversion from Bitcoin option prices and realized returns & Cheng Z. & 2026 & Scopus & Core \\
+s-core-005 & Aggregate illiquidity and crypto option returns & Atanasova C.; Miao T.; Segarra I.; Willeboordse F. & 2025 & Scopus & Core \\
+s-core-006 & Crypto inverse-power options and fractional stochastic volatility & Li B.; Xia W. & 2025 & Scopus & Core \\
+s-core-007 & Effects of Social Media-Based Peer Opinions on the Prices of Cryptocurrency Options & Kim D.-H. & 2025 & Scopus & Core \\
+s-core-008 & Finite mixture models for option pricing: An application to Bitcoin options & Siu T.K. & 2025 & Scopus & Core \\
+s-core-009 & Machine Learning Methods for Predicting European Options on Bitcoin and S\&P 500 with Lag Interv & Wibisono S.S.; Margaretha H.; Widjaja P.; Ferdinand F.V & 2025 & Scopus & Core \\
+s-core-010 & Market Consistent Valuation for Bitcoin Options With Long Memory in Conditional Volatility and  & Siu T.K. & 2025 & Scopus & Core \\
+s-core-011 & Neural Network for Valuing Bitcoin Options Under Jump-Diffusion and Market Sentiment Model & Pindza E.; Clement J.; Mwambi S.; Umeorah N. & 2025 & Scopus & Core \\
+s-core-012 & On the implied volatility of Inverse options under stochastic volatility models & Alòs E.; Nualart E.; Pravosud M. & 2025 & Scopus & Core \\
+s-core-013 & Option Contracts in the DeFi Ecosystem: Opportunities, Solutions, and Technical Challenges & Fateh Singh S.; Nekriach V.; Michalopoulos P.; Veneris  & 2025 & Scopus & Core \\
+s-core-014 & Pricing Cryptocurrency Options With Volatility of Volatility & Du L.; Shen J. & 2025 & Scopus & Core \\
+s-core-015 & Reconstructing Smooth Local Volatility Surfaces for Cryptocurrency Options & Nam Y.; Hwang Y.; Kim J. & 2025 & Scopus & Core \\
+s-core-016 & Short Paper: A Low-Latency System for Collecting Massive Crypto Option Tick Data from Deribit & Atzberger D.; Henker R.; Vollmer J.O.; Holdschick A.; S & 2025 & Scopus & Core \\
+s-core-017 & The interconnection between net buying pressures in derivatives and spot markets & Doan B.; Vo D.H. & 2025 & Scopus & Core \\
+s-core-018 & American Options: A Fractional-Order Black-Scholes Merton Approach with Neural Network & Maitra S.; Arora K. & 2024 & Scopus & Core \\
+s-core-019 & Analysis of Hedging Strategies for Multiple Options in the BTC Market Using Deep Smoothing and  & Fujiwara M.; Nakakomi T.; Kako K.; Horikawa H.; Nakagaw & 2024 & Scopus & Core \\
+s-core-020 & Arbitrage opportunities and efficiency tests in crypto derivatives & Alexander C.; Chen X.; Deng J.; Wang T. & 2024 & Scopus & Core \\
+s-core-021 & Are Bitcoin option traders speculative or informed? & Wei W.C.; Koutmos D.; Zhu M. & 2024 & Scopus & Core \\
+s-core-022 & Bayesian Lower and Upper Estimates for Ether Option Prices with Conditional Heteroscedasticity  & Siu T.K. & 2024 & Scopus & Core \\
+s-core-023 & Comparative Analysis of Root Finding Algorithms for Implied Volatility Estimation of Ethereum O & Sapna S.; Mohan B.R. & 2024 & Scopus & Core \\
+s-core-024 & Deterministic modelling of implied volatility in cryptocurrency options with underlying multipl & Leung F.; Law M.; Djeng S.K. & 2024 & Scopus & Core \\
+s-core-025 & Evaluation of bitcoin options with interest rate risk and systemic risk & Hsu P.-P.; Wang C.-H. & 2024 & Scopus & Core \\
+s-core-026 & Implied parameter estimation for jump diffusion option pricing models: Pricing accuracy and the & Hilliard J.E.; Hilliard J.; Ngo J.T.D. & 2024 & Scopus & Core \\
+s-core-027 & Implied volatility slopes and jumps in bitcoin options market & Chen T.; Deng J.; Nie J. & 2024 & Scopus & Core \\
+s-core-028 & Price dynamics and volatility jumps in bitcoin options & Chen K.S.; Yang J.J. & 2024 & Scopus & Core \\
+s-core-029 & Pricing cryptocurrency options with machine learning regression for handling market volatility & Brini A.; Lenz J. & 2024 & Scopus & Core \\
+s-core-030 & Put–call parity in a crypto option market — Evidence from Binance & Felföldi-Szűcs N.; Králik B.; Váradi K. & 2024 & Scopus & Core \\
+s-core-031 & Valuation and hedging of cryptocurrency inverse options & Lucic V.; Sepp A. & 2024 & Scopus & Core \\
+s-core-032 & Checking the Box on the Efficiency of CME Bitcoin Futures Options & Zhou E. & 2023 & Scopus & Core \\
+s-core-033 & Crypto quanto and inverse options & Alexander C.; Chen D.; Imeraj A. & 2023 & Scopus & Core \\
+s-core-034 & Delta hedging bitcoin options with a smile & Alexander C.; Imeraj A. & 2023 & Scopus & Core \\
+s-core-035 & Estimation of Implied Volatility for Ethereum Options Using Numerical Approximation Methods & Sapna S.; Mohan B.R. & 2023 & Scopus & Core \\
+s-core-036 & Hedging cryptocurrency options & Matic J.L.; Packham N.; Härdle W.K. & 2023 & Scopus & Core \\
+s-core-037 & LOG-NORMAL STOCHASTIC VOLATILITY MODEL with QUADRATIC DRIFT & Sepp A.; Rakhmonov P. & 2023 & Scopus & Core \\
+s-core-038 & Net buying pressure and the information in bitcoin option trades & Alexander C.; Deng J.; Feng J.; Wan H. & 2023 & Scopus & Core \\
+s-core-039 & Pricing Kernels and Risk Premia implied in Bitcoin Options & Winkel J.; Härdle W.K. & 2023 & Scopus & Core \\
+s-core-040 & Regime-based Implied Stochastic Volatility Model for Crypto Option Pricing & Saef D.; Wang Y.; Aste T. & 2023 & Scopus & Core \\
+s-core-041 & Unbiasing and robustifying implied volatility calibration in a cryptocurrency market with large & Echenim M.; Gobet E.; Maurice A.-C. & 2023 & Scopus & Core \\
+s-core-042 & A Mathematical Formulation of the Valuation of Ether and Ether Derivatives as a Function of Inv & Abraham R.; El-Chaarani H. & 2022 & Scopus & Core \\
+s-core-043 & Bitcoin: jumps, convenience yields, and option prices & Hilliard J.E.; Ngo J.T.D. & 2022 & Scopus & Core \\
+s-core-044 & Implied volatility based margin calculation on cryptocurrency markets & Králik B.; Felföldi-Szucs N.; Váradi K. & 2022 & Scopus & Core \\
+s-core-045 & Time-efficient Decentralized Exchange of Everlasting Options with Exotic Payoff Functions & Madrigal-Cianci J.P.; Kristensen J. & 2022 & Scopus & Core \\
+s-core-046 & What is the expected return on Bitcoin? Extracting the term structure of returns from options p & Foley S.; Li S.; Malloch H.; Svec J. & 2022 & Scopus & Core \\
+s-core-047 & Bitcoin option pricing with a SETAR-GARCH model & Siu T.K.; Elliott R.J. & 2021 & Scopus & Core \\
+s-core-048 & Bitcoin spot and derivatives markets: Searching for completeness & Geman H.; Price H. & 2021 & Scopus & Core \\
+s-core-049 & Cryptocurrency volatility markets & Woebbeking F. & 2021 & Scopus & Core \\
+s-core-050 & Detecting jump risk and jump-diffusion model for bitcoin options pricing and hedging & Chen K.-S.; Huang Y.-C. & 2021 & Scopus & Core \\
+s-core-051 & Implied volatility estimation of bitcoin options and the stylized facts of option pricing & Zulfiqar N.; Gulzar S. & 2021 & Scopus & Core \\
+s-core-052 & Modeling price dynamics, optimal portfolios, and option valuation for cryptoassets & Hu Y.; Lindquist W.B.; Fabozzi F.J. & 2021 & Scopus & Core \\
+s-core-053 & Practical Applications of Modeling Price Dynamics, Optimal Portfolios, and Option Valuation for & Hu Y.; Brent Lindquist W.; Fabozzi F.J. & 2021 & Scopus & Core \\
+s-core-054 & Pricing virtual currency-linked derivatives with time-inhomogeneity & Lian Y.-M.; Chen J.-H. & 2021 & Scopus & Core \\
+s-core-055 & The Bitcoin options market: A first look at pricing and risk & Jalan A.; Matkovskyy R.; Aziz S. & 2021 & Scopus & Core \\
+s-core-056 & The bitcoin VIX and its variance risk premium & Alexander C.; Imeraj A. & 2021 & Scopus & Core \\
+s-core-057 & Univariate and Multivariate GARCH Models Applied to Bitcoin Futures Option Pricing & Venter P.J.; Maré E. & 2021 & Scopus & Core \\
+s-core-058 & Valuation of bitcoin options & Cao M.; Celik B. & 2021 & Scopus & Core \\
+s-core-059 & Volatility models for cryptocurrencies and applications in the options market & Chi Y.; Hao W. & 2021 & Scopus & Core \\
+s-core-060 & Forecasting bitcoin volatility: Evidence from the options market & Hoang L.T.; Baur D.G. & 2020 & Scopus & Core \\
+s-core-061 & Market attention and Bitcoin price modeling: theory, estimation and option pricing & Cretarola A.; Figà-Talamanca G.; Patacca M. & 2020 & Scopus & Core \\
+s-core-062 & Price discovery in the cryptocurrency option market: A univariate GARCH approach & Venter P.J.; Mare E.; Pindza E. & 2020 & Scopus & Core \\
+s-core-063 & Pricing Cryptocurrency Options & Hou A.J.; Wang W.; Chen C.Y.H.; Härdle W.K. & 2020 & Scopus & Core \\
+s-core-064 & Advanced model calibration on bitcoin options & Madan D.B.; Reyners S.; Schoutens W. & 2019 & Scopus & Core \\
+s-core-065 & Bitcoin options pricing using LSTM-Based prediction model and blockchain statistics & Li L.; Arab A.; Liu J.; Liu J.; Han Z. & 2019 & Scopus & Core \\
+s-core-066 & Neural Network Models for Bitcoin Option Pricing & Pagnottoni P. & 2019 & Scopus & Core \\
+s-core-067 & The Amnesiac Lookback Option: Selectively Monitored Lookback Options and Cryptocurrencies & Chang H.-C.H.; Li K. & 2018 & Scopus & Core \\
+grey-001 & Time-of-day effects in the Bitcoin options market & Lai Trung Hoang; Trang Thu Phan & 2026 & SSRN & Core \\
+grey-002 & Empirical Evidence of Rough Volatility in Bitcoin Options: A Rough Bergomi Approach & Danny Dongning Sun; Cunjie He; Zenglin Xu & 2026 & SSRN & Core \\
+grey-003 & Optimal Strike Distance for Daily Crypto Strangles: Theory and Empirical Analysis & Hongzhe Wen; Xitian Yu & 2026 & SSRN & Core \\
+grey-004 & Do Gamma Walls Actually Move Bitcoin Prices at Deribit? & Pawel Lachowicz & 2025 & SSRN / Halcyon Waters & Core? \\
+\bottomrule
+\end{longtable}
+\endgroup
+
+\normalsize
+\section{References used in the text}
+
+\begin{thebibliography}{99}
+
+\bibitem[Alexander et al.(2023)]{alexander2023net}
+Alexander, C., Deng, J., Feng, J., and Wan, H. (2023).
+Net buying pressure and the information in bitcoin option trades.
+\emph{Journal of Financial Markets}.
+
+\bibitem[Alexander and Imeraj(2019)]{alexander2019vix}
+Alexander, C. and Imeraj, A. (2019).
+The Bitcoin VIX and its variance risk premium.
+Working paper / later journal version.
+
+\bibitem[Hoang and Phan(2026)]{hoang2026timeofday}
+Hoang, L. T. and Phan, T. T. (2026).
+Time-of-day effects in the Bitcoin options market.
+Working paper / Finance Research Letters version.
+
+\bibitem[Lachowicz(2025)]{lachowicz2025gamma}
+Lachowicz, P. (2025).
+Do Gamma Walls Actually Move Bitcoin Prices at Deribit?
+Halcyon Waters Research Note.
+
+\bibitem[Sun et al.(2026)]{sun2026rough}
+Sun, D. D., He, C., and Xu, Z. (2026).
+Empirical Evidence of Rough Volatility in Bitcoin Options: A Rough Bergomi Approach.
+Working paper.
+
+\bibitem[Wen and Yu(2026)]{wen2026strangles}
+Wen, H. and Yu, X. (2026).
+Optimal Strike Distance for Daily Crypto Strangles: Theory and Empirical Analysis.
+Working paper.
+
+\bibitem[Zulfiqar and Gulzar(2021)]{zulfiqar2021implied}
+Zulfiqar, N. and Gulzar, S. (2021).
+Implied volatility estimation of bitcoin options and the stylized facts of option pricing.
+\emph{Financial Innovation}.
+
+\end{thebibliography}
+
+\end{document}

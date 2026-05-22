@@ -1,0 +1,9 @@
+# latexmkrc for AMU paper
+# Adds the parent publications/ directory to LaTeX and BibTeX search paths
+# so that agsm.bst and any shared .sty files at the root are found.
+
+ensure_path('TEXINPUTS', '../');
+ensure_path('BSTINPUTS', '../');
+
+$pdf_mode = 1;        # use pdflatex
+$bibtex_use = 1;
