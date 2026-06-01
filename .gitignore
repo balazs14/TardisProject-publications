@@ -2,3 +2,4 @@ build/
 *.pdf
 *.synctex.gz
 .DS_Store
+compacted.parquet
