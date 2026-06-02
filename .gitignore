@@ -3,3 +3,4 @@ build/
 *.synctex.gz
 .DS_Store
 compacted.parquet
+tmp/

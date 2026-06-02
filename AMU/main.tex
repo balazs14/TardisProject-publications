@@ -10,8 +10,11 @@
 \usepackage{colortbl}
 \usepackage{mathtools}
 \usepackage{booktabs}     % szebb vonalak
+\usepackage{multirow}
 \usepackage{array}        % p{...} és oszlopbeállítások
 \usepackage{ragged2e}     % szebb, „ragged right” tördeléshez
+\usepackage{caption}
+\captionsetup[table]{justification=raggedright,singlelinecheck=false}
 
 %\usepackage[margin=1in]{geometry}
 \usepackage{amsmath}
@@ -101,6 +104,7 @@ The remainder of the paper is structured as follows. Chapter 2 describes the ana
 
 \section{Dataset}
 
+
 \subsection{Cryptocurrency platforms}
 
 There are several crypto trading platforms, and they differ in terms of product offerings, trading volumes, and market structure. Some of the most prominent platforms include Binance, OKX, Deribit, and BitMEX. Each platform offers a variety of derivative products, including standard futures, inverse futures, perpetual futures, and options with different underlying assets and payoff structures. Liquidity and trading volume can vary significantly across these platforms, which can affect market efficiency and the presence of arbitrage opportunities. Since our research focuses on options-market efficiency using put-call parity, we focus on platforms offering expiration (i.e., non-perpetual) futures where underlyings and expirations match the options we analyze. In this paper, we compare inverse options and inverse futures based on the same index (e.g., BTCUSDT) on OKX and Deribit. While options and futures on other underlyings are also traded, by far the most liquid options are those on the BTCUSD and ETHUSD indices, and thus we focus on these.
@@ -112,12 +116,12 @@ This paper is based on OKX and Deribit options data from Tardis, covering approx
 Tardis provides tick level intraday data for a wide range of cryptocurrency derivatives, including options and futures contracts. The data includes detailed information on bid and ask prices, trade volumes, and timestamps for each contract. For our analysis, we subsampled the tick-level data on a 5-minute grid, which gives us intra-day resolution on the occurrence of arbitrage opportunities. Since most contracts only trade very few times within a day, this subsampling is not expected to distort the results.
 
 
-\begin{figure}[!htbp]
+\begin{table}[!htbp]
 \centering
-\includegraphics[width=0.9\textwidth]{summary_daily_option_coverage.png}
+{\renewcommand{\arraystretch}{1.3}\normalfont\normalsize\input{summary_daily_option_coverage_table.tex}}
 \caption{Summary statistics of put-call pairs: number of contracts and liquidity measures.}
 \label{fig:summary_df}
-\end{figure}
+\end{table}
 
 
 \section{Methodology}
@@ -410,28 +414,28 @@ Even though AMU can also be expressed in dollar terms (arbitrage opportunities h
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{okex_btcusd_4_spreads.png}
+\includegraphics[width=0.8\textwidth]{okex_btcusd_4_spreads.pdf}
 \caption{Distribution of the four versions of the AMU arbitrage on OKX for BTCUSD option pairs. Only the positive tail corresponds to actual tradable opportunities. 30 bp round trip trading costs were assumed.}
 \label{okex_btcusd_4_spreads}
 \end{figure}
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{okex_ethusd_4_spreads.png}
+\includegraphics[width=0.8\textwidth]{okex_ethusd_4_spreads.pdf}
 \caption{Distribution of the four versions of the AMU arbitrage on OKX for ETHUSD option pairs. Only the positive tail corresponds to actual tradable opportunities. 30 bp round trip trading costs were assumed.}
 \label{okex_ethusd_4_spreads}
 \end{figure}
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{deribit_btcusd_4_spreads.png}
+\includegraphics[width=0.8\textwidth]{deribit_btcusd_4_spreads.pdf}
 \caption{Distribution of the four versions of the AMU arbitrage on Deribit for BTCUSD option pairs. Only the positive tail corresponds to actual tradable opportunities. 30 bp round trip trading costs were assumed.}
 \label{deribit_btcusd_4_spreads}
 \end{figure}
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{deribit_ethusd_4_spreads.png}
+\includegraphics[width=0.8\textwidth]{deribit_ethusd_4_spreads.pdf}
 \caption{Distribution of the four versions of the AMU arbitrage on Deribit for ETHUSD option pairs. Only the positive tail corresponds to actual tradable opportunities. 30 bp round trip trading costs were assumed.}
 \label{deribit_ethusd_4_spreads}
 \end{figure}
@@ -446,7 +450,7 @@ Trading costs are crucial in evaluating the actual value of the AMU arbitrage. W
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{multi_exchange_amu_bps_by_date.png}
+\includegraphics[width=0.8\textwidth]{multi_exchange_amu_bps_by_date.pdf}
 \caption{Time evolution of AMU (in basis points) across exchanges for BTC and ETH options}
 \label{multi_exchange_amu_by_date}
 \end{figure}
@@ -458,7 +462,7 @@ In figure \ref{multi_exchange_amu_by_date} we show the time evolution of the AMU
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{multi_exchange_amu_bps_by_tte.png}
+\includegraphics[width=0.8\textwidth]{multi_exchange_amu_bps_by_tte.pdf}
 \caption{AMU (in basis points) across exchanges stratified by time-to-expiration (TTE) for BTC and ETH options. }
 \label{multi_exchange_amu_by_tte}
 \end{figure}
@@ -471,19 +475,19 @@ Relative strike is the conventional measure $K/F$, where $K$ is the strike price
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{multi_exchange_amu_bps_by_rel_strike.png}
+\includegraphics[width=0.8\textwidth]{multi_exchange_amu_bps_by_rel_strike.pdf}
 \caption{AMU (in basis points) across exchanges stratified by relative strike (moneyness) for BTC and ETH options}
 \label{multi_exchange_amu_by_strike}
 \end{figure}
 
 
 
-\begin{figure}[!htbp]
+\begin{table}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{amu_summary.png}
+{\renewcommand{\arraystretch}{1.3}\normalfont\normalsize\input{amu_summary_table.tex}}
 \caption{Summary of AMU arbitrage results across exchanges and underlyings.}
 \label{amu_summary}
-\end{figure}
+\end{table}
 
 
 
@@ -501,7 +505,6 @@ Future research could examine the role of transaction costs more explicitly. An 
 A clear limitation of our analysis is the relative short period (2026 Q1) under investigation. While raw data is available for much longer, the size of files is sufficiently large to make processing time consuming. We'll expand the analysis as the processed data becomes availeble.  
 
 Another promising direction for future research is to examine how spillover effects across platforms and across different crypto assets influence the AMU indicator. Since liquidity, volatility, and order‑flow conditions on one exchange can spillover to others, and shocks in major assets such as BTC or ETH can rapidly spread accross to other correlated markets, these cross‑market linkages may have a meaningful impact on observed AMU levels. Investigating such spillovers would help determine whether deviations from put–call parity are driven primarily by platform‑specific microstructure features or by broader market dynamics. Understanding these interactions could provide a deeper perspective on how arbitrage conditions evolve across the crypto derivatives markets.
-
 
 \section*{Data Availability Statement}
 

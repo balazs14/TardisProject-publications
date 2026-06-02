@@ -73,6 +73,7 @@ if [[ "$BUILD_PDF" == "1" ]]; then
 
     # Convenience copy: keep top-level PDF while intermediates stay in build/.
     cp "$PDF_BUILD_DIR/main.pdf" "$AMU_DIR/main.pdf"
+    cp "$PDF_BUILD_DIR/main.synctex.gz" "$AMU_DIR/main.synctex.gz"
   )
 fi
 
