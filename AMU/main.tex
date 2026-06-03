@@ -1,5 +1,12 @@
 \documentclass[12pt]{article}
 \usepackage{graphicx}
+\newcommand{\maybeincludegraphics}[2][]{%
+  \IfFileExists{#2}{%
+    \includegraphics[#1]{#2}%
+  }{%
+    \fbox{\parbox{0.95\linewidth}{\centering Missing figure: \texttt{\detokenize{#2}}}}%
+  }%
+}
 \usepackage{natbib}
 \bibliographystyle{agsm}
 %\PassOptionsToPackage{hyphens}{xurl}\usepackage{hyperref}
@@ -414,28 +421,28 @@ Even though AMU can also be expressed in dollar terms (arbitrage opportunities h
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{okex_btcusd_4_spreads.pdf}
+\maybeincludegraphics[width=0.8\textwidth]{okex_btcusd_4_spreads.pdf}
 \caption{Distribution of the four versions of the AMU arbitrage on OKX for BTCUSD option pairs. Only the positive tail corresponds to actual tradable opportunities. 30 bp round trip trading costs were assumed.}
 \label{okex_btcusd_4_spreads}
 \end{figure}
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{okex_ethusd_4_spreads.pdf}
+\maybeincludegraphics[width=0.8\textwidth]{okex_ethusd_4_spreads.pdf}
 \caption{Distribution of the four versions of the AMU arbitrage on OKX for ETHUSD option pairs. Only the positive tail corresponds to actual tradable opportunities. 30 bp round trip trading costs were assumed.}
 \label{okex_ethusd_4_spreads}
 \end{figure}
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{deribit_btcusd_4_spreads.pdf}
+\maybeincludegraphics[width=0.8\textwidth]{deribit_btcusd_4_spreads.pdf}
 \caption{Distribution of the four versions of the AMU arbitrage on Deribit for BTCUSD option pairs. Only the positive tail corresponds to actual tradable opportunities. 30 bp round trip trading costs were assumed.}
 \label{deribit_btcusd_4_spreads}
 \end{figure}
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{deribit_ethusd_4_spreads.pdf}
+\maybeincludegraphics[width=0.8\textwidth]{deribit_ethusd_4_spreads.pdf}
 \caption{Distribution of the four versions of the AMU arbitrage on Deribit for ETHUSD option pairs. Only the positive tail corresponds to actual tradable opportunities. 30 bp round trip trading costs were assumed.}
 \label{deribit_ethusd_4_spreads}
 \end{figure}
@@ -450,7 +457,7 @@ Trading costs are crucial in evaluating the actual value of the AMU arbitrage. W
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{multi_exchange_amu_bps_by_date.pdf}
+\maybeincludegraphics[width=0.8\textwidth]{multi_exchange_amu_bps_by_date.pdf}
 \caption{Time evolution of AMU (in basis points) across exchanges for BTC and ETH options}
 \label{multi_exchange_amu_by_date}
 \end{figure}
@@ -462,7 +469,7 @@ In figure \ref{multi_exchange_amu_by_date} we show the time evolution of the AMU
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{multi_exchange_amu_bps_by_tte.pdf}
+\maybeincludegraphics[width=0.8\textwidth]{multi_exchange_amu_bps_by_tte.pdf}
 \caption{AMU (in basis points) across exchanges stratified by time-to-expiration (TTE) for BTC and ETH options. }
 \label{multi_exchange_amu_by_tte}
 \end{figure}
@@ -475,7 +482,7 @@ Relative strike is the conventional measure $K/F$, where $K$ is the strike price
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.8\textwidth]{multi_exchange_amu_bps_by_rel_strike.pdf}
+\maybeincludegraphics[width=0.8\textwidth]{multi_exchange_amu_bps_by_rel_strike.pdf}
 \caption{AMU (in basis points) across exchanges stratified by relative strike (moneyness) for BTC and ETH options}
 \label{multi_exchange_amu_by_strike}
 \end{figure}
