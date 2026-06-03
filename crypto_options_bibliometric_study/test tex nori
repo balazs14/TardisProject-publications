@@ -1,0 +1,83 @@
+\documentclass[12pt]{article}
+\usepackage{graphicx}
+\newcommand{\maybeincludegraphics}[2][]{%
+  \IfFileExists{#2}{%
+    \includegraphics[#1]{#2}%
+  }{%
+    \fbox{\parbox{0.95\linewidth}{\centering Missing figure: \texttt{\detokenize{#2}}}}%
+  }%
+}
+\usepackage{natbib}
+\bibliographystyle{agsm}
+%\PassOptionsToPackage{hyphens}{xurl}\usepackage{hyperref}
+% masik teszt változat
+\usepackage{outlines}
+\usepackage{tabularx}
+\usepackage[table]{xcolor}
+\usepackage{colortbl}
+\usepackage{mathtools}
+\usepackage{booktabs}     % szebb vonalak
+\usepackage{multirow}
+\usepackage{array}        % p{...} és oszlopbeállítások
+\usepackage{ragged2e}     % szebb, „ragged right” tördeléshez
+\usepackage{caption}
+\captionsetup[table]{justification=raggedright,singlelinecheck=false}
+
+%\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+%\usepackage{cite}
+%\usepackage[round,authoryear]{natbib}
+%\usepackage{graphicx}
+
+\usepackage[hyperfootnotes=false]{hyperref}
+\hypersetup{
+ % colorlinks=true,
+ % citecolor=blue,
+  linkcolor=black,
+  urlcolor=blue}
+
+%\setlength{\parindent}{0pt}
+%\setlength{\parskip}{12pt}
+
+\usepackage{lmodern}
+\usepackage[nopatch=footnote]{microtype}
+\usepackage{pdflscape}
+
+\usepackage{newtxtext,newtxmath}
+\usepackage[a4paper, margin=2.5cm]{geometry}
+\usepackage{setspace}
+\doublespacing
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{titlesec}
+
+\titleformat{\section}{\bfseries\large}{\thesection}{1em}{}
+\titleformat{\subsection}{\bfseries\itshape\normalsize}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\itshape\normalsize}{\thesubsubsection}{1em}{}
+
+% 4th-level heading (bold italics, inline)
+\newcommand{\fourthlevelheading}[1]{%
+  \vspace{1em}
+  \noindent\textbf{\textit{#1.}}\ } % full stop at the end
+
+% 5th-level heading (italics, inline)
+\newcommand{\fifthlevelheading}[1]{%
+  \vspace{1em}
+  \noindent\textit{#1.}\ }
+
+\begin{document}
+
+\title{\textbf{Absolute Market Unfairness - Measuring Market Inefficiency in Cryptocurrency Markets}}
+
+\author{Balázs Králik\thanks{Corresponding Author. Assistant Professor at Corvinus University of Budapest, Institute of Finance, Fővám square 8. Budapest, Hungary, 1093. E-mail: balazs.kralik@uni-corvinus.hu.}, Nóra Felföldi-Szűcs\thanks{Associate Professor at Corvinus University of Budapest, Institute of Finance.}, Tamás Rutai\thanks{Student at Corvinus University of Budapest.}, Kata Váradi\thanks{Associate Professor at Corvinus University of Budapest, Institute of Finance.}}
+\date{}
+
+\maketitle
+
+\begin{abstract}
+test abstract
+\end{abstract}
+test test test main text
+\end{document}
