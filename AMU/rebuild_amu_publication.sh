@@ -19,7 +19,16 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 
 SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd -- "$SELF_DIR/../.." && pwd)"
+BOOTSTRAP_SCRIPT="$SELF_DIR/../bootstrap_publications_env.sh"
+
+if [[ ! -f "$BOOTSTRAP_SCRIPT" ]]; then
+  echo "[AMU] error: bootstrap script not found: $BOOTSTRAP_SCRIPT" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$BOOTSTRAP_SCRIPT"
+
 AMU_DIR="$ROOT_DIR/publications/AMU"
 NOTEBOOK="$AMU_DIR/multi_exchange_plots.ipynb"
 PDF_BUILD_DIR="$AMU_DIR/build"
@@ -35,10 +44,6 @@ echo "[AMU] DRY_RUN=$DRY_RUN AMU_RECREATE_PCPB=$AMU_RECREATE_PCPB BUILD_PDF=$BUI
 if [[ "$DRY_RUN" == "1" ]]; then
   echo "[AMU] dry run only; no changes made."
   exit 0
-fi
-
-if [[ ! -d "$ROOT_DIR/venv" ]]; then
-  python3 -m venv "$ROOT_DIR/venv"
 fi
 
 # shellcheck disable=SC1091
