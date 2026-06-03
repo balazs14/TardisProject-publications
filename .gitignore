@@ -14,3 +14,11 @@ tmp/
 *.fdb_latexmk
 *.blg
 *.bbl
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/

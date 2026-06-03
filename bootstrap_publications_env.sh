@@ -1,43 +1,41 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Locate project root by walking up from this script until both of these exist:
-#   - a "tardis" subdirectory
-#   - a "pyproject.toml" file
 SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-SEARCH_DIR="$SELF_DIR"
-ROOT_DIR=""
+CORE_SCRIPT="$SELF_DIR/bootstrap_publications_env.py"
 
-while [[ "$SEARCH_DIR" != "/" ]]; do
-  if [[ -d "$SEARCH_DIR/tardis" && -f "$SEARCH_DIR/pyproject.toml" ]]; then
-    ROOT_DIR="$SEARCH_DIR"
-    break
-  fi
-  SEARCH_DIR="$(dirname -- "$SEARCH_DIR")"
-done
-
-if [[ -z "$ROOT_DIR" ]]; then
-  echo "[PUB] error: could not find ROOT_DIR (expected a directory containing both 'tardis/' and 'pyproject.toml')." >&2
+if [[ ! -f "$CORE_SCRIPT" ]]; then
+  echo "[PUB] error: core bootstrap script not found: $CORE_SCRIPT" >&2
   exit 1
 fi
 
-if [[ ! -d "$ROOT_DIR/venv" ]]; then
-  echo "[PUB] creating venv at $ROOT_DIR/venv"
-  python3 -m venv "$ROOT_DIR/venv"
-fi
-
-if [[ -f "$ROOT_DIR/requirements.txt" ]]; then
-  "$ROOT_DIR/venv/bin/python" -m pip install --upgrade pip >/dev/null
-  "$ROOT_DIR/venv/bin/python" -m pip install -r "$ROOT_DIR/requirements.txt" >/dev/null
-  "$ROOT_DIR/venv/bin/python" -m pip install ipykernel >/dev/null
-  echo "[PUB] installed requirements from $ROOT_DIR/requirements.txt"
+if [[ -n "${PYTHON_BOOTSTRAP:-}" ]]; then
+  PYTHON_CMD="$PYTHON_BOOTSTRAP"
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON_CMD="python3"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_CMD="python"
 else
-  echo "[PUB] requirements.txt not found at $ROOT_DIR/requirements.txt; skipping dependency install"
+  echo "[PUB] error: no python interpreter found for bootstrap" >&2
+  exit 1
 fi
 
-KERNEL_NAME="${PUBLICATIONS_KERNEL_NAME:-tardisproject-venv}"
-KERNEL_DISPLAY_NAME="${PUBLICATIONS_KERNEL_DISPLAY_NAME:-Python (TardisProject venv)}"
-"$ROOT_DIR/venv/bin/python" -m ipykernel install --user --name "$KERNEL_NAME" --display-name "$KERNEL_DISPLAY_NAME" >/dev/null
-echo "[PUB] registered Jupyter kernel: $KERNEL_DISPLAY_NAME ($KERNEL_NAME)"
+if [[ "${1:-}" == "--emit-shell" ]]; then
+  shift
+  "$PYTHON_CMD" "$CORE_SCRIPT" --emit-shell "$@"
+  exit $?
+fi
 
-echo "[PUB] root: $ROOT_DIR"
+eval "$($PYTHON_CMD "$CORE_SCRIPT" --emit-shell "$@")"
+
+if [[ -z "${ROOT_DIR:-}" ]]; then
+  echo "[PUB] error: bootstrap did not export ROOT_DIR" >&2
+  exit 1
+fi
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  echo "[PUB] root: $ROOT_DIR"
+  if [[ -n "${PUBLICATIONS_VENV_PYTHON:-}" ]]; then
+    echo "[PUB] python: $PUBLICATIONS_VENV_PYTHON"
+  fi
+fi
