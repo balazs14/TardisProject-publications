@@ -29,7 +29,8 @@ def venv_python_path(venv_dir: Path) -> Path:
 
 
 def run_checked(cmd: list[str]) -> None:
-    subprocess.run(cmd, check=True)
+    # Keep stdout reserved for emitted shell exports so bash eval stays parse-safe.
+    subprocess.run(cmd, check=True, stdout=sys.stderr, stderr=sys.stderr)
 
 
 def shell_export(name: str, value: str) -> str:
