@@ -1,12 +1,6 @@
 \documentclass[12pt]{article}
 \usepackage{graphicx}
-\newcommand{\maybeincludegraphics}[2][]{%
-  \IfFileExists{#2}{%
-    \includegraphics[#1]{#2}%
-  }{%
-    \fbox{\parbox{0.95\linewidth}{\centering Missing figure: \texttt{\detokenize{#2}}}}%
-  }%
-}
+
 \usepackage{natbib}
 \bibliographystyle{agsm}
 \usepackage{tabularx}
@@ -18,7 +12,6 @@
 \usepackage{array}
 \usepackage{ragged2e}
 \usepackage{caption}
-\captionsetup[table]{justification=raggedright,singlelinecheck=false}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage[hyperfootnotes=false]{hyperref}
@@ -26,7 +19,6 @@
 \usepackage{lmodern}
 \usepackage[nopatch=footnote]{microtype}
 \usepackage{pdflscape}
-\usepackage{newtxtext,newtxmath}
 \usepackage[a4paper, margin=2.5cm]{geometry}
 \usepackage{setspace}
 \singlespacing
@@ -42,7 +34,7 @@
 
 \title{\textbf{Liquidity Premia, Arbitrage Bands, and the Collapse of Put--Call Parity Violations in Cryptocurrency Option Markets}}
 
-\author{Balázs Králik\thanks{Corresponding Author. Assistant Professor at Corvinus University of Budapest, Institute of Finance, Fővám square 8. Budapest, Hungary, 1093. E-mail: balazs.kralik@uni-corvinus.hu.}, Nóra Felföldi-Szűcs\thanks{Associate Professor at Corvinus University of Budapest, Institute of Finance.}, Tamás Rutai\thanks{Student at Corvinus University of Budapest.}, Kata Váradi\thanks{Associate Professor at Corvinus University of Budapest, Institute of Finance.}}
+\author{Bal\'azs Kr\'alik\thanks{Corresponding Author. Assistant Professor at Corvinus University of Budapest, Institute of Finance, F\H{o}v\'am square 8. Budapest, Hungary, 1093. E-mail: balazs.kralik@uni-corvinus.hu.}, N\'ora Felf\"oldi-Sz\H{u}cs\thanks{Associate Professor at Corvinus University of Budapest, Institute of Finance.}, Tam\'as Rutai\thanks{Student at Corvinus University of Budapest.}, Kata V\'aradi\thanks{Associate Professor at Corvinus University of Budapest, Institute of Finance.}}
 \date{}
 
 \maketitle
@@ -165,33 +157,79 @@ For each exchange, underlying, strike, maturity, and timestamp, the dataset shou
 
 \subsection{Liquidity and friction variables}
 
-The main dependent variables are $\mathrm{AMU}_{i,t}$, an indicator $1\{\mathrm{AMU}_{i,t}>0\}$, the raw parity wedge $X_{i,t}$, and the absolute wedge $|X_{i,t}|$. The main liquidity controls should include option bid--ask spreads, futures bid--ask spreads, top-of-book depth, order-book imbalance, option open interest, realized volume, relative strike $K/F$, time to expiration, implied-volatility level, and realized volatility.
+To keep the empirical section factual relative to currently available outputs, we distinguish (i) variables already present in the current AMU panel builder and (ii) variables reserved for a later extension.
 
-Additional market-friction variables should be collected from crypto and traditional-market sources. These include perpetual-futures funding rates, stablecoin basis measures such as USDT/USD and USDC/USD deviations, exchange-level outage or stress indicators, BTC and ETH spot returns, realized volatility, ETF flows, ETF premium/discounts, and CME futures basis. ETF variables are especially useful after January 2024 because they proxy for regulated access and institutional arbitrage capacity.
+The current panel is grouped at the $(\text{day},\text{exchange},\text{ref\_sym},\text{rel\_strike\_bucket},\text{tte\_bucket})$ level and includes directly usable AMU outcomes and liquidity proxies. The primary dependent variables are:
+\begin{equation}
+\overline{\mathrm{AMU}}^{\mathrm{fwd}}_{g,t}=\texttt{mean\_amu\_fwd\_bp},
+\qquad
+\overline{\mathrm{AMU}}^{\mathrm{bck}}_{g,t}=\texttt{mean\_amu\_bck\_bp},
+\end{equation}
+and the symmetric summary
+\begin{equation}
+\overline{\mathrm{AMU}}_{g,t}=\frac{1}{2}\left(\overline{\mathrm{AMU}}^{\mathrm{fwd}}_{g,t}+\overline{\mathrm{AMU}}^{\mathrm{bck}}_{g,t}\right).
+\end{equation}
+
+The core controls already in the panel are option spread measures (\texttt{mean\_call\_opt\_spread\_bp}, \texttt{mean\_put\_opt\_spread\_bp}, \texttt{mean\_bigger\_opt\_spread\_bp}), quote-size and depth proxies (\texttt{mean\_min\_quote\_size\_dollar}, bid/ask amounts), moneyness and maturity buckets (\texttt{rel\_strike\_bucket}, \texttt{tte\_bucket}), open interest, and stale-quote fractions (\texttt{frac\_call\_stale}, \texttt{frac\_put\_stale}, \texttt{frac\_spot\_stale}).
+
+This variable set is already sufficient to test the liquidity-premium mechanism in the spirit of limits-to-arbitrage models \citep{amihud1986asset, shleifer1997limits, garleanu2011margin}: higher implementation frictions should map into higher average AMU.
 
 \subsection{Event variables}
 
-The baseline event dates are January 10, 2024 for U.S. spot Bitcoin ETP approval, May 2024 and July 2024 for spot Ether ETF approval and trading, June 30, 2024 for MiCA stablecoin provisions, and December 30, 2024 for the broader MiCA crypto-asset-service-provider framework. The paper should not claim that any single date caused the transition mechanically. Instead, these dates should be treated as markers in a broader institutionalization process.
+The baseline event dates remain January 10, 2024 (U.S. spot Bitcoin ETP approval), May/July 2024 (spot Ether ETF approval/trading milestones), June 30, 2024 (MiCA stablecoin provisions), and December 30, 2024 (broader MiCA CASP framework). Consistent with the literature on institutional frictions and arbitrage capacity, these should be treated as regime markers rather than as single-cause shocks.
+
+In the current executable setup, the event design is implemented by calendar dummies (Post2024 and event-window indicators) matched to panel day. A richer design with ETF flows, stablecoin basis, and funding variables is reserved for the extension dataset.
 
 \subsection{Empirical specifications}
 
-A first-pass panel specification is:
+A first-pass panel specification that is fully feasible with the current panel is:
 
 \begin{equation}
-\mathrm{AMU}_{i,t}=\beta_0+\beta_1\mathrm{Post2024}_t+\beta_2\mathrm{Liquidity}_{i,t}+\beta_3\mathrm{Stress}_t+\gamma_i+\delta_t+\varepsilon_{i,t},
+\overline{\mathrm{AMU}}_{g,t}=\beta_0+\beta_1\mathrm{Post2024}_t+\beta_2\mathrm{Spread}_{g,t}+\beta_3\mathrm{DepthProxy}_{g,t}+\beta_4\mathrm{Stale}_{g,t}+\gamma_g+\delta_t+\varepsilon_{g,t},
 \end{equation}
 
-where $\gamma_i$ are contract-pair fixed effects and $\delta_t$ are calendar-time fixed effects at the day or hour level. A negative $\beta_1$ after controlling for spreads, depth, and volatility would suggest that the post-2024 compression is not merely a mechanical effect of local liquidity.
+where $g$ indexes the panel cell $(\text{exchange},\text{ref\_sym},\text{rel\_strike\_bucket},\text{tte\_bucket})$, $\gamma_g$ are cell fixed effects, and $\delta_t$ are day fixed effects. A negative $\beta_1$ after friction controls is evidence of residual post-2024 compression beyond within-cell liquidity changes.
 
-A second specification estimates the probability of a tradable arbitrage opportunity:
+A second specification uses directional AMU components to respect PCP implementation asymmetry:
 
 \begin{equation}
-\Pr(\mathrm{AMU}_{i,t}>0)=\Lambda\left(\beta_0+\beta_1\mathrm{Post2024}_t+\beta_2\mathrm{Liquidity}_{i,t}+\beta_3\mathrm{Stress}_t+\gamma_i+\delta_t\right).
+\overline{\mathrm{AMU}}^{d}_{g,t}=\beta^{d}_0+\beta^{d}_1\mathrm{Post2024}_t+\beta^{d}_2\mathrm{Spread}_{g,t}+\beta^{d}_3\mathrm{DepthProxy}_{g,t}+\gamma_g+\delta_t+\varepsilon^{d}_{g,t},
+\quad d\in\{\mathrm{fwd},\mathrm{bck}\}.
 \end{equation}
 
-A third specification estimates the threshold model directly. For a grid of candidate thresholds $B$, estimate separate persistence coefficients inside and outside the band and select the threshold minimizing the residual sum of squares. The pre- and post-2024 thresholds can then be compared by exchange, underlying, maturity bucket, and moneyness bucket.
+To mirror the cross-sectional findings already emphasized in the AMU results, an interaction specification is also directly feasible:
 
-Finally, local projections can test whether large deviations decay faster after 2024:
+\begin{equation}
+\overline{\mathrm{AMU}}_{g,t}=\beta_0+\beta_1\mathrm{Post2024}_t+\beta_2\mathrm{ETH}_g+\beta_3\mathrm{OTM}_g+\beta_4\mathrm{ShortTTE}_g
++\beta_5\left(\mathrm{Post2024}_t\times\mathrm{ETH}_g\right)
++\beta_6\left(\mathrm{Post2024}_t\times\mathrm{OTM}_g\right)
++\beta_7\left(\mathrm{Post2024}_t\times\mathrm{ShortTTE}_g\right)
++\gamma_g+\delta_t+\varepsilon_{g,t}.
+\end{equation}
+
+Negative interaction coefficients $\beta_5$--$\beta_7$ indicate that post-2024 compression is strongest in historically less liquid segments, which is exactly the liquidity-premium prediction.
+
+The threshold and local-projection designs remain part of the full research agenda, but they require observation-level persistence structure (or higher-frequency panel transitions) beyond the current daily-bucket aggregation.
+
+\subsection{Figure roadmap (current-data feasible)}
+
+The figure set should focus on outputs that can be generated immediately from the existing AMU panel:
+
+\textbf{Figure 1:} Daily AMU time series by exchange and underlying (four lines: BTCUSD/ETHUSD $\times$ Deribit/OKX), with vertical regime markers for 2024 institutional events.
+
+\textbf{Figure 2:} Heatmap of mean AMU over $(\text{rel\_strike\_bucket},\text{tte\_bucket})$, separately for pre-2024 and post-2024 periods.
+
+\textbf{Figure 3:} Event-study plot of AMU around each marker date (stacked windows, e.g. $[-60,+60]$ days), shown separately by exchange.
+
+\textbf{Figure 4:} Binned-scatter or partial-residual plot of AMU versus option spread/depth proxies, demonstrating the friction-gradient predicted by limits-to-arbitrage theory.
+
+\textbf{Figure 5:} Compression decomposition plot: change in AMU from pre- to post-2024 by segment (ETH/BTC, OTM/ATM, short/long TTE).
+
+These figures are aligned with the existing literature framing (liquidity premia, limits to arbitrage, and institutional enforcement channels) while staying strictly within currently observed variables.
+
+For completeness, the extended design with external covariates (ETF flows, stablecoin basis, funding variables) can be appended as a separate robustness subsection once those merges are in place.
+
+Finally, local projections can test whether large deviations decay faster after 2024 in the extended dataset:
 
 \begin{equation}
 |X_{i,t+h}|-|X_{i,t}|=\theta_h |X_{i,t}|+\lambda_h \left(|X_{i,t}|\times \mathrm{Post2024}_t\right)+\Gamma_h Z_{i,t}+\varepsilon_{i,t+h}.
@@ -224,5 +262,6 @@ The proposed threshold model formalizes the idea that parity deviations can pers
 By linking AMU to the literature on liquidity premia and limits to arbitrage, the paper reframes crypto option inefficiency as a familiar financial-market phenomenon. Crypto markets are unusual in contract design and settlement mechanics, but the deeper economic mechanism is classical: the law of one price is enforced only when arbitrage capital is willing and able to act.
 
 \bibliography{bibl}
+
 
 \end{document}
