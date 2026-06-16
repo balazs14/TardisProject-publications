@@ -185,29 +185,29 @@ In the current executable setup, the event design is implemented by calendar dum
 A first-pass panel specification that is fully feasible with the current panel is:
 
 \begin{equation}
-\overline{\mathrm{AMU}}_{g,t}=\beta_0+\beta_1\mathrm{Post2024}_t+\beta_2\mathrm{Spread}_{g,t}+\beta_3\mathrm{DepthProxy}_{g,t}+\beta_4\mathrm{Stale}_{g,t}+\gamma_g+\delta_t+\varepsilon_{g,t},
+\overline{\mathrm{AMU}}_{g,t}=\beta_0+\beta_1\mathrm{Post2024}_t+\beta_2\mathrm{Spread}_{g,t}+\beta_3\mathrm{DepthProxy}_{g,t}+\beta_4\mathrm{Stale}_{g,t}+\gamma_g+\varepsilon_{g,t},
 \end{equation}
 
-where $g$ indexes the panel cell $(\text{exchange},\text{ref\_sym},\text{rel\_strike\_bucket},\text{tte\_bucket})$, $\gamma_g$ are cell fixed effects, and $\delta_t$ are day fixed effects. A negative $\beta_1$ after friction controls is evidence of residual post-2024 compression beyond within-cell liquidity changes.
+where $g$ indexes the panel cell $(\text{exchange},\text{ref\_sym},\text{rel\_strike\_bucket},\text{tte\_bucket})$ and $\gamma_g$ are cell fixed effects. In this within-cell specification, a negative $\beta_1$ after friction controls is evidence of residual post-2024 compression beyond within-cell liquidity changes.
 
 A second specification uses directional AMU components to respect PCP implementation asymmetry:
 
 \begin{equation}
-\overline{\mathrm{AMU}}^{d}_{g,t}=\beta^{d}_0+\beta^{d}_1\mathrm{Post2024}_t+\beta^{d}_2\mathrm{Spread}_{g,t}+\beta^{d}_3\mathrm{DepthProxy}_{g,t}+\gamma_g+\delta_t+\varepsilon^{d}_{g,t},
+\overline{\mathrm{AMU}}^{d}_{g,t}=\beta^{d}_0+\beta^{d}_1\mathrm{Post2024}_t+\beta^{d}_2\mathrm{Spread}_{g,t}+\beta^{d}_3\mathrm{DepthProxy}_{g,t}+\gamma_g+\varepsilon^{d}_{g,t},
 \quad d\in\{\mathrm{fwd},\mathrm{bck}\}.
 \end{equation}
 
 To mirror the cross-sectional findings already emphasized in the AMU results, an interaction specification is also directly feasible:
 
 \begin{equation}
-\overline{\mathrm{AMU}}_{g,t}=\beta_0+\beta_1\mathrm{Post2024}_t+\beta_2\mathrm{ETH}_g+\beta_3\mathrm{OTM}_g+\beta_4\mathrm{ShortTTE}_g
-+\beta_5\left(\mathrm{Post2024}_t\times\mathrm{ETH}_g\right)
-+\beta_6\left(\mathrm{Post2024}_t\times\mathrm{OTM}_g\right)
-+\beta_7\left(\mathrm{Post2024}_t\times\mathrm{ShortTTE}_g\right)
+\overline{\mathrm{AMU}}_{g,t}=\beta_0
++\beta_1\left(\mathrm{Post2024}_t\times\mathrm{ETH}_g\right)
++\beta_2\left(\mathrm{Post2024}_t\times\mathrm{OTM}_g\right)
++\beta_3\left(\mathrm{Post2024}_t\times\mathrm{ShortTTE}_g\right)
 +\gamma_g+\delta_t+\varepsilon_{g,t}.
 \end{equation}
 
-Negative interaction coefficients $\beta_5$--$\beta_7$ indicate that post-2024 compression is strongest in historically less liquid segments, which is exactly the liquidity-premium prediction.
+Here $\gamma_g$ absorb the time-invariant ETH, moneyness, and maturity segment main effects, while $\delta_t$ absorb the common post-2024 level shift. Negative interaction coefficients $\beta_1$--$\beta_3$ indicate that post-2024 compression is strongest in historically less liquid segments, which is exactly the liquidity-premium prediction.
 
 The threshold and local-projection designs remain part of the full research agenda, but they require observation-level persistence structure (or higher-frequency panel transitions) beyond the current daily-bucket aggregation.
 
@@ -226,6 +226,43 @@ The figure set should focus on outputs that can be generated immediately from th
 \textbf{Figure 5:} Compression decomposition plot: change in AMU from pre- to post-2024 by segment (ETH/BTC, OTM/ATM, short/long TTE).
 
 These figures are aligned with the existing literature framing (liquidity premia, limits to arbitrage, and institutional enforcement channels) while staying strictly within currently observed variables.
+
+The current code path now generates these figures directly from the AMU panel builder. The executable outputs are included below from the manuscript-local build directory.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{build/liquidity_figures/liquidity_daily_amu.png}
+\caption{Daily AMU by exchange and underlying, with 2024 institutional event markers.}
+\label{fig:liquidity_daily_amu}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{build/liquidity_figures/liquidity_pre_post_heatmap.png}
+\caption{Mean AMU across relative-strike and maturity buckets, split into pre-2024 and post-2024 periods.}
+\label{fig:liquidity_pre_post_heatmap}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{build/liquidity_figures/liquidity_event_study.png}
+\caption{Event-study windows for AMU around the 2024 institutional regime markers, shown separately by exchange.}
+\label{fig:liquidity_event_study}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{build/liquidity_figures/liquidity_friction_gradient.png}
+\caption{Binned AMU relationships with option-spread and quote-depth proxies.}
+\label{fig:liquidity_friction_gradient}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{build/liquidity_figures/liquidity_compression_decomposition.png}
+\caption{Pre- versus post-2024 AMU compression by underlying, moneyness, and maturity segment.}
+\label{fig:liquidity_compression_decomposition}
+\end{figure}
 
 For completeness, the extended design with external covariates (ETF flows, stablecoin basis, funding variables) can be appended as a separate robustness subsection once those merges are in place.
 
