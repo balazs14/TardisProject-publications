@@ -24,27 +24,27 @@ bash publications/AMU-liquidity-premium/rebuild_liquidity_premium_publication.sh
 This script does three things:
 
 1. builds the grouped daily AMU panel features used by the paper,
-2. writes the regression tables into `publications/AMU-liquidity-premium/build/regressions/`,
-3. writes the figure files into `publications/AMU-liquidity-premium/build/liquidity_figures/`.
+2. writes the regression tables into `publications/AMU-liquidity-premium/regressions/`,
+3. writes the figure files into `publications/AMU-liquidity-premium/liquidity_figures/`.
 
 Generated figure files:
 
-- `build/liquidity_figures/liquidity_daily_amu.png`
-- `build/liquidity_figures/liquidity_pre_post_heatmap.png`
-- `build/liquidity_figures/liquidity_event_study.png`
-- `build/liquidity_figures/liquidity_friction_gradient.png`
-- `build/liquidity_figures/liquidity_compression_decomposition.png`
+- `liquidity_figures/liquidity_daily_amu.png`
+- `liquidity_figures/liquidity_pre_post_heatmap.png`
+- `liquidity_figures/liquidity_event_study.png`
+- `liquidity_figures/liquidity_friction_gradient.png`
+- `liquidity_figures/liquidity_compression_decomposition.png`
 
 Generated regression files:
 
-- `build/regressions/baseline_post2024.csv`
-- `build/regressions/forward_component.csv`
-- `build/regressions/backward_component.csv`
-- `build/regressions/interaction_segments.csv`
+- `regressions/baseline_post2024.csv`
+- `regressions/forward_component.csv`
+- `regressions/backward_component.csv`
+- `regressions/interaction_segments.csv`
 
 ## Build the PDF
 
-The same script also runs LaTeX with intermediates in `build/latex/`.
+The same script also runs LaTeX with intermediates in `build/`.
 
 ```bash
 cd TardisProject
@@ -69,4 +69,4 @@ FROM_DATE=2024-01-01 TO_DATE=2024-12-31 BUILD_PDF=0 bash publications/AMU-liquid
 
 - The regression code lives in `publications/AMU-liquidity-premium/panel_regressions.py`.
 - The figure code lives in `publications/AMU-liquidity-premium/panel_figures.py`.
-- The manuscript includes the generated figures from the local `build/liquidity_figures/` directory.
+- The manuscript includes the generated figures from the local `liquidity_figures/` directory.

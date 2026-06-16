@@ -245,8 +245,9 @@ def build_amu_panel(
 	return panel.sort(["day", "exchange", "ref_sym", "rel_strike_bucket", "tte_bucket"])
 
 def test_build_amu_panel():
-	df = build_amu_panel(from_date="2026-01-01", to_date="2026-01-02")
-	tu.assert_df_equal(df.to_pandas().head(2).T, """                                                0                    1
+	df = build_amu_panel(from_date="2026-01-01", to_date="2026-01-05")
+	tu.assert_df_equal(df.to_pandas().head(2).T, """
+                                                0                    1
 day                           2026-01-01 00:00:00  2026-01-01 00:00:00
 exchange                                  deribit              deribit
 ref_sym                                    BTCUSD               BTCUSD

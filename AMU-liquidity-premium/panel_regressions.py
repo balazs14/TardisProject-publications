@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from functools import lru_cache
 from pathlib import Path
 import sys
 
@@ -110,11 +111,12 @@ def test_run_baseline_regression() -> None:
 	result = run_baseline_regression(panel=_test_window_panel())
 	tu.assert_df_equal(
 		result[["term", "coefficient", "std_error", "t_stat", "nobs", "r2"]].round(6),
-		"""                     term  coefficient  std_error       t_stat  nobs        r2
-0               post_2024     2.305008   1.719039     1.340870  9029  0.999874
-1               spread_bp    -0.502342   0.000488 -1028.482787  9029  0.999874
-2             depth_proxy    -3.480819   2.103244    -1.654977  9029  0.999874
-3             stale_proxy  -282.389795  33.175495    -8.511999  9029  0.999874
+		"""
+          term  coefficient  std_error       t_stat  nobs       r2
+0    post_2024    -1.458569   0.641810    -2.272588  2496  0.99994
+1    spread_bp    -0.500871   0.000329 -1523.894859  2496  0.99994
+2  depth_proxy     2.623388   2.430844     1.079209  2496  0.99994
+3  stale_proxy    17.208299  13.384755     1.285664  2496  0.99994
 """,
 	)
 
@@ -129,10 +131,11 @@ def test_run_forward_regression() -> None:
 	result = run_forward_regression(panel=_test_window_panel())
 	tu.assert_df_equal(
 		result[["term", "coefficient", "std_error", "t_stat", "nobs", "r2"]].round(6),
-		"""                     term  coefficient  std_error       t_stat  nobs        r2
-0               post_2024   232.664140  18.775876    12.391653  9029  0.998417
-1               spread_bp    -0.990967   0.000393 -2523.827214  9029  0.998417
-2             depth_proxy  -275.835519  24.297960   -11.352209  9029  0.998417
+		"""
+          term  coefficient  std_error      t_stat  nobs        r2
+0    post_2024    56.901489  12.589475    4.519766  2496  0.989264
+1    spread_bp    -0.966907   0.005453 -177.306585  2496  0.989264
+2  depth_proxy   -38.004862  21.472259   -1.769952  2496  0.989264
 """,
 	)
 
@@ -147,10 +150,11 @@ def test_run_backward_regression() -> None:
 	result = run_backward_regression(panel=_test_window_panel())
 	tu.assert_df_equal(
 		result[["term", "coefficient", "std_error", "t_stat", "nobs", "r2"]].round(6),
-		"""                     term  coefficient  std_error     t_stat  nobs        r2
-0               post_2024  -233.865529  19.324254 -12.102176  9029  0.456401
-1               spread_bp    -0.014282   0.001043 -13.699674  9029  0.456401
-2             depth_proxy   283.537968  24.621937  11.515665  9029  0.456401
+		"""
+          term  coefficient  std_error    t_stat  nobs        r2
+0    post_2024   -59.356182  12.762107 -4.650970  2496  0.875213
+1    spread_bp    -0.034798   0.005682 -6.123894  2496  0.875213
+2  depth_proxy    42.068927  22.879034  1.838755  2496  0.875213
 """,
 	)
 
@@ -165,10 +169,11 @@ def test_run_interaction_regression() -> None:
 	result = run_interaction_regression(panel=_test_window_panel())
 	tu.assert_df_equal(
 		result[["term", "coefficient", "std_error", "t_stat", "nobs", "r2"]].round(6),
-		"""                      term  coefficient   std_error     t_stat  nobs        r2
-0        post_2024_x_eth -1860.417468  338.424581  -5.497288  9029  0.473381
-1        post_2024_x_otm -3173.503009  252.483007 -12.569175  9029  0.473381
-2  post_2024_x_short_tte   714.262711  285.429938   2.502410  9029  0.473381
+		"""
+                    term  coefficient   std_error    t_stat  nobs        r2
+0        post_2024_x_eth  -354.293557  126.633717 -2.797782  2496  0.335046
+1        post_2024_x_otm  -393.308815   88.124289 -4.463115  2496  0.335046
+2  post_2024_x_short_tte   250.560566   78.185611  3.204689  2496  0.335046
 """,
 	)
 
@@ -230,8 +235,10 @@ def _build_kwargs_with_defaults(build_kwargs: dict[str, object]) -> dict[str, ob
 	return kwargs
 
 
+@lru_cache(maxsize=1)
 def _test_window_panel() -> pd.DataFrame:
-	return build_liquidity_analysis_panel(from_date="2024-01-01", to_date="2024-01-20")
+	# 5-day window centered on the first institutional event marker (BTC ETP approval: 2024-01-10).
+	return build_liquidity_analysis_panel(from_date="2024-01-08", to_date="2024-01-12")
 
 
 def _regression_frame(frame: pd.DataFrame, spec: RegressionSpec) -> pd.DataFrame:

@@ -5,12 +5,16 @@ set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 PAPER_DIR="$ROOT_DIR/publications/AMU-liquidity-premium"
 VENV_PYTHON="$ROOT_DIR/venv/bin/python"
-FIGURE_DIR="$PAPER_DIR/build/liquidity_figures"
-TABLE_DIR="$PAPER_DIR/build/regressions"
+FIGURE_DIR="$PAPER_DIR/liquidity_figures"
+TABLE_DIR="$PAPER_DIR/regressions"
 
 FROM_DATE=${FROM_DATE:-2020-01-01}
 TO_DATE=${TO_DATE:-2026-06-05}
 BUILD_PDF=${BUILD_PDF:-1}
+
+export FROM_DATE
+export TO_DATE
+export BUILD_PDF
 
 mkdir -p "$FIGURE_DIR" "$TABLE_DIR"
 
@@ -32,15 +36,14 @@ PY
 
 if [[ "$BUILD_PDF" == "1" ]]; then
 	latexmk -C >/dev/null 2>&1 || true
-	rm -rf build/latex
-	mkdir -p build/latex
+	mkdir -p build
 	latexmk \
 	  -pdf \
 	  -synctex=1 \
 	  -interaction=nonstopmode \
 	  -file-line-error \
-	  -outdir=build/latex \
+	  -outdir=build/ \
 	  liquidity-premium.tex
-	cp build/latex/liquidity-premium.pdf liquidity-premium.pdf
-	cp build/latex/liquidity-premium.synctex.gz liquidity-premium.synctex.gz
+	cp build/liquidity-premium.pdf liquidity-premium.pdf
+	cp build/liquidity-premium.synctex.gz liquidity-premium.synctex.gz
 fi
