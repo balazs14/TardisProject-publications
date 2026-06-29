@@ -54,8 +54,8 @@ logging.getLogger(__name__).info(
 	log_level_name,
 )
 
-write_regression_tables(Path("build/regressions"), from_date=from_date, to_date=to_date)
-generate_all_figures(Path("build/liquidity_figures"), from_date=from_date, to_date=to_date)
+write_regression_tables(Path("regressions"), from_date=from_date, to_date=to_date)
+generate_all_figures(Path("liquidity_figures"), from_date=from_date, to_date=to_date)
 PY
 
 if [[ "$BUILD_PDF" == "1" ]]; then
