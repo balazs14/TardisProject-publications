@@ -21,11 +21,24 @@ cd TardisProject
 bash publications/AMU-liquidity-premium/rebuild_liquidity_premium_publication.sh
 ```
 
-This script does three things:
+This script does four things:
 
-1. builds the grouped daily AMU panel features used by the paper,
-2. writes the regression tables into `publications/AMU-liquidity-premium/regressions/`,
-3. writes the figure files into `publications/AMU-liquidity-premium/liquidity_figures/`.
+1. rebuilds the AMU baseline artifacts directly from the daily aligned dataset parquet files,
+2. builds the grouped daily AMU panel features used by the paper,
+3. writes the regression tables into `publications/AMU-liquidity-premium/regressions/`,
+4. writes the figure files into `publications/AMU-liquidity-premium/liquidity_figures/`.
+
+Generated AMU baseline artifacts in `publications/AMU-liquidity-premium/`:
+
+- `summary_daily_option_coverage_table.tex`
+- `amu_summary_table.tex`
+- `okex_btcusd_4_spreads.pdf`
+- `okex_ethusd_4_spreads.pdf`
+- `deribit_btcusd_4_spreads.pdf`
+- `deribit_ethusd_4_spreads.pdf`
+- `multi_exchange_amu_bps_by_date.pdf`
+- `multi_exchange_amu_bps_by_tte.pdf`
+- `multi_exchange_amu_bps_by_rel_strike.pdf`
 
 Generated figure files:
 
@@ -67,6 +80,7 @@ FROM_DATE=2024-01-01 TO_DATE=2024-12-31 BUILD_PDF=0 bash publications/AMU-liquid
 
 ## Notes
 
+- `amu_statistics.py` now reads `datasets/{exchange}/{exchange}_aligned_put_call_quotes_trades_chain_*_5min.parquet` directly and does not depend on `publications/AMU/` or a `compacted.parquet` intermediate.
 - The regression code lives in `publications/AMU-liquidity-premium/panel_regressions.py`.
 - The figure code lives in `publications/AMU-liquidity-premium/panel_figures.py`.
 - The manuscript includes the generated figures from the local `liquidity_figures/` directory.

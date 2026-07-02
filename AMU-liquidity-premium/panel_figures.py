@@ -62,6 +62,11 @@ def plot_pre_post_heatmaps(frame: pd.DataFrame, output_path: str | Path | None =
 			.mean()
 			.pivot(index="tte_bucket", columns="rel_strike_bucket", values="mean_amu_bp")
 		)
+		if heatmap.empty:
+			_annotate_empty_panel(ax, f"No observations for {title.lower()} sample")
+			ax.set_xlabel("Relative strike bucket")
+			ax.set_title(title)
+			continue
 		sns.heatmap(heatmap, cmap="coolwarm", center=0.0, ax=ax)
 		ax.set_title(title)
 		ax.set_xlabel("Relative strike bucket")
@@ -80,6 +85,12 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
 	plot_frame = pd.concat(event_rows, ignore_index=True)
 	plot_frame = plot_frame.groupby(["exchange", "event", "rel_day"], as_index=False)["mean_amu_bp"].mean()
 	fig, axes = plt.subplots(2, 1, figsize=(11, 8), sharex=True, sharey=True)
+	if plot_frame.empty:
+		for ax in axes:
+			_annotate_empty_panel(ax, "No event windows fall inside the selected sample")
+		axes[-1].set_xlabel("Days relative to event")
+		fig.suptitle("Event-study windows around 2024 regime markers")
+		return _finalize_figure(fig, output_path)
 	for ax, exchange in zip(axes, sorted(plot_frame["exchange"].unique()), strict=False):
 		sns.lineplot(data=plot_frame.loc[plot_frame["exchange"] == exchange], x="rel_day", y="mean_amu_bp", hue="event", ax=ax)
 		ax.axvline(0, color="black", linestyle="--", linewidth=1)
@@ -153,3 +164,8 @@ def _finalize_figure(fig: plt.Figure, output_path: str | Path | None) -> plt.Fig
 	if output_path is not None:
 		fig.savefig(output_path, dpi=200, bbox_inches="tight")
 	return fig
+
+
+def _annotate_empty_panel(ax: plt.Axes, message: str) -> None:
+	ax.set_axis_off()
+	ax.text(0.5, 0.5, message, ha="center", va="center", wrap=True)

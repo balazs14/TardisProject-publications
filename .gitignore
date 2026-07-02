@@ -22,3 +22,10 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+suggestions.md
+AMU-liquidity-premium/amu_frames_2020-01-01_to_2026-06-05__amu_panel.parquet
+AMU-liquidity-premium/amu_frames_2020-01-01_to_2026-06-05_meta.pkl
+AMU-liquidity-premium/amu_frames_2026-06-05_to_2026-06-05__amu_panel.parquet
+AMU-liquidity-premium/amu_frames_2026-06-05_to_2026-06-05__amu_statistics_frame.parquet
+AMU-liquidity-premium/amu_frames_2026-06-05_to_2026-06-05_meta.pkl
+AMU-liquidity-premium/amu_frames_2020-01-01_to_2026-06-05__amu_statistics_frame.parquet
