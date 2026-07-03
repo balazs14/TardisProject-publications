@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from collections.abc import Iterable
 from datetime import date
 from pathlib import Path
@@ -14,51 +13,19 @@ import polars as pl
 import pyarrow.parquet as pq
 import seaborn as sns
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+from amu_config import MAX_AMU_BP, MIN_QUOTE_SIZE_DOLLAR, PCP_METRIC_KWARGS, PCPB_COLUMNS, REL_STRIKE_MAX, REL_STRIKE_MIN, SPREAD_BP_MAX, bootstrap_repo_root
+
+PROJECT_ROOT = bootstrap_repo_root(Path(__file__).resolve())
 
 from tardis.utils import debug_runtime
-from tardis.utils import find_project_root
 from tardis.process_pcp import compute_pcp_metrics
 from amu_cache import get_cached_frame_parquet_path, put_cached_frame_parquet_path
-
-
-PROJECT_ROOT = find_project_root(Path(__file__).resolve())
 
 
 logger = logging.getLogger(__name__)
 logger.setLevel('DEBUG')
 
 PUBLICATION_DIR = Path(__file__).resolve().parent
-REL_STRIKE_MIN = 0.8
-REL_STRIKE_MAX = 1.2
-SPREAD_BP_MAX = 100000
-MIN_QUOTE_SIZE_DOLLAR = 5000.0
-MAX_AMU_BP = 100
-
-PCPB_COLUMNS = [
-    "timestamp",
-    "mdy",
-    "exchange",
-    "ref_sym",
-    "strike",
-    "exp",
-    "rel_strike",
-    "call_opt_spread_bp",
-    "put_opt_spread_bp",
-    "tte",
-    "index",
-    "min_quote_size_dollar",
-    "call_stale",
-    "put_stale",
-    "amu_fwd_bp",
-    "amu_bck_bp",
-    "fwd_call",
-    "fwd_put",
-    "bck_call",
-    "bck_put",
-]
 
 
 def _parse_file_day(file_path: Path) -> date | None:
@@ -144,7 +111,7 @@ def _pcpb_block_from_file(file_path: Path) -> pl.DataFrame:
     if raw.is_empty():
         return pl.DataFrame()
 
-    pcpb = compute_pcp_metrics(raw)
+    pcpb = compute_pcp_metrics(raw, **PCP_METRIC_KWARGS)
     if pcpb.is_empty():
         return pl.DataFrame()
 

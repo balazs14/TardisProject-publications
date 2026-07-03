@@ -8,9 +8,7 @@ from typing import Any
 import polars as pl
 import pyarrow.parquet as pq
 
-
-CACHE_VERSION = 1
-PARQUET_BATCH_ROWS = 100_000
+from amu_config import CACHE_VERSION, PARQUET_BATCH_ROWS
 
 
 def build_shared_cache_path(base_dir: str | Path, from_date: str, to_date: str) -> Path:

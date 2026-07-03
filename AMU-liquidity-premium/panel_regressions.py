@@ -1,25 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
 from functools import lru_cache
 from pathlib import Path
-import sys
 
 import numpy as np
 import pandas as pd
 import polars as pl
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+from amu_config import OTM_DISTANCE, POST_2024_START, SHORT_TTE_CUTOFF, bootstrap_repo_root
+REPO_ROOT = bootstrap_repo_root(Path(__file__).resolve())
 
 from amu_panel import build_amu_panel
-
-
-POST_2024_START = date(2024, 1, 10)
-OTM_DISTANCE = 0.05
-SHORT_TTE_CUTOFF = 0.35
 
 
 @dataclass(frozen=True)
@@ -112,11 +104,11 @@ def test_run_baseline_regression() -> None:
     tu.assert_df_equal(
         result[["term", "coefficient", "std_error", "t_stat", "nobs", "r2"]].round(6),
         """
-          term  coefficient  std_error       t_stat  nobs       r2
-0    post_2024    -1.458569   0.641810    -2.272588  2496  0.99994
-1    spread_bp    -0.500871   0.000329 -1523.894859  2496  0.99994
-2  depth_proxy     2.623388   2.430844     1.079209  2496  0.99994
-3  stale_proxy    17.208299  13.384755     1.285664  2496  0.99994
+          term  coefficient  std_error       t_stat  nobs        r2
+0    post_2024    -1.953840   0.700214    -2.790348  2496  0.999929
+1    spread_bp    -0.500901   0.000330 -1518.100692  2496  0.999929
+2  depth_proxy    -0.133091   2.533242    -0.052538  2496  0.999929
+3  stale_proxy     6.746605  13.734042     0.491232  2496  0.999929
 """,
     )
 
@@ -133,9 +125,9 @@ def test_run_forward_regression() -> None:
         result[["term", "coefficient", "std_error", "t_stat", "nobs", "r2"]].round(6),
         """
           term  coefficient  std_error      t_stat  nobs        r2
-0    post_2024    56.901489  12.589475    4.519766  2496  0.989264
-1    spread_bp    -0.966907   0.005453 -177.306585  2496  0.989264
-2  depth_proxy   -38.004862  21.472259   -1.769952  2496  0.989264
+0    post_2024    79.751637  12.902440    6.181128  2496  0.988144
+1    spread_bp    -0.966494   0.005550 -174.133437  2496  0.988144
+2  depth_proxy   -47.455967  21.429272   -2.214539  2496  0.988144
 """,
     )
 
@@ -152,9 +144,9 @@ def test_run_backward_regression() -> None:
         result[["term", "coefficient", "std_error", "t_stat", "nobs", "r2"]].round(6),
         """
           term  coefficient  std_error    t_stat  nobs        r2
-0    post_2024   -59.356182  12.762107 -4.650970  2496  0.875213
-1    spread_bp    -0.034798   0.005682 -6.123894  2496  0.875213
-2  depth_proxy    42.068927  22.879034  1.838755  2496  0.875213
+0    post_2024   -83.479629  13.096074 -6.374401  2496  0.637393
+1    spread_bp    -0.035292   0.005796 -6.089239  2496  0.637393
+2  depth_proxy    46.726621  22.909004  2.039662  2496  0.637393
 """,
     )
 
@@ -171,9 +163,9 @@ def test_run_interaction_regression() -> None:
         result[["term", "coefficient", "std_error", "t_stat", "nobs", "r2"]].round(6),
         """
                     term  coefficient   std_error    t_stat  nobs        r2
-0        post_2024_x_eth  -354.293557  126.633717 -2.797782  2496  0.335046
-1        post_2024_x_otm  -393.308815   88.124289 -4.463115  2496  0.335046
-2  post_2024_x_short_tte   250.560566   78.185611  3.204689  2496  0.335046
+0        post_2024_x_eth  -351.642256  126.714240 -2.775081  2496  0.327938
+1        post_2024_x_otm  -416.686109   88.248345 -4.721744  2496  0.327938
+2  post_2024_x_short_tte   212.053306   78.150554  2.713395  2496  0.327938
 """,
     )
 

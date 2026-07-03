@@ -1,94 +1,36 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
 from datetime import date
 from pathlib import Path
 
 import numpy as np
 import polars as pl
 
-from tardis.utils import debug_runtime
-from tardis.process_pcp import compute_pcp_metrics
-from tardis import test_utils as tu
+from amu_config import (
+    MEAN_PANEL_COLUMNS,
+    PCP_METRIC_KWARGS,
+    REL_STRIKE_BUCKETS,
+    REL_STRIKE_MAX,
+    REL_STRIKE_MIN,
+    STALE_PANEL_COLUMNS,
+    SUM_PANEL_COLUMNS,
+    TTE_BUCKETS,
+    TTE_SQRT_MAX,
+    TTE_SQRT_MIN,
+    bootstrap_repo_root,
+)
 from amu_cache import get_cached_frame, put_cached_frame
+from tardis import package_set_log_level, test_utils as tu
+from tardis.process_pcp import compute_pcp_metrics
+from tardis.utils import debug_runtime
 
+
+PROJECT_ROOT = bootstrap_repo_root(Path(__file__).resolve())
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-from tardis import package_set_log_level
 package_set_log_level(logging.DEBUG)
-
-REL_STRIKE_MIN = 0.8
-REL_STRIKE_MAX = 1.2
-REL_STRIKE_BUCKETS = 21
-TTE_BUCKETS = 10
-TTE_SQRT_MIN = 0.0
-TTE_SQRT_MAX = 1.0
-
-MEAN_PANEL_COLUMNS = [
-    "strike",
-    "index",
-    "rel_strike",
-    "tte",
-    "fut_mid_price",
-    "call_bid_price",
-    "call_ask_price",
-    "call_bid_amount",
-    "call_ask_amount",
-    "put_bid_price",
-    "put_ask_price",
-    "put_bid_amount",
-    "put_ask_amount",
-    "fut_bid_price",
-    "fut_ask_price",
-    "fut_bid_amount",
-    "fut_ask_amount",
-    "spot_bid_price",
-    "spot_ask_price",
-    "spot_bid_amount",
-    "spot_ask_amount",
-    "call_open_interest",
-    "put_open_interest",
-    "call_ask_price_xS",
-    "call_bid_price_xS",
-    "put_ask_price_xS",
-    "put_bid_price_xS",
-    "cost",
-    "capital_fwd",
-    "capital_bck",
-    "pcpb_forward",
-    "pcpb_backward",
-    "pcpb_fwd_real",
-    "pcpb_bck_real",
-    "pcpb_fwd_bp",
-    "pcpb_bck_bp",
-    "pcpb_fwd_real_bp",
-    "pcpb_bck_real_bp",
-    "pcpb_fwd_ann_bp",
-    "pcpb_bck_ann_bp",
-    "pcpb_fwd_real_ann_bp",
-    "pcpb_bck_real_ann_bp",
-    "call_opt_spread_bp",
-    "put_opt_spread_bp",
-    "bigger_opt_spread_bp",
-    "smaller_opt_spread_bp",
-    "amu_fwd_bp",
-    "amu_bck_bp",
-    "min_quote_size_dollar",
-    "contract_size",
-]
-
-SUM_PANEL_COLUMNS = [
-    "call_trade_amount",
-    "call_trade_signed_amount",
-    "call_trade_price_amount",
-    "put_trade_amount",
-    "put_trade_signed_amount",
-    "put_trade_price_amount",
-]
-
-STALE_PANEL_COLUMNS = ["call_stale", "put_stale", "spot_stale"]
 
 
 def _bucket_midpoint(values: pl.Series, lower: float, upper: float, bucket_count: int, name: str) -> pl.Series:
@@ -202,7 +144,7 @@ def _panel_block_from_file(file_path: Path) -> pl.DataFrame:
         logger.debug("Skipping empty aligned file: %s", file_path)
         return pl.DataFrame()
 
-    panel_ready = compute_pcp_metrics(raw)
+    panel_ready = compute_pcp_metrics(raw, **PCP_METRIC_KWARGS)
     panel_ready = panel_ready.drop_nulls(_required_panel_columns())
     panel_ready = panel_ready.filter(pl.col("rel_strike").is_between(REL_STRIKE_MIN, REL_STRIKE_MAX))
     if panel_ready.is_empty():

@@ -1,0 +1,121 @@
+[cache]
+version = 1
+parquet_batch_rows = 100000
+
+[filters]
+rel_strike_min = 0.8
+rel_strike_max = 1.2
+spread_bp_max = 100000
+min_quote_size_dollar = 5000.0
+max_amu_bp = 100
+
+[pcp]
+cost_per_notional = 0.003
+fut_mgn_rate = 0.2
+short_put_mgn_rate = 0.5
+short_call_mgn_rate = 0.5
+r = 0.05
+contract_size = 0.01
+
+[panel]
+rel_strike_buckets = 21
+tte_buckets = 10
+tte_sqrt_min = 0.0
+tte_sqrt_max = 1.0
+mean_panel_columns = [
+  "strike",
+  "index",
+  "rel_strike",
+  "tte",
+  "fut_mid_price",
+  "call_bid_price",
+  "call_ask_price",
+  "call_bid_amount",
+  "call_ask_amount",
+  "put_bid_price",
+  "put_ask_price",
+  "put_bid_amount",
+  "put_ask_amount",
+  "fut_bid_price",
+  "fut_ask_price",
+  "fut_bid_amount",
+  "fut_ask_amount",
+  "spot_bid_price",
+  "spot_ask_price",
+  "spot_bid_amount",
+  "spot_ask_amount",
+  "call_open_interest",
+  "put_open_interest",
+  "call_ask_price_xS",
+  "call_bid_price_xS",
+  "put_ask_price_xS",
+  "put_bid_price_xS",
+  "cost",
+  "capital_fwd",
+  "capital_bck",
+  "pcpb_forward",
+  "pcpb_backward",
+  "pcpb_fwd_real",
+  "pcpb_bck_real",
+  "pcpb_fwd_bp",
+  "pcpb_bck_bp",
+  "pcpb_fwd_real_bp",
+  "pcpb_bck_real_bp",
+  "pcpb_fwd_ann_bp",
+  "pcpb_bck_ann_bp",
+  "pcpb_fwd_real_ann_bp",
+  "pcpb_bck_real_ann_bp",
+  "call_opt_spread_bp",
+  "put_opt_spread_bp",
+  "bigger_opt_spread_bp",
+  "smaller_opt_spread_bp",
+  "amu_fwd_bp",
+  "amu_bck_bp",
+  "min_quote_size_dollar",
+  "contract_size",
+]
+sum_panel_columns = [
+  "call_trade_amount",
+  "call_trade_signed_amount",
+  "call_trade_price_amount",
+  "put_trade_amount",
+  "put_trade_signed_amount",
+  "put_trade_price_amount",
+]
+stale_panel_columns = ["call_stale", "put_stale", "spot_stale"]
+
+[statistics]
+pcpb_columns = [
+  "timestamp",
+  "mdy",
+  "exchange",
+  "ref_sym",
+  "strike",
+  "exp",
+  "rel_strike",
+  "call_opt_spread_bp",
+  "put_opt_spread_bp",
+  "tte",
+  "index",
+  "min_quote_size_dollar",
+  "call_stale",
+  "put_stale",
+  "amu_fwd_bp",
+  "amu_bck_bp",
+  "fwd_call",
+  "fwd_put",
+  "bck_call",
+  "bck_put",
+]
+
+[regression]
+post_2024_start = "2024-01-10"
+otm_distance = 0.05
+short_tte_cutoff = 0.35
+
+[figures.event_dates]
+"BTC ETP approval" = "2024-01-10"
+"ETH ETF approval" = "2024-05-23"
+"ETH ETF trading" = "2024-07-23"
+"MiCA stablecoin" = "2024-06-30"
+"MiCA CASP" = "2024-12-30"

@@ -1,22 +1,13 @@
 from __future__ import annotations
 
-from datetime import date
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from panel_regressions import POST_2024_START, build_liquidity_analysis_panel
-
-
-EVENT_DATES = {
-    "BTC ETP approval": date(2024, 1, 10),
-    "ETH ETF approval": date(2024, 5, 23),
-    "ETH ETF trading": date(2024, 7, 23),
-    "MiCA stablecoin": date(2024, 6, 30),
-    "MiCA CASP": date(2024, 12, 30),
-}
+from amu_config import EVENT_DATES
+from panel_regressions import build_liquidity_analysis_panel
 
 
 def generate_all_figures(output_dir: str | Path, **build_kwargs) -> dict[str, Path]:

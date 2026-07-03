@@ -101,7 +101,7 @@ Let $X_{i,t}$ denote the quoted put--call parity wedge for option pair $i$ at ti
 
 where $\Pi_{i,t}$ is the best available PCP-arbitrage profit across the implementable arbitrage paths and $N_{i,t}$ is the option contract's underlying notional. In practice, $\Pi_{i,t}$ is computed from synchronized option and futures quotes using the relevant inverse-contract payoff structure, with explicit commission and bid--ask adjustments.
 
-AMU builds on a simpler object that we call \textit{market unfairness} (MU): the ex ante profit available to a liquidity supplier who posts at the top of the option book and, once filled, completes the corresponding PCP arbitrage cycle. MU is path-specific, because executable profit depends on which side of the option quote is improved. In the standard call--put--underlying setting there are forward and backward parity trades,
+AMU builds on a simpler object that we call \textit{market unfairness} (MU): the ex ante profit available to a liquidity supplier who posts at the top of the option book and, once filled, completes the corresponding PCP arbitrage cycle. MU is path-specific, because executable profit depends on which side of the option quote is joined. In the standard call--put--underlying setting there are forward and backward parity trades,
 \begin{equation}
 \text{Profit}^{\text{Simple}}_{\text{forward}} = S_{ask} - C_{bid} + P_{ask} - Ke^{-rT},
 \end{equation}
