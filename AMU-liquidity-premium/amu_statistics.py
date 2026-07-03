@@ -425,14 +425,12 @@ def _gaussian_kernel_smooth(x: np.ndarray, y: np.ndarray, *, bandwidth: float = 
 
 @_debug_runtime("plot_4_spreads")
 def plot_4_spreads(pcpb: pd.DataFrame, *, output_dir: Path, rng: int = 100) -> list[Path]:
-    breakpoint()
     output_paths: list[Path] = []
     sns.set_theme(style="whitegrid", context="talk")
     for (exchange, ref_sym), subset in pcpb.groupby(["exchange", "ref_sym"], sort=True):
         fig, ax = plt.subplots(figsize=(10, 6))
         visible_max = 0.0
         for column, color in zip(["fwd_call", "fwd_put", "bck_call", "bck_put"], sns.color_palette("deep", n_colors=4), strict=False):
-            breakpoint()
             values = pd.to_numeric(subset[column], errors="coerce").to_numpy()
             values = values[np.isfinite(values)]
             if values.size == 0:
@@ -459,8 +457,11 @@ def plot_4_spreads(pcpb: pd.DataFrame, *, output_dir: Path, rng: int = 100) -> l
         output_path = output_dir / f"{_safe_name(exchange)}_{_safe_name(ref_sym)}_4_spreads.pdf"
         fig.tight_layout()
         fig.savefig(output_path, dpi=220, bbox_inches="tight")
+        plt.show()
+        print(pd.Series(values).quantile([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]))
         plt.close(fig)
         output_paths.append(output_path)
+        breakpoint()
     return output_paths
 
 
