@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 import tomllib
 from datetime import date
@@ -25,7 +26,11 @@ def bootstrap_repo_root(start: Path | None = None) -> Path:
 
 
 def _load_config() -> dict[str, Any]:
-    with Path(__file__).with_suffix(".toml").open("rb") as handle:
+    configured = os.getenv("AMU_CONFIG_PATH", "").strip()
+    config_path = Path(configured) if configured else Path(__file__).with_suffix(".toml")
+    if not config_path.is_absolute():
+        config_path = (Path.cwd() / config_path).resolve()
+    with config_path.open("rb") as handle:
         return tomllib.load(handle)
 
 
