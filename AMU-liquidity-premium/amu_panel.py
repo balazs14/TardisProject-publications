@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 import logging
-import time
 from collections.abc import Iterable
 from datetime import date
-from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, TypeVar
 
 import numpy as np
 import polars as pl
 
+from tardis.utils import debug_runtime
 from tardis.process_pcp import compute_pcp_metrics
 from tardis import test_utils as tu
 from amu_cache import get_cached_frame, put_cached_frame
@@ -27,8 +25,6 @@ REL_STRIKE_BUCKETS = 21
 TTE_BUCKETS = 10
 TTE_SQRT_MIN = 0.0
 TTE_SQRT_MAX = 1.0
-
-F = TypeVar("F", bound=Callable[..., Any])
 
 MEAN_PANEL_COLUMNS = [
     "strike",
@@ -93,23 +89,6 @@ SUM_PANEL_COLUMNS = [
 ]
 
 STALE_PANEL_COLUMNS = ["call_stale", "put_stale", "spot_stale"]
-
-
-def _debug_runtime(label: str) -> Callable[[F], F]:
-    def decorator(func: F) -> F:
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            logger.debug("Entering %s", label)
-            started = time.perf_counter()
-            try:
-                return func(*args, **kwargs)
-            finally:
-                elapsed = time.perf_counter() - started
-                logger.debug("Exiting %s (runtime %.3fs)", label, elapsed)
-
-        return wrapper  # type: ignore[return-value]
-
-    return decorator
 
 
 def _bucket_midpoint(values: pl.Series, lower: float, upper: float, bucket_count: int, name: str) -> pl.Series:
@@ -247,7 +226,7 @@ def _append_block(panel: pl.DataFrame, block: pl.DataFrame) -> pl.DataFrame:
     return pl.concat([panel, block], how="vertical_relaxed", rechunk=False)
 
 
-@_debug_runtime("build_amu_panel")
+@debug_runtime("build_amu_panel")
 def build_amu_panel(
     exchanges: Iterable[str] = ("okex", "deribit"),
     sample_freq: str = "5min",

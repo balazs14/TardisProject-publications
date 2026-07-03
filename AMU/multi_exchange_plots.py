@@ -21,12 +21,14 @@ import os
 import sys
 from pathlib import Path
 
-def find_project_root(start: Path) -> Path:
-    for candidate in [start, *start.parents]:
-        if (candidate / "pyproject.toml").exists() and (candidate / "tardis").is_dir():
-            return candidate
-    raise FileNotFoundError("Could not find project root with pyproject.toml and tardis/")
+try:
+    _BOOTSTRAP_ROOT = Path(__file__).resolve().parents[2]
+except NameError:
+    _BOOTSTRAP_ROOT = Path.cwd()
+if str(_BOOTSTRAP_ROOT) not in sys.path:
+    sys.path.insert(0, str(_BOOTSTRAP_ROOT))
 
+from tardis.utils import find_project_root
 
 PROJECT_ROOT = find_project_root(Path.cwd())
 if str(PROJECT_ROOT) not in sys.path:

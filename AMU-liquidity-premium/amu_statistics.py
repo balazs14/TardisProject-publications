@@ -3,12 +3,9 @@ from __future__ import annotations
 import logging
 import os
 import sys
-import time
 from collections.abc import Iterable
 from datetime import date
-from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, TypeVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,27 +14,21 @@ import polars as pl
 import pyarrow.parquet as pq
 import seaborn as sns
 
-
-def find_project_root(start: Path) -> Path:
-    for candidate in [start, *start.parents]:
-        #print(f'looking at {candidate}')
-        if (candidate / "pyproject.toml").exists() and (candidate / "tardis").is_dir():
-            return candidate
-    raise FileNotFoundError("Could not find project root with pyproject.toml and tardis/")
-
-
-PROJECT_ROOT = find_project_root(Path(__file__).resolve())
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from tardis.utils import debug_runtime
+from tardis.utils import find_project_root
 from tardis.process_pcp import compute_pcp_metrics
 from amu_cache import get_cached_frame_parquet_path, put_cached_frame_parquet_path
 
 
+PROJECT_ROOT = find_project_root(Path(__file__).resolve())
+
+
 logger = logging.getLogger(__name__)
 logger.setLevel('DEBUG')
-
-F = TypeVar("F", bound=Callable[..., Any])
 
 PUBLICATION_DIR = Path(__file__).resolve().parent
 REL_STRIKE_MIN = 0.8
@@ -68,23 +59,6 @@ PCPB_COLUMNS = [
     "bck_call",
     "bck_put",
 ]
-
-
-def _debug_runtime(label: str) -> Callable[[F], F]:
-    def decorator(func: F) -> F:
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            logger.debug("Entering %s", label)
-            started = time.perf_counter()
-            try:
-                return func(*args, **kwargs)
-            finally:
-                elapsed = time.perf_counter() - started
-                logger.debug("Exiting %s (runtime %.3fs)", label, elapsed)
-
-        return wrapper  # type: ignore[return-value]
-
-    return decorator
 
 
 def _parse_file_day(file_path: Path) -> date | None:
@@ -251,7 +225,7 @@ def _build_amu_statistics_frame_to_cache(
             writer.close()
 
 
-@_debug_runtime("build_amu_statistics_frame_cached_path")
+@debug_runtime("build_amu_statistics_frame_cached_path")
 def build_amu_statistics_frame_cached_path(
     *,
     cache_path: str | Path,
@@ -315,7 +289,7 @@ def calculate_amu_bps(pcpb: pd.DataFrame, *, max_bp_cutoff: int = MAX_AMU_BP) ->
     return weighted_avg, amu_num, len(pcpb)
 
 
-@_debug_runtime("summarize_timeslice_option_coverage")
+@debug_runtime("summarize_timeslice_option_coverage")
 def summarize_timeslice_option_coverage(df: pl.DataFrame) -> pd.DataFrame:
     if df.is_empty():
         return pd.DataFrame()
@@ -356,7 +330,7 @@ def dataframe_to_tabular_tex(df: pd.DataFrame, path: Path) -> None:
     path.write_text(latex, encoding="utf-8")
 
 
-@_debug_runtime("write_summary_daily_table")
+@debug_runtime("write_summary_daily_table")
 def write_summary_daily_table(df: pl.DataFrame, *, output_dir: Path) -> Path:
     summary = summarize_timeslice_option_coverage(df)
     summary_rounded = summary.copy()
@@ -377,7 +351,7 @@ def write_summary_daily_table(df: pl.DataFrame, *, output_dir: Path) -> Path:
     return output_path
 
 
-@_debug_runtime("write_amu_summary_table")
+@debug_runtime("write_amu_summary_table")
 def write_amu_summary_table(pcpb: pd.DataFrame, *, output_dir: Path) -> Path:
     rows = []
     for (ref_sym, exchange), group in pcpb.groupby(["ref_sym", "exchange"], sort=True):
@@ -423,7 +397,7 @@ def _gaussian_kernel_smooth(x: np.ndarray, y: np.ndarray, *, bandwidth: float = 
     return out
 
 
-@_debug_runtime("plot_4_spreads")
+@debug_runtime("plot_4_spreads")
 def plot_4_spreads(pcpb: pd.DataFrame, *, output_dir: Path, rng: int = 100) -> list[Path]:
     output_paths: list[Path] = []
     sns.set_theme(style="whitegrid", context="talk")
@@ -465,7 +439,7 @@ def plot_4_spreads(pcpb: pd.DataFrame, *, output_dir: Path, rng: int = 100) -> l
     return output_paths
 
 
-@_debug_runtime("plot_amu_bps_by_date")
+@debug_runtime("plot_amu_bps_by_date")
 def plot_amu_bps_by_date(pcpb: pd.DataFrame, *, output_dir: Path) -> Path:
     daily_amu = (
         pcpb.assign(market=lambda frame: frame["exchange"].astype(str) + " | " + frame["ref_sym"].astype(str))
@@ -507,7 +481,7 @@ def plot_amu_bps_by_date(pcpb: pd.DataFrame, *, output_dir: Path) -> Path:
     return output_path
 
 
-@_debug_runtime("plot_amu_bps_by_rel_strike")
+@debug_runtime("plot_amu_bps_by_rel_strike")
 def plot_amu_bps_by_rel_strike(pcpb: pd.DataFrame, *, output_dir: Path) -> Path:
     plot_df = (
         pcpb.dropna(subset=["exchange", "ref_sym", "rel_strike"])
@@ -584,7 +558,7 @@ def plot_amu_bps_by_rel_strike(pcpb: pd.DataFrame, *, output_dir: Path) -> Path:
     return output_path
 
 
-@_debug_runtime("plot_amu_bps_by_tte")
+@debug_runtime("plot_amu_bps_by_tte")
 def plot_amu_bps_by_tte(pcpb: pd.DataFrame, *, output_dir: Path) -> Path:
     tmp = (
         pcpb[["exchange", "ref_sym", "tte", "fwd_call", "bck_call", "bck_put", "fwd_put"]]
@@ -733,7 +707,7 @@ def _add_amu_bps_columns(frame: pl.LazyFrame) -> pl.LazyFrame:
     )
 
 
-@_debug_runtime("inspect_pcpb_input_from_parquet")
+@debug_runtime("inspect_pcpb_input_from_parquet")
 def inspect_pcpb_input_from_parquet(parquet_path: str | Path) -> None:
     parquet_file = pq.ParquetFile(str(parquet_path))
     logger.info("AMU columns: %s", ", ".join(parquet_file.schema.names))
@@ -751,7 +725,7 @@ def inspect_pcpb_input_from_parquet(parquet_path: str | Path) -> None:
     logger.info("AMU timestamp range: %s -> %s", min_ts, max_ts)
 
 
-@_debug_runtime("write_summary_daily_table_from_parquet")
+@debug_runtime("write_summary_daily_table_from_parquet")
 def write_summary_daily_table_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
     lf = _lazy_pcpb(parquet_path)
     per_ts = lf.group_by(["ref_sym", "exchange", "timestamp"]).agg(
@@ -794,7 +768,7 @@ def write_summary_daily_table_from_parquet(parquet_path: str | Path, *, output_d
     return output_path
 
 
-@_debug_runtime("write_amu_summary_table_from_parquet")
+@debug_runtime("write_amu_summary_table_from_parquet")
 def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
     lf = _add_amu_bps_columns(_lazy_pcpb(parquet_path).group_by(["ref_sym", "exchange"]).agg(_amu_agg_exprs()))
     table = (
@@ -819,7 +793,7 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
     return output_path
 
 
-@_debug_runtime("plot_4_spreads_from_parquet")
+@debug_runtime("plot_4_spreads_from_parquet")
 def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, rng: int = 100) -> list[Path]:
     columns = ["exchange", "ref_sym", "fwd_call", "fwd_put", "bck_call", "bck_put"]
     parquet = pq.ParquetFile(str(parquet_path))
@@ -890,7 +864,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
     return output_paths
 
 
-@_debug_runtime("plot_amu_bps_by_date_from_parquet")
+@debug_runtime("plot_amu_bps_by_date_from_parquet")
 def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
     lf = _lazy_pcpb(parquet_path).with_columns(
         (pl.col("exchange").cast(pl.Utf8) + pl.lit(" | ") + pl.col("ref_sym").cast(pl.Utf8)).alias("market")
@@ -935,7 +909,7 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
     return output_path
 
 
-@_debug_runtime("plot_amu_bps_by_rel_strike_from_parquet")
+@debug_runtime("plot_amu_bps_by_rel_strike_from_parquet")
 def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
     curve_df = _add_amu_bps_columns(
         _lazy_pcpb(parquet_path)
@@ -1012,7 +986,7 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
     return output_path
 
 
-@_debug_runtime("plot_amu_bps_by_tte_from_parquet")
+@debug_runtime("plot_amu_bps_by_tte_from_parquet")
 def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
     bin_width = 0.7 / 100.0
     curve_df = _add_amu_bps_columns(
@@ -1098,7 +1072,7 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
     return output_path
 
 
-@_debug_runtime("generate_all_statistics")
+@debug_runtime("generate_all_statistics")
 def generate_all_statistics(
     output_dir: str | Path,
     *,
