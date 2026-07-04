@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 import logging
 from datetime import date
 from pathlib import Path
@@ -7,19 +8,7 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-from amu_config import (
-    MEAN_PANEL_COLUMNS,
-    PCP_METRIC_KWARGS,
-    REL_STRIKE_BUCKETS,
-    REL_STRIKE_MAX,
-    REL_STRIKE_MIN,
-    STALE_PANEL_COLUMNS,
-    SUM_PANEL_COLUMNS,
-    TTE_BUCKETS,
-    TTE_SQRT_MAX,
-    TTE_SQRT_MIN,
-    bootstrap_repo_root,
-)
+from amu_config import CONFIG, bootstrap_repo_root
 from amu_cache import get_cached_frame, put_cached_frame
 from tardis import package_set_log_level, test_utils as tu
 from tardis.process_pcp import compute_pcp_metrics
@@ -31,6 +20,28 @@ PROJECT_ROOT = bootstrap_repo_root(Path(__file__).resolve())
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 package_set_log_level(logging.DEBUG)
+
+panel_cfg = CONFIG["panel"]
+pcp_cfg = CONFIG["pcp"]
+filters_cfg = CONFIG["filters"]
+
+mean_panel_columns = list(panel_cfg["mean_panel_columns"])
+sum_panel_columns = list(panel_cfg["sum_panel_columns"])
+stale_panel_columns = list(panel_cfg["stale_panel_columns"])
+rel_strike_buckets = int(panel_cfg["rel_strike_buckets"])
+tte_buckets = int(panel_cfg["tte_buckets"])
+tte_sqrt_min = float(panel_cfg["tte_sqrt_min"])
+tte_sqrt_max = float(panel_cfg["tte_sqrt_max"])
+rel_strike_min = float(filters_cfg["rel_strike_min"])
+rel_strike_max = float(filters_cfg["rel_strike_max"])
+pcp_metric_kwargs = {
+    "cost_per_notional": float(pcp_cfg["cost_per_notional"]),
+    "fut_mgn_rate": float(pcp_cfg["fut_mgn_rate"]),
+    "short_put_mgn_rate": float(pcp_cfg["short_put_mgn_rate"]),
+    "short_call_mgn_rate": float(pcp_cfg["short_call_mgn_rate"]),
+    "r": float(pcp_cfg["r"]),
+    "contract_size": float(pcp_cfg["contract_size"]),
+}
 
 
 def _bucket_midpoint(values: pl.Series, lower: float, upper: float, bucket_count: int, name: str) -> pl.Series:
@@ -96,8 +107,8 @@ def _bucket_index(values: pl.Series, lower: float, upper: float, bucket_count: i
 
 
 def _rel_strike_bucket(df: pl.DataFrame) -> pl.Series:
-    index = _bucket_index(df.get_column("rel_strike"), REL_STRIKE_MIN, REL_STRIKE_MAX, REL_STRIKE_BUCKETS, "rel_strike_bucket_idx")
-    return _bucket_midpoint(index, REL_STRIKE_MIN, REL_STRIKE_MAX, REL_STRIKE_BUCKETS, "rel_strike_bucket")
+    index = _bucket_index(df.get_column("rel_strike"), rel_strike_min, rel_strike_max, rel_strike_buckets, "rel_strike_bucket_idx")
+    return _bucket_midpoint(index, rel_strike_min, rel_strike_max, rel_strike_buckets, "rel_strike_bucket")
 
 
 def _tte_bucket(df: pl.DataFrame) -> pl.Series:
@@ -105,8 +116,8 @@ def _tte_bucket(df: pl.DataFrame) -> pl.Series:
     sqrt_tte = np.sqrt(np.clip(tte, a_min=0.0, a_max=None))
     if not np.isfinite(sqrt_tte).any():
         return pl.Series("tte_bucket", [None] * len(tte), dtype=pl.Float64)
-    index = _bucket_index(pl.Series("tte", sqrt_tte), TTE_SQRT_MIN, TTE_SQRT_MAX, TTE_BUCKETS, "tte_bucket_idx")
-    return _bucket_midpoint(index, TTE_SQRT_MIN, TTE_SQRT_MAX, TTE_BUCKETS, "tte_bucket")
+    index = _bucket_index(pl.Series("tte", sqrt_tte), tte_sqrt_min, tte_sqrt_max, tte_buckets, "tte_bucket_idx")
+    return _bucket_midpoint(index, tte_sqrt_min, tte_sqrt_max, tte_buckets, "tte_bucket")
 
 
 def _required_panel_columns() -> list[str]:
@@ -129,11 +140,11 @@ def _required_panel_columns() -> list[str]:
 
 def _panel_metrics() -> list[pl.Expr]:
     metrics = [pl.len().alias("n_obs")]
-    metrics.extend(pl.mean(column).alias(f"mean_{column}") for column in MEAN_PANEL_COLUMNS)
-    metrics.extend(pl.sum(column).alias(f"sum_{column}") for column in SUM_PANEL_COLUMNS)
+    metrics.extend(pl.mean(column).alias(f"mean_{column}") for column in mean_panel_columns)
+    metrics.extend(pl.sum(column).alias(f"sum_{column}") for column in sum_panel_columns)
     metrics.extend(
         (pl.col(column).cast(pl.Float64, strict=False).mean() * 1.0).alias(f"frac_{column}")
-        for column in STALE_PANEL_COLUMNS
+        for column in stale_panel_columns
     )
     return metrics
 
@@ -144,9 +155,8 @@ def _panel_block_from_file(file_path: Path) -> pl.DataFrame:
         logger.debug("Skipping empty aligned file: %s", file_path)
         return pl.DataFrame()
 
-    panel_ready = compute_pcp_metrics(raw, **PCP_METRIC_KWARGS)
+    panel_ready = compute_pcp_metrics(raw, **pcp_metric_kwargs)
     panel_ready = panel_ready.drop_nulls(_required_panel_columns())
-    panel_ready = panel_ready.filter(pl.col("rel_strike").is_between(REL_STRIKE_MIN, REL_STRIKE_MAX))
     if panel_ready.is_empty():
         return pl.DataFrame()
 

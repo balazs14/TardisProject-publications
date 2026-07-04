@@ -8,10 +8,22 @@ import numpy as np
 import pandas as pd
 import polars as pl
 
-from amu_config import OTM_DISTANCE, POST_2024_START, SHORT_TTE_CUTOFF, bootstrap_repo_root
+from amu_config import CONFIG, bootstrap_repo_root
 REPO_ROOT = bootstrap_repo_root(Path(__file__).resolve())
 
 from amu_panel import build_amu_panel
+
+
+filters_cfg = CONFIG["filters"]
+regression_cfg = CONFIG["regression"]
+
+post_2024_start = pd.Timestamp(regression_cfg["post_2024_start"]).date()
+otm_distance = float(regression_cfg["otm_distance"])
+short_tte_cutoff = float(regression_cfg["short_tte_cutoff"])
+rel_strike_min_default = float(filters_cfg["rel_strike_min"])
+rel_strike_max_default = float(filters_cfg["rel_strike_max"])
+spread_bp_max_default = int(filters_cfg["spread_bp_max"])
+min_quote_size_dollar_default = float(filters_cfg["min_quote_size_dollar"])
 
 
 @dataclass(frozen=True)
@@ -32,13 +44,13 @@ def build_liquidity_analysis_panel(
     frame = panel.to_pandas().copy()
     frame["day"] = pd.to_datetime(frame["day"])
     frame["mean_amu_bp"] = 0.5 * (frame["mean_amu_fwd_bp"] + frame["mean_amu_bck_bp"])
-    frame["post_2024"] = (frame["day"].dt.date >= POST_2024_START).astype(float)
+    frame["post_2024"] = (frame["day"].dt.date >= post_2024_start).astype(float)
     frame["spread_bp"] = frame["mean_bigger_opt_spread_bp"]
     frame["depth_proxy"] = np.log(frame["mean_min_quote_size_dollar"].clip(lower=1.0))
     frame["stale_proxy"] = frame[["frac_call_stale", "frac_put_stale", "frac_spot_stale"]].mean(axis=1)
     frame["eth"] = frame["ref_sym"].str.contains("ETH", na=False).astype(float)
-    frame["otm"] = (frame["rel_strike_bucket"].sub(1.0).abs() > OTM_DISTANCE).astype(float)
-    frame["short_tte"] = (frame["tte_bucket"] <= SHORT_TTE_CUTOFF).astype(float)
+    frame["otm"] = (frame["rel_strike_bucket"].sub(1.0).abs() > otm_distance).astype(float)
+    frame["short_tte"] = (frame["tte_bucket"] <= short_tte_cutoff).astype(float)
     frame["post_2024_x_eth"] = frame["post_2024"] * frame["eth"]
     frame["post_2024_x_otm"] = frame["post_2024"] * frame["otm"]
     frame["post_2024_x_short_tte"] = frame["post_2024"] * frame["short_tte"]
@@ -52,6 +64,35 @@ def build_liquidity_analysis_panel(
         + frame["tte_bucket"].round(6).astype(str)
     )
     return frame.sort_values(["day", "exchange", "ref_sym", "rel_strike_bucket", "tte_bucket"])
+
+
+def filter_analysis_panel(
+    frame: pd.DataFrame,
+    rel_strike_min: float = rel_strike_min_default,
+    rel_strike_max: float = rel_strike_max_default,
+    spread_bp_max: int = spread_bp_max_default,
+    min_quote_size_dollar: float = min_quote_size_dollar_default,
+    *,
+    apply_rel_strike: bool = True,
+) -> pd.DataFrame:
+    required = {
+        "mean_bigger_opt_spread_bp",
+        "mean_smaller_opt_spread_bp",
+        "mean_min_quote_size_dollar",
+    }
+    if apply_rel_strike:
+        required.add("mean_rel_strike")
+    missing = required - set(frame.columns)
+    assert not missing, f"Missing panel filter columns: {sorted(missing)}"
+
+    mask = (
+        pd.to_numeric(frame["mean_bigger_opt_spread_bp"], errors="coerce").between(0, spread_bp_max)
+        & pd.to_numeric(frame["mean_smaller_opt_spread_bp"], errors="coerce").between(0, spread_bp_max)
+        & pd.to_numeric(frame["mean_min_quote_size_dollar"], errors="coerce").ge(min_quote_size_dollar)
+    )
+    if apply_rel_strike:
+        mask = mask & pd.to_numeric(frame["mean_rel_strike"], errors="coerce").between(rel_strike_min, rel_strike_max)
+    return frame.loc[mask].copy()
 
 
 def baseline_regression_spec() -> RegressionSpec:
@@ -193,7 +234,7 @@ def _run_regression(
     panel: pd.DataFrame | pl.DataFrame | None = None,
     **build_kwargs,
 ) -> pd.DataFrame:
-    frame = _coerce_analysis_panel(panel, **build_kwargs)
+    frame = filter_analysis_panel(_coerce_analysis_panel(panel, **build_kwargs))
     regression_frame = _regression_frame(frame, spec)
     coefficients, stderr, t_stat, r2 = _fit_ols_with_hc1(regression_frame, spec)
     rows = []

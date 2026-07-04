@@ -13,7 +13,7 @@ import polars as pl
 import pyarrow.parquet as pq
 import seaborn as sns
 
-from amu_config import MAX_AMU_BP, MIN_QUOTE_SIZE_DOLLAR, PCP_METRIC_KWARGS, PCPB_COLUMNS, REL_STRIKE_MAX, REL_STRIKE_MIN, SPREAD_BP_MAX, bootstrap_repo_root
+from amu_config import CONFIG, bootstrap_repo_root
 
 PROJECT_ROOT = bootstrap_repo_root(Path(__file__).resolve())
 
@@ -26,6 +26,26 @@ logger = logging.getLogger(__name__)
 logger.setLevel('DEBUG')
 
 PUBLICATION_DIR = Path(__file__).resolve().parent
+
+filters_cfg = CONFIG["filters"]
+statistics_cfg = CONFIG["statistics"]
+pcp_cfg = CONFIG["pcp"]
+
+rel_strike_min_default = float(filters_cfg["rel_strike_min"])
+rel_strike_max_default = float(filters_cfg["rel_strike_max"])
+spread_bp_max_default = int(filters_cfg["spread_bp_max"])
+min_quote_size_dollar_default = float(filters_cfg["min_quote_size_dollar"])
+max_amu_bp_default = int(filters_cfg["max_amu_bp"])
+
+pcpb_columns = list(statistics_cfg["pcpb_columns"])
+pcp_metric_kwargs = {
+    "cost_per_notional": float(pcp_cfg["cost_per_notional"]),
+    "fut_mgn_rate": float(pcp_cfg["fut_mgn_rate"]),
+    "short_put_mgn_rate": float(pcp_cfg["short_put_mgn_rate"]),
+    "short_call_mgn_rate": float(pcp_cfg["short_call_mgn_rate"]),
+    "r": float(pcp_cfg["r"]),
+    "contract_size": float(pcp_cfg["contract_size"]),
+}
 
 
 def _parse_file_day(file_path: Path) -> date | None:
@@ -84,17 +104,66 @@ def _required_columns() -> set[str]:
     }
 
 
-def _filter_pcpb(df: pl.DataFrame) -> pl.DataFrame:
-    required = _required_columns()
-    missing = required - set(df.columns)
-    assert not missing, f"Missing PCPB columns: {sorted(missing)}"
-    return df.filter(
-        pl.col("rel_strike").is_between(REL_STRIKE_MIN, REL_STRIKE_MAX)
-        & pl.col("call_opt_spread_bp").is_between(0, SPREAD_BP_MAX)
-        & pl.col("put_opt_spread_bp").is_between(0, SPREAD_BP_MAX)
+def _ticks_filter_expr(
+    *,
+    rel_strike_min: float,
+    rel_strike_max: float,
+    spread_bp_max: int,
+    min_quote_size_dollar: float,
+    apply_rel_strike: bool,
+) -> pl.Expr:
+    expr = (
+        pl.col("call_opt_spread_bp").is_between(0, spread_bp_max)
+        & pl.col("put_opt_spread_bp").is_between(0, spread_bp_max)
         & pl.col("min_quote_size_dollar").is_not_null()
-        & (pl.col("min_quote_size_dollar") >= MIN_QUOTE_SIZE_DOLLAR)
+        & (pl.col("min_quote_size_dollar") >= min_quote_size_dollar)
     )
+    if apply_rel_strike:
+        expr = expr & pl.col("rel_strike").is_between(rel_strike_min, rel_strike_max)
+    return expr
+
+
+def filter_ticks(
+    df: pl.DataFrame | pl.LazyFrame | pd.DataFrame,
+    rel_strike_min: float = rel_strike_min_default,
+    rel_strike_max: float = rel_strike_max_default,
+    spread_bp_max: int = spread_bp_max_default,
+    min_quote_size_dollar: float = min_quote_size_dollar_default,
+    *,
+    apply_rel_strike: bool = True,
+) -> pl.DataFrame | pl.LazyFrame | pd.DataFrame:
+    required = {
+        "call_opt_spread_bp",
+        "put_opt_spread_bp",
+        "min_quote_size_dollar",
+    }
+    if apply_rel_strike:
+        required.add("rel_strike")
+    missing = required - set(df.columns)
+    assert not missing, f"Missing filter columns: {sorted(missing)}"
+
+    if isinstance(df, pd.DataFrame):
+        mask = (
+            pd.to_numeric(df["call_opt_spread_bp"], errors="coerce").between(0, spread_bp_max)
+            & pd.to_numeric(df["put_opt_spread_bp"], errors="coerce").between(0, spread_bp_max)
+            & pd.to_numeric(df["min_quote_size_dollar"], errors="coerce").ge(min_quote_size_dollar)
+        )
+        if apply_rel_strike:
+            mask = mask & pd.to_numeric(df["rel_strike"], errors="coerce").between(rel_strike_min, rel_strike_max)
+        return df.loc[mask].copy()
+
+    if isinstance(df, (pl.DataFrame, pl.LazyFrame)):
+        return df.filter(
+            _ticks_filter_expr(
+                rel_strike_min=rel_strike_min,
+                rel_strike_max=rel_strike_max,
+                spread_bp_max=spread_bp_max,
+                min_quote_size_dollar=min_quote_size_dollar,
+                apply_rel_strike=apply_rel_strike,
+            )
+        )
+
+    raise TypeError(f"Unsupported frame type: {type(df)}")
 
 
 def _mark_up_pcpb(df: pl.DataFrame) -> pl.DataFrame:
@@ -111,15 +180,11 @@ def _pcpb_block_from_file(file_path: Path) -> pl.DataFrame:
     if raw.is_empty():
         return pl.DataFrame()
 
-    pcpb = compute_pcp_metrics(raw, **PCP_METRIC_KWARGS)
+    pcpb = compute_pcp_metrics(raw, **pcp_metric_kwargs)
     if pcpb.is_empty():
         return pl.DataFrame()
 
-    pcpb = _filter_pcpb(pcpb)
-    if pcpb.is_empty():
-        return pl.DataFrame()
-
-    return _mark_up_pcpb(pcpb).select(PCPB_COLUMNS)
+    return _mark_up_pcpb(pcpb).select(pcpb_columns)
 
 
 def _cache_frame_path(cache_path: str | Path, key: str) -> Path:
@@ -168,10 +233,10 @@ def _build_amu_statistics_frame_to_cache(
                 total_cols = block.width
 
         if writer is None:
-            empty = pl.DataFrame(schema={column: pl.Null for column in PCPB_COLUMNS})
+            empty = pl.DataFrame(schema={column: pl.Null for column in pcpb_columns})
             empty.write_parquet(tmp_path)
             total_rows = 0
-            total_cols = len(PCPB_COLUMNS)
+            total_cols = len(pcpb_columns)
         else:
             writer.close()
             writer = None
@@ -231,7 +296,7 @@ def inspect_pcpb_input(df: pl.DataFrame) -> None:
     logger.info("AMU timestamp range: %s -> %s", min_ts, max_ts)
 
 
-def calculate_amu_bps(pcpb: pd.DataFrame, *, max_bp_cutoff: int = MAX_AMU_BP) -> tuple[float, int, int]:
+def calculate_amu_bps(pcpb: pd.DataFrame, *, max_bp_cutoff: int = max_amu_bp_default) -> tuple[float, int, int]:
     if pcpb.empty:
         return np.nan, 0, 0
 
@@ -258,18 +323,24 @@ def calculate_amu_bps(pcpb: pd.DataFrame, *, max_bp_cutoff: int = MAX_AMU_BP) ->
 
 @debug_runtime("summarize_timeslice_option_coverage")
 def summarize_timeslice_option_coverage(df: pl.DataFrame) -> pd.DataFrame:
-    if df.is_empty():
+    filtered = filter_ticks(df)
+    if filtered.is_empty():
         return pd.DataFrame()
 
+    strikes_frame = filter_ticks(df, apply_rel_strike=False)
+
     group_keys = ["ref_sym", "exchange", "timestamp"]
-    per_ts = df.group_by(group_keys).agg(
+    per_ts = filtered.group_by(group_keys).agg(
         pl.len().alias("num_contracts_ts"),
-        pl.col("strike").n_unique().alias("num_strikes_ts"),
         pl.col("exp").n_unique().alias("num_expirations_ts"),
         pl.col("call_opt_spread_bp").mean().alias("call_spread_bp_ts"),
         pl.col("put_opt_spread_bp").mean().alias("put_spread_bp_ts"),
     )
-    n_days = df.group_by(["ref_sym", "exchange"]).agg(pl.col("mdy").n_unique().alias("Num days in sample"))
+    strikes_per_ts = strikes_frame.group_by(group_keys).agg(
+        pl.col("strike").n_unique().alias("num_strikes_ts"),
+    )
+    per_ts = per_ts.join(strikes_per_ts, on=group_keys, how="left")
+    n_days = filtered.group_by(["ref_sym", "exchange"]).agg(pl.col("mdy").n_unique().alias("Num days in sample"))
     summary = (
         per_ts.group_by(["ref_sym", "exchange"])
         .agg(
@@ -320,8 +391,9 @@ def write_summary_daily_table(df: pl.DataFrame, *, output_dir: Path) -> Path:
 
 @debug_runtime("write_amu_summary_table")
 def write_amu_summary_table(pcpb: pd.DataFrame, *, output_dir: Path) -> Path:
+    filtered = filter_ticks(pcpb)
     rows = []
-    for (ref_sym, exchange), group in pcpb.groupby(["ref_sym", "exchange"], sort=True):
+    for (ref_sym, exchange), group in filtered.groupby(["ref_sym", "exchange"], sort=True):
         amu_bps, amu_num, num_pairs = calculate_amu_bps(group)
         rows.append(
             {
@@ -366,9 +438,10 @@ def _gaussian_kernel_smooth(x: np.ndarray, y: np.ndarray, *, bandwidth: float = 
 
 @debug_runtime("plot_4_spreads")
 def plot_4_spreads(pcpb: pd.DataFrame, *, output_dir: Path, rng: int = 100) -> list[Path]:
+    filtered = filter_ticks(pcpb)
     output_paths: list[Path] = []
     sns.set_theme(style="whitegrid", context="talk")
-    for (exchange, ref_sym), subset in pcpb.groupby(["exchange", "ref_sym"], sort=True):
+    for (exchange, ref_sym), subset in filtered.groupby(["exchange", "ref_sym"], sort=True):
         fig, ax = plt.subplots(figsize=(10, 6))
         visible_max = 0.0
         for column, color in zip(["fwd_call", "fwd_put", "bck_call", "bck_put"], sns.color_palette("deep", n_colors=4), strict=False):
@@ -408,15 +481,16 @@ def plot_4_spreads(pcpb: pd.DataFrame, *, output_dir: Path, rng: int = 100) -> l
 
 @debug_runtime("plot_amu_bps_by_date")
 def plot_amu_bps_by_date(pcpb: pd.DataFrame, *, output_dir: Path) -> Path:
+    filtered = filter_ticks(pcpb)
     daily_amu = (
-        pcpb.assign(market=lambda frame: frame["exchange"].astype(str) + " | " + frame["ref_sym"].astype(str))
+        filtered.assign(market=lambda frame: frame["exchange"].astype(str) + " | " + frame["ref_sym"].astype(str))
         .groupby(["mdy", "exchange", "ref_sym", "market"], sort=True)
         .apply(lambda group: pd.Series(calculate_amu_bps(group), index=["amu_bps", "num_amu", "num_pairs"]))
         .reset_index()
         .sort_values(["market", "mdy"])
     )
     btc_index = (
-        pcpb.loc[pcpb["ref_sym"] == "BTCUSD", ["mdy", "index"]]
+        filtered.loc[filtered["ref_sym"] == "BTCUSD", ["mdy", "index"]]
         .groupby("mdy", sort=True)["index"]
         .mean()
         .reset_index()
@@ -450,8 +524,9 @@ def plot_amu_bps_by_date(pcpb: pd.DataFrame, *, output_dir: Path) -> Path:
 
 @debug_runtime("plot_amu_bps_by_rel_strike")
 def plot_amu_bps_by_rel_strike(pcpb: pd.DataFrame, *, output_dir: Path) -> Path:
+    filtered = filter_ticks(pcpb)
     plot_df = (
-        pcpb.dropna(subset=["exchange", "ref_sym", "rel_strike"])
+        filtered.dropna(subset=["exchange", "ref_sym", "rel_strike"])
         .assign(
             rel_strike=lambda frame: pd.to_numeric(frame["rel_strike"], errors="coerce"),
             market=lambda frame: frame["exchange"].astype(str) + " | " + frame["ref_sym"].astype(str),
@@ -527,8 +602,9 @@ def plot_amu_bps_by_rel_strike(pcpb: pd.DataFrame, *, output_dir: Path) -> Path:
 
 @debug_runtime("plot_amu_bps_by_tte")
 def plot_amu_bps_by_tte(pcpb: pd.DataFrame, *, output_dir: Path) -> Path:
+    filtered = filter_ticks(pcpb)
     tmp = (
-        pcpb[["exchange", "ref_sym", "tte", "fwd_call", "bck_call", "bck_put", "fwd_put"]]
+        filtered[["exchange", "ref_sym", "tte", "fwd_call", "bck_call", "bck_put", "fwd_put"]]
         .assign(
             tte=lambda frame: pd.to_numeric(frame["tte"], errors="coerce"),
             market=lambda frame: frame["exchange"].astype(str) + " | " + frame["ref_sym"].astype(str),
@@ -539,7 +615,7 @@ def plot_amu_bps_by_tte(pcpb: pd.DataFrame, *, output_dir: Path) -> Path:
     )
     tmp["tte_bin"] = pd.cut(tmp["tte"], bins=np.linspace(0.0, 0.7, 101), include_lowest=True)
     for column in ["fwd_call", "bck_call", "bck_put", "fwd_put"]:
-        tmp[f"{column}_clip"] = tmp[column].clip(lower=0, upper=MAX_AMU_BP)
+        tmp[f"{column}_clip"] = tmp[column].clip(lower=0, upper=max_amu_bp_default)
         tmp[f"{column}_pos"] = (tmp[column] > 0).astype(int)
 
     grouped = (
@@ -639,10 +715,10 @@ def _parquet_num_rows(parquet_path: str | Path) -> int:
 
 def _amu_agg_exprs() -> list[pl.Expr]:
     return [
-        pl.col("fwd_call").clip(lower_bound=0, upper_bound=MAX_AMU_BP).mean().alias("fwd_call_bp"),
-        pl.col("bck_call").clip(lower_bound=0, upper_bound=MAX_AMU_BP).mean().alias("bck_call_bp"),
-        pl.col("bck_put").clip(lower_bound=0, upper_bound=MAX_AMU_BP).mean().alias("bck_put_bp"),
-        pl.col("fwd_put").clip(lower_bound=0, upper_bound=MAX_AMU_BP).mean().alias("fwd_put_bp"),
+        pl.col("fwd_call").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("fwd_call_bp"),
+        pl.col("bck_call").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("bck_call_bp"),
+        pl.col("bck_put").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("bck_put_bp"),
+        pl.col("fwd_put").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("fwd_put_bp"),
         (pl.col("fwd_call") > 0).sum().alias("fwd_call_num"),
         (pl.col("bck_call") > 0).sum().alias("bck_call_num"),
         (pl.col("bck_put") > 0).sum().alias("bck_put_num"),
@@ -694,15 +770,20 @@ def inspect_pcpb_input_from_parquet(parquet_path: str | Path) -> None:
 
 @debug_runtime("write_summary_daily_table_from_parquet")
 def write_summary_daily_table_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
-    lf = _lazy_pcpb(parquet_path)
-    per_ts = lf.group_by(["ref_sym", "exchange", "timestamp"]).agg(
+    filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
+    strikes_lf = filter_ticks(_lazy_pcpb(parquet_path), apply_rel_strike=False)
+    group_keys = ["ref_sym", "exchange", "timestamp"]
+    per_ts = filtered_lf.group_by(group_keys).agg(
         pl.len().alias("num_contracts_ts"),
-        pl.col("strike").n_unique().alias("num_strikes_ts"),
         pl.col("exp").n_unique().alias("num_expirations_ts"),
         pl.col("call_opt_spread_bp").mean().alias("call_spread_bp_ts"),
         pl.col("put_opt_spread_bp").mean().alias("put_spread_bp_ts"),
     )
-    n_days = lf.group_by(["ref_sym", "exchange"]).agg(pl.col("mdy").n_unique().alias("Num days in sample"))
+    strikes_per_ts = strikes_lf.group_by(group_keys).agg(
+        pl.col("strike").n_unique().alias("num_strikes_ts"),
+    )
+    per_ts = per_ts.join(strikes_per_ts, on=group_keys, how="left")
+    n_days = filtered_lf.group_by(["ref_sym", "exchange"]).agg(pl.col("mdy").n_unique().alias("Num days in sample"))
     summary = (
         per_ts.group_by(["ref_sym", "exchange"])
         .agg(
@@ -737,7 +818,8 @@ def write_summary_daily_table_from_parquet(parquet_path: str | Path, *, output_d
 
 @debug_runtime("write_amu_summary_table_from_parquet")
 def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
-    lf = _add_amu_bps_columns(_lazy_pcpb(parquet_path).group_by(["ref_sym", "exchange"]).agg(_amu_agg_exprs()))
+    filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
+    lf = _add_amu_bps_columns(filtered_lf.group_by(["ref_sym", "exchange"]).agg(_amu_agg_exprs()))
     table = (
         lf.select(
             pl.col("ref_sym").alias("underlying"),
@@ -762,7 +844,18 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
 
 @debug_runtime("plot_4_spreads_from_parquet")
 def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, rng: int = 100) -> list[Path]:
-    columns = ["exchange", "ref_sym", "fwd_call", "fwd_put", "bck_call", "bck_put"]
+    columns = [
+        "exchange",
+        "ref_sym",
+        "rel_strike",
+        "call_opt_spread_bp",
+        "put_opt_spread_bp",
+        "min_quote_size_dollar",
+        "fwd_call",
+        "fwd_put",
+        "bck_call",
+        "bck_put",
+    ]
     parquet = pq.ParquetFile(str(parquet_path))
     bin_edges = np.linspace(-rng, rng, 101)
     bin_width = float(bin_edges[1] - bin_edges[0])
@@ -771,6 +864,9 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
 
     for batch in parquet.iter_batches(batch_size=100_000, columns=columns):
         chunk = pl.from_arrow(batch)
+        chunk = filter_ticks(chunk)
+        if chunk.is_empty():
+            continue
         for (exchange, ref_sym), subset in chunk.group_by(["exchange", "ref_sym"], maintain_order=False):
             market = (str(exchange), str(ref_sym))
             for column in ["fwd_call", "fwd_put", "bck_call", "bck_put"]:
@@ -806,7 +902,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
             ax.plot(x_fine[x_fine < 0], y_fine[x_fine < 0], color=color, linestyle="--", linewidth=1.6, alpha=0.9)
             ax.plot(x_fine[x_fine >= 0], y_fine[x_fine >= 0], color=color, linestyle="-", linewidth=2.6, alpha=1.0, label=column)
 
-            clipped_centers = np.clip(centers, 0.0, MAX_AMU_BP)
+            clipped_centers = np.clip(centers, 0.0, max_amu_bp_default)
             mean_clip = float(np.sum(clipped_centers * counts) * bin_width)
             n_pos = int(np.sum(hist_counts[key][centers > 0]))
             amu_parts.append((mean_clip, n_pos))
@@ -833,7 +929,8 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
 
 @debug_runtime("plot_amu_bps_by_date_from_parquet")
 def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
-    lf = _lazy_pcpb(parquet_path).with_columns(
+    filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
+    lf = filtered_lf.with_columns(
         (pl.col("exchange").cast(pl.Utf8) + pl.lit(" | ") + pl.col("ref_sym").cast(pl.Utf8)).alias("market")
     )
     daily_amu = _add_amu_bps_columns(
@@ -841,7 +938,7 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
     ).select(["mdy", "market", "amu_bps"]).sort(["market", "mdy"]).collect().to_pandas()
 
     btc_index = (
-        _lazy_pcpb(parquet_path)
+        filtered_lf
         .filter(pl.col("ref_sym") == "BTCUSD")
         .group_by("mdy")
         .agg(pl.col("index").mean().alias("index"))
@@ -878,8 +975,9 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
 
 @debug_runtime("plot_amu_bps_by_rel_strike_from_parquet")
 def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
+    filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
     curve_df = _add_amu_bps_columns(
-        _lazy_pcpb(parquet_path)
+        filtered_lf
         .filter(
             pl.col("exchange").is_not_null()
             & pl.col("ref_sym").is_not_null()
@@ -956,8 +1054,9 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
 @debug_runtime("plot_amu_bps_by_tte_from_parquet")
 def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
     bin_width = 0.7 / 100.0
+    filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
     curve_df = _add_amu_bps_columns(
-        _lazy_pcpb(parquet_path)
+        filtered_lf
         .filter(
             pl.col("exchange").is_not_null()
             & pl.col("ref_sym").is_not_null()

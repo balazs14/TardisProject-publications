@@ -6,8 +6,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from amu_config import EVENT_DATES
-from panel_regressions import build_liquidity_analysis_panel
+from amu_config import CONFIG
+from panel_regressions import build_liquidity_analysis_panel, filter_analysis_panel
+
+event_dates = {
+    label: pd.Timestamp(value)
+    for label, value in CONFIG["figures"]["event_dates"].items()
+}
 
 
 def generate_all_figures(output_dir: str | Path, **build_kwargs) -> dict[str, Path]:
@@ -30,8 +35,9 @@ def generate_all_figures(output_dir: str | Path, **build_kwargs) -> dict[str, Pa
 
 
 def plot_daily_amu_timeseries(frame: pd.DataFrame, output_path: str | Path | None = None) -> plt.Figure:
+    filtered = filter_analysis_panel(frame)
     plot_frame = (
-        frame.groupby(["day", "exchange", "ref_sym"], as_index=False)["mean_amu_bp"]
+        filtered.groupby(["day", "exchange", "ref_sym"], as_index=False)["mean_amu_bp"]
         .mean()
         .assign(series=lambda df: df["exchange"] + " | " + df["ref_sym"])
     )
@@ -45,10 +51,11 @@ def plot_daily_amu_timeseries(frame: pd.DataFrame, output_path: str | Path | Non
 
 
 def plot_pre_post_heatmaps(frame: pd.DataFrame, output_path: str | Path | None = None) -> plt.Figure:
+    filtered = filter_analysis_panel(frame)
     fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
     for ax, post_flag, title in zip(axes, (0.0, 1.0), ("Pre-2024", "Post-2024"), strict=False):
         heatmap = (
-            frame.loc[frame["post_2024"] == post_flag]
+            filtered.loc[filtered["post_2024"] == post_flag]
             .groupby(["rel_strike_bucket", "tte_bucket"], as_index=False)["mean_amu_bp"]
             .mean()
             .pivot(index="tte_bucket", columns="rel_strike_bucket", values="mean_amu_bp")
@@ -67,11 +74,12 @@ def plot_pre_post_heatmaps(frame: pd.DataFrame, output_path: str | Path | None =
 
 
 def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None, window: int = 60) -> plt.Figure:
+    filtered = filter_analysis_panel(frame)
     event_rows = []
-    for label, event_day in EVENT_DATES.items():
-        tmp = frame.copy()
+    for label, event_day in event_dates.items():
+        tmp = filtered.copy()
         tmp["event"] = label
-        tmp["rel_day"] = (tmp["day"] - pd.Timestamp(event_day)).dt.days
+        tmp["rel_day"] = (tmp["day"] - event_day).dt.days
         event_rows.append(tmp.loc[tmp["rel_day"].between(-window, window)])
     plot_frame = pd.concat(event_rows, ignore_index=True)
     plot_frame = plot_frame.groupby(["exchange", "event", "rel_day"], as_index=False)["mean_amu_bp"].mean()
@@ -93,6 +101,7 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
 
 
 def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None = None, bins: int = 20) -> plt.Figure:
+    filtered = filter_analysis_panel(frame)
     fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
     for ax, column, title in zip(
         axes,
@@ -100,7 +109,7 @@ def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None =
         ("AMU versus option spread", "AMU versus log quote depth"),
         strict=False,
     ):
-        binned = _binned_means(frame, column, bins)
+        binned = _binned_means(filtered, column, bins)
         sns.scatterplot(data=binned, x=column, y="mean_amu_bp", ax=ax)
         sns.lineplot(data=binned, x=column, y="mean_amu_bp", ax=ax, legend=False)
         ax.set_title(title)
@@ -111,11 +120,12 @@ def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None =
 
 
 def plot_compression_decomposition(frame: pd.DataFrame, output_path: str | Path | None = None) -> plt.Figure:
+    filtered = filter_analysis_panel(frame)
     segments = pd.concat(
         [
-            _segment_delta(frame, "ref_sym", {"BTC": frame["eth"] == 0.0, "ETH": frame["eth"] == 1.0}),
-            _segment_delta(frame, "moneyness", {"ATM": frame["otm"] == 0.0, "OTM": frame["otm"] == 1.0}),
-            _segment_delta(frame, "tte", {"Long": frame["short_tte"] == 0.0, "Short": frame["short_tte"] == 1.0}),
+            _segment_delta(filtered, "ref_sym", {"BTC": filtered["eth"] == 0.0, "ETH": filtered["eth"] == 1.0}),
+            _segment_delta(filtered, "moneyness", {"ATM": filtered["otm"] == 0.0, "OTM": filtered["otm"] == 1.0}),
+            _segment_delta(filtered, "tte", {"Long": filtered["short_tte"] == 0.0, "Short": filtered["short_tte"] == 1.0}),
         ],
         ignore_index=True,
     )
@@ -129,9 +139,9 @@ def plot_compression_decomposition(frame: pd.DataFrame, output_path: str | Path 
 
 
 def _add_event_markers(ax: plt.Axes) -> None:
-    for label, event_day in EVENT_DATES.items():
-        ax.axvline(pd.Timestamp(event_day), color="grey", linestyle="--", linewidth=0.8, alpha=0.7)
-        ax.text(pd.Timestamp(event_day), ax.get_ylim()[1], label, rotation=90, va="top", ha="right", fontsize=8)
+    for label, event_day in event_dates.items():
+        ax.axvline(event_day, color="grey", linestyle="--", linewidth=0.8, alpha=0.7)
+        ax.text(event_day, ax.get_ylim()[1], label, rotation=90, va="top", ha="right", fontsize=8)
 
 
 def _binned_means(frame: pd.DataFrame, column: str, bins: int) -> pd.DataFrame:
