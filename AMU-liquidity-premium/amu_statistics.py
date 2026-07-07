@@ -82,28 +82,6 @@ def _aligned_chain_files(
             files.append(file_path)
     return files
 
-
-def _required_columns() -> set[str]:
-    return {
-        "timestamp",
-        "mdy",
-        "exchange",
-        "ref_sym",
-        "strike",
-        "exp",
-        "rel_strike",
-        "call_opt_spread_bp",
-        "put_opt_spread_bp",
-        "tte",
-        "index",
-        "min_quote_size_dollar",
-        "call_stale",
-        "put_stale",
-        "amu_fwd_bp",
-        "amu_bck_bp",
-    }
-
-
 def _ticks_filter_expr(
     *,
     rel_strike_min: float,
@@ -139,7 +117,13 @@ def filter_ticks(
     }
     if apply_rel_strike:
         required.add("rel_strike")
-    missing = required - set(df.columns)
+
+    if isinstance(df, pl.LazyFrame):
+        column_names = set(df.collect_schema().names())
+    else:
+        column_names = set(df.columns)
+
+    missing = required - column_names
     assert not missing, f"Missing filter columns: {sorted(missing)}"
 
     if isinstance(df, pd.DataFrame):
@@ -309,7 +293,7 @@ def calculate_amu_bps(pcpb: pd.DataFrame, *, max_bp_cutoff: int = max_amu_bp_def
     bck_call_num = int((pcpb["bck_call"] > 0).sum())
     bck_put_num = int((pcpb["bck_put"] > 0).sum())
     fwd_put_num = int((pcpb["fwd_put"] > 0).sum())
-    amu_num = fwd_call_num + bck_call_num + bck_put_num + fwd_put_num
+    amu_num = int(((pcpb["fwd_put"] > 0) | (pcpb["bck_put"] > 0) | (pcpb["fwd_call"] > 0) | (pcpb["bck_call"] > 0)).sum())
 
     weighted_sum = (
         fwd_call_bp * fwd_call_num

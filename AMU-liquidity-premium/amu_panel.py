@@ -45,14 +45,27 @@ pcp_metric_kwargs = {
 
 
 def _bucket_midpoint(values: pl.Series, lower: float, upper: float, bucket_count: int, name: str) -> pl.Series:
-    step = (upper - lower) / bucket_count
+    edges = np.linspace(lower, upper, bucket_count + 1)
+    midpoints_by_bucket = 0.5 * (edges[:-1] + edges[1:])
     midpoints: list[float | None] = []
     for value in values.to_list():
         if value is None:
             midpoints.append(None)
         else:
-            midpoints.append(lower + (int(value) + 0.5) * step)
+            midpoints.append(float(midpoints_by_bucket[int(value)]))
     return pl.Series(name, midpoints, dtype=pl.Float64)
+
+
+def _bucket_upper(values: pl.Series, lower: float, upper: float, bucket_count: int, name: str) -> pl.Series:
+    edges = np.linspace(lower, upper, bucket_count + 1)
+    uppers_by_bucket = edges[1:]
+    uppers: list[float | None] = []
+    for value in values.to_list():
+        if value is None:
+            uppers.append(None)
+        else:
+            uppers.append(float(uppers_by_bucket[int(value)]))
+    return pl.Series(name, uppers, dtype=pl.Float64)
 
 
 def _parse_file_day(file_path: Path) -> date | None:
@@ -96,8 +109,8 @@ def _bucket_index(values: pl.Series, lower: float, upper: float, bucket_count: i
     valid = np.isfinite(numbers)
 
     if valid.any():
-        step = (upper - lower) / bucket_count
-        raw = np.floor((numbers[valid] - lower) / step).astype(int)
+        edges = np.linspace(lower, upper, bucket_count + 1)
+        raw = np.searchsorted(edges, numbers[valid], side="right") - 1
         clipped = np.clip(raw, 0, bucket_count - 1)
         valid_indices = np.flatnonzero(valid)
         for idx, bucket in zip(valid_indices, clipped, strict=False):
@@ -117,7 +130,9 @@ def _tte_bucket(df: pl.DataFrame) -> pl.Series:
     if not np.isfinite(sqrt_tte).any():
         return pl.Series("tte_bucket", [None] * len(tte), dtype=pl.Float64)
     index = _bucket_index(pl.Series("tte", sqrt_tte), tte_sqrt_min, tte_sqrt_max, tte_buckets, "tte_bucket_idx")
-    return _bucket_midpoint(index, tte_sqrt_min, tte_sqrt_max, tte_buckets, "tte_bucket")
+    tte_upper_sqrt = _bucket_upper(index, tte_sqrt_min, tte_sqrt_max, tte_buckets, "tte_bucket_sqrt_upper")
+    tte_upper_actual = [None if value is None else float(value) ** 2 for value in tte_upper_sqrt.to_list()]
+    return pl.Series("tte_bucket", tte_upper_actual, dtype=pl.Float64)
 
 
 def _required_panel_columns() -> list[str]:
@@ -282,4 +297,3 @@ frac_call_stale                               0.0             0.227451
 frac_put_stale                                0.0             0.027451
 frac_spot_stale                               0.0                  0.0
 """)
-
