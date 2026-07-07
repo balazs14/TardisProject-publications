@@ -66,7 +66,9 @@ def plot_pre_post_heatmaps(frame: pd.DataFrame, output_path: str | Path | None =
             ax.set_xlabel("Relative strike bucket")
             ax.set_title(title)
             continue
-        sns.heatmap(heatmap, cmap="coolwarm", center=0.0, ax=ax)
+        heatmap = heatmap.sort_index().sort_index(axis=1)
+        heatmap.columns = [f"{float(value):.2f}" for value in heatmap.columns]
+        sns.heatmap(heatmap, cmap="RdBu_r", center=0.0, robust=True, ax=ax)
         ax.set_title(title)
         ax.set_xlabel("Relative strike bucket")
     axes[0].set_ylabel("TTE bucket")
