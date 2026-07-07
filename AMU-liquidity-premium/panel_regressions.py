@@ -18,7 +18,7 @@ filters_cfg = CONFIG["filters"]
 regression_cfg = CONFIG["regression"]
 
 post_2024_start = pd.Timestamp(regression_cfg["post_2024_start"]).date()
-otm_distance = float(regression_cfg["otm_distance"])
+nonatm_distance = float(regression_cfg["nonatm_distance"])
 short_tte_cutoff = float(regression_cfg["short_tte_cutoff"])
 rel_strike_min_default = float(filters_cfg["rel_strike_min"])
 rel_strike_max_default = float(filters_cfg["rel_strike_max"])
@@ -49,10 +49,10 @@ def build_liquidity_analysis_panel(
     frame["depth_proxy"] = np.log(frame["mean_min_quote_size_dollar"].clip(lower=1.0))
     frame["stale_proxy"] = frame[["frac_call_stale", "frac_put_stale", "frac_spot_stale"]].mean(axis=1)
     frame["eth"] = frame["ref_sym"].str.contains("ETH", na=False).astype(float)
-    frame["otm"] = (frame["rel_strike_bucket"].sub(1.0).abs() > otm_distance).astype(float)
+    frame["nonatm"] = (frame["rel_strike_bucket"].sub(1.0).abs() > nonatm_distance).astype(float)
     frame["short_tte"] = (frame["tte_bucket"] <= short_tte_cutoff).astype(float)
     frame["post_2024_x_eth"] = frame["post_2024"] * frame["eth"]
-    frame["post_2024_x_otm"] = frame["post_2024"] * frame["otm"]
+    frame["post_2024_x_nonatm"] = frame["post_2024"] * frame["nonatm"]
     frame["post_2024_x_short_tte"] = frame["post_2024"] * frame["short_tte"]
     frame["cell_id"] = (
         frame["exchange"]
@@ -125,11 +125,11 @@ def backward_regression_spec() -> RegressionSpec:
 
 
 def interaction_regression_spec() -> RegressionSpec:
-    # Cell fixed effects absorb ETH/OTM/ShortTTE main effects; day fixed effects absorb Post2024.
+    # Cell fixed effects absorb ETH/ATM/ShortTTE main effects; day fixed effects absorb Post2024.
     return RegressionSpec(
         name="interaction_segments",
         dependent="mean_amu_bp",
-        regressors=("post_2024_x_eth", "post_2024_x_otm", "post_2024_x_short_tte"),
+        regressors=("post_2024_x_eth", "post_2024_x_nonatm", "post_2024_x_short_tte"),
         fixed_effects=("cell_id", "day"),
     )
 
@@ -203,9 +203,9 @@ def test_run_interaction_regression() -> None:
     tu.assert_df_equal(
         result[["term", "coefficient", "std_error", "t_stat", "nobs", "r2"]].round(6),
         """
-                    term  coefficient   std_error    t_stat  nobs        r2
+                      term  coefficient   std_error    t_stat  nobs        r2
 0        post_2024_x_eth  -351.642256  126.714240 -2.775081  2496  0.327938
-1        post_2024_x_otm  -416.686109   88.248345 -4.721744  2496  0.327938
+1      post_2024_x_nonatm  -416.686109   88.248345 -4.721744  2496  0.327938
 2  post_2024_x_short_tte   212.053306   78.150554  2.713395  2496  0.327938
 """,
     )

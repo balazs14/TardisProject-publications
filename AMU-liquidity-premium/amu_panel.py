@@ -174,7 +174,6 @@ def _panel_block_from_file(file_path: Path) -> pl.DataFrame:
     panel_ready = panel_ready.drop_nulls(_required_panel_columns())
     if panel_ready.is_empty():
         return pl.DataFrame()
-
     panel_ready = panel_ready.with_columns(
         pl.col("timestamp").dt.date().alias("day"),
         _rel_strike_bucket(panel_ready),

@@ -110,7 +110,7 @@ pcpb_columns = [
 
 [regression]
 post_2024_start = "2024-01-10"
-otm_distance = 0.05
+nonatm_distance = 0.05
 short_tte_cutoff = 0.35
 
 [figures.event_dates]

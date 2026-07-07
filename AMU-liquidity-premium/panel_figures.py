@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import ipdb
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -124,7 +125,7 @@ def plot_compression_decomposition(frame: pd.DataFrame, output_path: str | Path 
     segments = pd.concat(
         [
             _segment_delta(filtered, "ref_sym", {"BTC": filtered["eth"] == 0.0, "ETH": filtered["eth"] == 1.0}),
-            _segment_delta(filtered, "moneyness", {"ATM": filtered["otm"] == 0.0, "OTM": filtered["otm"] == 1.0}),
+            _segment_delta(filtered, "moneyness", {"ATM": filtered["nonatm"] == 0.0, "Non-ATM": filtered["nonatm"] == 1.0}),
             _segment_delta(filtered, "tte", {"Long": filtered["short_tte"] == 0.0, "Short": filtered["short_tte"] == 1.0}),
         ],
         ignore_index=True,

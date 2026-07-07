@@ -71,7 +71,7 @@ STALE_PANEL_COLUMNS = list(CONFIG["panel"]["stale_panel_columns"])
 PCPB_COLUMNS = list(CONFIG["statistics"]["pcpb_columns"])
 
 POST_2024_START = date.fromisoformat(CONFIG["regression"]["post_2024_start"])
-OTM_DISTANCE = float(CONFIG["regression"]["otm_distance"])
+NONATM_DISTANCE = float(CONFIG["regression"]["nonatm_distance"])
 SHORT_TTE_CUTOFF = float(CONFIG["regression"]["short_tte_cutoff"])
 
 EVENT_DATES = {
