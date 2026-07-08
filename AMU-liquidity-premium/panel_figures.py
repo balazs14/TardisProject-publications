@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import ipdb
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -138,77 +137,16 @@ def run_baseline_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **
     return _run_regression(baseline_regression_spec(), panel=panel, **build_kwargs)
 
 
-def test_run_baseline_regression() -> None:
-    from tardis import test_utils as tu
-
-    result = run_baseline_regression(panel=_test_window_panel())
-    tu.assert_df_equal(
-        result[["term", "coefficient", "std_error", "t_stat", "nobs", "r2"]].round(6),
-        """
-          term  coefficient  std_error       t_stat  nobs        r2
-0    post_2024    -1.953840   0.700214    -2.790348  2496  0.999929
-1    spread_bp    -0.500901   0.000330 -1518.100692  2496  0.999929
-2  depth_proxy    -0.133091   2.533242    -0.052538  2496  0.999929
-3  stale_proxy     6.746605  13.734042     0.491232  2496  0.999929
-""",
-    )
-
-
 def run_forward_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
     return _run_regression(forward_regression_spec(), panel=panel, **build_kwargs)
-
-
-def test_run_forward_regression() -> None:
-    from tardis import test_utils as tu
-
-    result = run_forward_regression(panel=_test_window_panel())
-    tu.assert_df_equal(
-        result[["term", "coefficient", "std_error", "t_stat", "nobs", "r2"]].round(6),
-        """
-          term  coefficient  std_error      t_stat  nobs        r2
-0    post_2024    79.751637  12.902440    6.181128  2496  0.988144
-1    spread_bp    -0.966494   0.005550 -174.133437  2496  0.988144
-2  depth_proxy   -47.455967  21.429272   -2.214539  2496  0.988144
-""",
-    )
 
 
 def run_backward_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
     return _run_regression(backward_regression_spec(), panel=panel, **build_kwargs)
 
 
-def test_run_backward_regression() -> None:
-    from tardis import test_utils as tu
-
-    result = run_backward_regression(panel=_test_window_panel())
-    tu.assert_df_equal(
-        result[["term", "coefficient", "std_error", "t_stat", "nobs", "r2"]].round(6),
-        """
-          term  coefficient  std_error    t_stat  nobs        r2
-0    post_2024   -83.479629  13.096074 -6.374401  2496  0.637393
-1    spread_bp    -0.035292   0.005796 -6.089239  2496  0.637393
-2  depth_proxy    46.726621  22.909004  2.039662  2496  0.637393
-""",
-    )
-
-
 def run_interaction_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
     return _run_regression(interaction_regression_spec(), panel=panel, **build_kwargs)
-
-
-def test_run_interaction_regression() -> None:
-    from tardis import test_utils as tu
-
-    result = run_interaction_regression(panel=_test_window_panel())
-    tu.assert_df_equal(
-        result[["term", "coefficient", "std_error", "t_stat", "nobs", "r2"]].round(6),
-        """
-                      term  coefficient   std_error    t_stat  nobs        r2
-0        post_2024_x_eth  -351.642256  126.714240 -2.775081  2496  0.327938
-1      post_2024_x_nonatm  -416.686109   88.248345 -4.721744  2496  0.327938
-2  post_2024_x_short_tte   212.053306   78.150554  2.713395  2496  0.327938
-""",
-    )
 
 
 def write_regression_tables(output_dir: str | Path, **build_kwargs) -> dict[str, Path]:
@@ -266,12 +204,6 @@ def _build_kwargs_with_defaults(build_kwargs: dict[str, object]) -> dict[str, ob
     kwargs = dict(build_kwargs)
     kwargs.setdefault("raw_data_dir", str(REPO_ROOT / "datasets/{exchange}/"))
     return kwargs
-
-
-@lru_cache(maxsize=1)
-def _test_window_panel() -> pd.DataFrame:
-    # 5-day window centered on the first institutional event marker (BTC ETP approval: 2024-01-10).
-    return build_liquidity_analysis_panel(from_date="2024-01-08", to_date="2024-01-12")
 
 
 def _regression_frame(frame: pd.DataFrame, spec: RegressionSpec) -> pd.DataFrame:

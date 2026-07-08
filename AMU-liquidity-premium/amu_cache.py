@@ -83,15 +83,6 @@ def get_cached_frame_parquet_path(cache_path: str | Path, key: str) -> Path | No
     return frame_path
 
 
-def iter_cached_frame_batches(cache_path: str | Path, key: str, batch_rows: int = PARQUET_BATCH_ROWS):
-    frame_path = get_cached_frame_parquet_path(cache_path, key)
-    if frame_path is None:
-        return
-    parquet = pq.ParquetFile(str(frame_path))
-    for batch in parquet.iter_batches(batch_size=batch_rows):
-        yield pl.from_arrow(batch)
-
-
 def put_cached_frame_parquet_path(
     cache_path: str | Path,
     key: str,

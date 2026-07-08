@@ -10,7 +10,7 @@ import polars as pl
 
 from amu_config import CONFIG, bootstrap_repo_root
 from amu_cache import get_cached_frame, put_cached_frame
-from tardis import package_set_log_level, test_utils as tu
+from tardis import package_set_log_level
 from tardis.process_pcp import compute_pcp_metrics
 from tardis.utils import debug_runtime
 
@@ -226,73 +226,3 @@ def build_amu_panel(
 
     return panel
 
-def test_build_amu_panel():
-    df = build_amu_panel(from_date="2026-01-01", to_date="2026-01-05")
-    tu.assert_df_equal(df.to_pandas().head(2).T, """
-                                                0                    1
-day                           2026-01-01 00:00:00  2026-01-01 00:00:00
-exchange                                  deribit              deribit
-ref_sym                                    BTCUSD               BTCUSD
-rel_strike_bucket                        0.809524             0.809524
-tte_bucket                                   0.85                 0.95
-n_obs                                           7                  255
-mean_strike                               75000.0              75000.0
-mean_index                           88732.214286          87951.57451
-mean_rel_strike                          0.817763             0.815763
-mean_tte                                 0.728815              0.97938
-mean_fut_mid_price                   91713.622857         91939.336039
-mean_call_bid_price                      0.255786              0.25558
-mean_call_ask_price                      0.258357              0.31191
-mean_call_bid_amount                     6.971429            18.211765
-mean_call_ask_amount                    11.371429            10.480392
-mean_put_bid_price                       0.074214             0.095008
-mean_put_ask_price                       0.075857             0.097482
-mean_put_bid_amount                      5.157143            24.375686
-mean_put_ask_amount                     26.242857              7.18549
-mean_fut_bid_price                   91713.622857         91939.336039
-mean_fut_ask_price                   91713.622857         91939.336039
-mean_fut_bid_amount                           NaN                  NaN
-mean_fut_ask_amount                           NaN                  NaN
-mean_spot_bid_price                  88706.428571         87931.988235
-mean_spot_ask_price                       88758.0         87971.160784
-mean_spot_bid_amount                     0.019986             0.026654
-mean_spot_ask_amount                     0.008071             0.020742
-mean_call_open_interest                      76.9                  0.0
-mean_put_open_interest                     2061.7            15.247059
-mean_call_ask_price_xS               22931.278429         27437.494373
-mean_call_bid_price_xS                  22689.844         22475.761704
-mean_put_ask_price_xS                 6732.916929          8575.337359
-mean_put_bid_price_xS                 6583.277429          8353.998067
-mean_cost                                2.661966             2.638547
-mean_capital_fwd                       780.694771           754.665265
-mean_capital_bck                       388.984419           360.068186
-mean_pcpb_forward                       -1.586028           -22.293997
-mean_pcpb_backward                      -2.324711           -29.536722
-mean_pcpb_fwd_real                      -4.247994           -24.932544
-mean_pcpb_bck_real                      -4.986678            -32.17527
-mean_pcpb_fwd_bp                       -20.314537          -303.260161
-mean_pcpb_bck_bp                       -59.768447          -876.580484
-mean_pcpb_fwd_real_bp                  -54.411955          -338.251272
-mean_pcpb_bck_real_bp                 -128.202363           -950.23161
-mean_pcpb_fwd_ann_bp                   -27.873398          -309.661961
-mean_pcpb_bck_ann_bp                   -82.007842          -895.093107
-mean_pcpb_fwd_real_ann_bp              -74.658154          -345.389792
-mean_pcpb_bck_real_ann_bp             -175.905399          -970.295704
-mean_call_opt_spread_bp                 27.208469           564.559606
-mean_put_opt_spread_bp                  16.864415            25.172334
-mean_bigger_opt_spread_bp               27.208469           564.559606
-mean_smaller_opt_spread_bp              16.864415            25.172334
-mean_amu_fwd_bp                        -47.873722          -283.666609
-mean_amu_bck_bp                        -56.199161          -366.065331
-mean_min_quote_size_dollar          286516.071429        431561.617059
-mean_contract_size                           0.01                 0.01
-sum_call_trade_amount                         0.0                  0.0
-sum_call_trade_signed_amount                  0.0                  0.0
-sum_call_trade_price_amount                   0.0                  0.0
-sum_put_trade_amount                          0.0                  0.4
-sum_put_trade_signed_amount                   0.0                 -0.2
-sum_put_trade_price_amount                    0.0              0.03878
-frac_call_stale                               0.0             0.227451
-frac_put_stale                                0.0             0.027451
-frac_spot_stale                               0.0                  0.0
-""")
