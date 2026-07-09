@@ -51,9 +51,10 @@ def build_liquidity_analysis_panel(
     frame["stale_proxy"] = frame[["frac_call_stale", "frac_put_stale", "frac_spot_stale"]].mean(axis=1)
     frame["eth"] = frame["ref_sym"].str.contains("ETH", na=False).astype(float)
     frame["nonatm"] = (frame["rel_strike_bucket"].sub(1.0).abs() > nonatm_distance).astype(float)
+    frame["atm"] = 1.0 - frame["nonatm"]
     frame["short_tte"] = (frame["tte_bucket"] <= short_tte_cutoff).astype(float)
     frame["post_2024_x_eth"] = frame["post_2024"] * frame["eth"]
-    frame["post_2024_x_nonatm"] = frame["post_2024"] * frame["nonatm"]
+    frame["post_2024_x_atm"] = frame["post_2024"] * frame["atm"]
     frame["post_2024_x_short_tte"] = frame["post_2024"] * frame["short_tte"]
     frame["cell_id"] = (
         frame["exchange"]
@@ -130,7 +131,7 @@ def interaction_regression_spec() -> RegressionSpec:
     return RegressionSpec(
         name="interaction_segments",
         dependent="mean_mma_bp",
-        regressors=("post_2024_x_eth", "post_2024_x_nonatm", "post_2024_x_short_tte"),
+        regressors=("post_2024_x_eth", "post_2024_x_atm", "post_2024_x_short_tte"),
         fixed_effects=("cell_id", "day"),
     )
 

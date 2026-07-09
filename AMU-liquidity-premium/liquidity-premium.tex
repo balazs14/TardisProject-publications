@@ -306,7 +306,7 @@ where $g$ indexes the panel cell $(\text{exchange},\text{ref\_sym},\text{rel\_st
 \begin{equation}
 \overline{\mathrm{MMA}}_{g,t}=\beta_0
 +\beta_1\left(\mathrm{Post}_t\times\mathrm{ETH}_g\right)
-+\beta_2\left(\mathrm{Post}_t\times\mathrm{OTM}_g\right)
++\beta_2\left(\mathrm{Post}_t\times\mathrm{ATM}_g\right)
 +\beta_3\left(\mathrm{Post}_t\times\mathrm{Short}_g\right)
 +\gamma_g+\delta_t+\varepsilon_{g,t}.
 \end{equation}
@@ -326,13 +326,16 @@ $\mathrm{Spr}_{g,t}$ & Average put-call spread in basis points: $0.5\times(\text
 $\mathrm{Depth}_{g,t}$ & Log quote-depth proxy: $\log(\texttt{mean\_min\_quote\_size\_dollar})$. \\
 $\mathrm{Stale}_{g,t}$ & Mean stale-quote fraction across call, put, and spot legs. \\
 $\mathrm{ETH}_g$ & ETH-underlying segment indicator. \\
-$\mathrm{OTM}_g$ & Out-of-the-money segment indicator: $|\texttt{rel\_strike\_bucket}-1|>\RegNonAtmCutoff$. \\
+$\mathrm{ATM}_g$ & At-the-money segment indicator: $|\texttt{rel\_strike\_bucket}-1|\le\RegNonAtmCutoff$ (equivalently $\mathrm{ATM}_g=1-\mathrm{OTM}_g$ with $\mathrm{OTM}_g\equiv\mathbf{1}\{|\texttt{rel\_strike\_bucket}-1|>\RegNonAtmCutoff\}$). \\
 $\mathrm{Short}_g$ & Short-maturity segment indicator: $\texttt{tte\_bucket}\le\RegShortTteCutoff$ years. \\
+$\gamma_g$ & Panel-cell fixed effect for cell $g$ (absorbs time-invariant cell heterogeneity). \\
+$\delta_t$ & Date fixed effect (absorbs common day-level shocks and aggregate time variation). \\
+$\varepsilon_{g,t}$ & Idiosyncratic error term for cell $g$ at date $t$. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Here $\gamma_g$ absorb the time-invariant ETH, moneyness, and maturity segment main effects, while $\delta_t$ absorb the common post-2024 level shift. Negative interaction coefficients $\beta_1$--$\beta_3$ indicate that post-2024 compression is strongest in historically less liquid segments, which is exactly the liquidity-premium prediction.
+Here $\gamma_g$ absorb the time-invariant ETH, moneyness, and maturity segment main effects, while $\delta_t$ absorb the common post-2024 level shift. The interaction coefficients $\beta_1$--$\beta_3$ identify which segments experience stronger post-2024 compression, conditional on the fixed effects and friction controls.
 
 The threshold model in Section 4 motivates the interpretation of these panel results. Once the baseline reduced-form patterns are established, threshold and local-projection designs can be used as robustness checks for whether large deviations decay faster after 2024. They are therefore complements to, not substitutes for, the fixed-effects panel evidence.
 
