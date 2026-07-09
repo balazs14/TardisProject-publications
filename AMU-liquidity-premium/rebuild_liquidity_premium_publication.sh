@@ -29,6 +29,7 @@ import os
 import logging
 from pathlib import Path
 
+from amu_config import CONFIG
 from amu_statistics import generate_all_statistics
 from amu_cache import build_shared_cache_path
 from panel_figures import generate_all_figures
@@ -65,6 +66,15 @@ logging.getLogger(__name__).info(
 )
 logging.getLogger(__name__).info("shared dataframe cache path=%s", cache_path)
 logging.getLogger(__name__).info("force recreate cache=%s", force_recreate_cache)
+
+regression_cfg = CONFIG["regression"]
+nonatm_distance = float(regression_cfg["nonatm_distance"])
+short_tte_cutoff = float(regression_cfg["short_tte_cutoff"])
+Path("regression_cutoffs.tex").write_text(
+	"\\newcommand{\\RegNonAtmCutoff}{" + f"{nonatm_distance:g}" + "}\n"
+	"\\newcommand{\\RegShortTteCutoff}{" + f"{short_tte_cutoff:g}" + "}\n",
+	encoding="utf-8",
+)
 
 generate_all_statistics(
 	Path("liquidity_figures"),

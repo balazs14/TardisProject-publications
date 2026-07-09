@@ -33,6 +33,13 @@
 \usepackage[utf8]{inputenc}
 \usepackage{titlesec}
 
+\IfFileExists{regression_cutoffs.tex}{%
+  \input{regression_cutoffs.tex}%
+}{%
+  \newcommand{\RegNonAtmCutoff}{0.05}%
+  \newcommand{\RegShortTteCutoff}{0.35}%
+}
+
 \titleformat{\section}{\bfseries\large}{\thesection}{1em}{}
 \titleformat{\subsection}{\bfseries\itshape\normalsize}{\thesubsection}{1em}{}
 \titleformat{\subsubsection}{\itshape\normalsize}{\thesubsubsection}{1em}{}
@@ -266,16 +273,16 @@ The panel is grouped at the $(\text{day},\text{exchange},\text{ref\_sym},\text{r
 \overline{\mathrm{MMA}}_{g,t}=\texttt{mean\_mma\_bp}.
 \end{equation}
 
-The core controls already in the panel are option spread measures (\texttt{mean\_call\_opt\_spread\_bp}, \texttt{mean\_put\_opt\_spread\_bp}, \texttt{mean\_bigger\_opt\_spread\_bp}), quote-size and depth proxies (\texttt{mean\_min\_quote\_size\_dollar}, bid/ask amounts), moneyness and maturity buckets (\texttt{rel\_strike\_bucket}, \texttt{tte\_bucket}), open interest, and stale-quote fractions (\texttt{frac\_call\_stale}, \texttt{frac\_put\_stale}, \texttt{frac\_spot\_stale}).
+The core controls already in the panel are option spread measures (\texttt{mean\_call\_spread\_bp}, \texttt{mean\_put\_spread\_bp}), quote-size and depth proxies (\texttt{mean\_min\_quote\_size\_dollar}, bid/ask amounts), moneyness and maturity buckets (\texttt{rel\_strike\_bucket}, \texttt{tte\_bucket}), open interest, and stale-quote fractions (\texttt{frac\_call\_stale}, \texttt{frac\_put\_stale}, \texttt{frac\_spot\_stale}).
 
 This variable set is sufficient to test the liquidity-premium mechanism in the spirit of limits-to-arbitrage models \citep{amihud1986asset, shleifer1997limits, garleanu2011margin}: higher implementation frictions should map into higher average AMU. The design deliberately emphasizes variables that are observable at the quote and panel level rather than latent dealer-balance-sheet objects. The paper therefore tests whether AMU behaves as a microstructure-based proxy for the cost of parity enforcement.
 
 In the regressions, the spread and depth controls are defined explicitly as
 \begin{equation}
-\mathrm{AveragePutCallSpreadBP}_{g,t}=\frac{1}{2}\left(\texttt{mean\_call\_opt\_spread\_bp}_{g,t}+\texttt{mean\_put\_opt\_spread\_bp}_{g,t}\right),
+\mathrm{Spr}_{g,t}=\frac{1}{2}\left(\texttt{mean\_call\_spread\_bp}_{g,t}+\texttt{mean\_put\_spread\_bp}_{g,t}\right),
 \end{equation}
 \begin{equation}
-\mathrm{LogMeanMinQuoteSizeUSD}_{g,t}=\log\!\left(\texttt{mean\_min\_quote\_size\_dollar}_{g,t}\right).
+\mathrm{Depth}_{g,t}=\log\!\left(\texttt{mean\_min\_quote\_size\_dollar}_{g,t}\right).
 \end{equation}
 
 \subsection{Institutional event dates}
@@ -291,18 +298,39 @@ The empirical strategy is organized around two questions. First, does mean MMA c
 The baseline panel specification is:
 
 \begin{equation}
-\overline{\mathrm{MMA}}_{g,t}=\beta_0+\beta_1\mathrm{Post2024}_t+\beta_2\mathrm{AveragePutCallSpreadBP}_{g,t}+\beta_3\mathrm{LogMeanMinQuoteSizeUSD}_{g,t}+\beta_4\mathrm{Stale}_{g,t}+\gamma_g+\varepsilon_{g,t},
+\overline{\mathrm{MMA}}_{g,t}=\beta_0+\beta_1\mathrm{Post}_t+\beta_2\mathrm{Spr}_{g,t}+\beta_3\mathrm{Depth}_{g,t}+\beta_4\mathrm{Stale}_{g,t}+\gamma_g+\varepsilon_{g,t},
 \end{equation}
 
 where $g$ indexes the panel cell $(\text{exchange},\text{ref\_sym},\text{rel\_strike\_bucket},\text{tte\_bucket})$ and $\gamma_g$ are cell fixed effects. In this within-cell design, a negative $\beta_1$ after friction controls is evidence of residual post-2024 compression beyond ordinary within-cell changes in spreads, depth, and quote quality. To connect the time-series regime shift to the cross-sectional liquidity facts, an interaction specification is also estimated:
 
 \begin{equation}
 \overline{\mathrm{MMA}}_{g,t}=\beta_0
-+\beta_1\left(\mathrm{Post2024}_t\times\mathrm{ETH}_g\right)
-+\beta_2\left(\mathrm{Post2024}_t\times\mathrm{OTM}_g\right)
-+\beta_3\left(\mathrm{Post2024}_t\times\mathrm{ShortTTE}_g\right)
++\beta_1\left(\mathrm{Post}_t\times\mathrm{ETH}_g\right)
++\beta_2\left(\mathrm{Post}_t\times\mathrm{OTM}_g\right)
++\beta_3\left(\mathrm{Post}_t\times\mathrm{Short}_g\right)
 +\gamma_g+\delta_t+\varepsilon_{g,t}.
 \end{equation}
+
+Table~\ref{tab:regressor_abbreviations} defines the abbreviated regressor names used in Equations (10)--(13).
+
+\begin{table}[htbp]
+\centering
+\caption{Abbreviations used in empirical specifications}
+\label{tab:regressor_abbreviations}
+\begin{tabularx}{0.95\textwidth}{lX}
+\toprule
+Abbreviation & Definition \\
+\midrule
+$\mathrm{Post}_t$ & Post-2024 regime indicator (1 for dates on/after 2024-01-10, 0 otherwise). \\
+$\mathrm{Spr}_{g,t}$ & Average put-call spread in basis points: $0.5\times(\texttt{mean\_call\_spread\_bp}+\texttt{mean\_put\_spread\_bp})$. \\
+$\mathrm{Depth}_{g,t}$ & Log quote-depth proxy: $\log(\texttt{mean\_min\_quote\_size\_dollar})$. \\
+$\mathrm{Stale}_{g,t}$ & Mean stale-quote fraction across call, put, and spot legs. \\
+$\mathrm{ETH}_g$ & ETH-underlying segment indicator. \\
+$\mathrm{OTM}_g$ & Out-of-the-money segment indicator: $|\texttt{rel\_strike\_bucket}-1|>\RegNonAtmCutoff$. \\
+$\mathrm{Short}_g$ & Short-maturity segment indicator: $\texttt{tte\_bucket}\le\RegShortTteCutoff$ years. \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 Here $\gamma_g$ absorb the time-invariant ETH, moneyness, and maturity segment main effects, while $\delta_t$ absorb the common post-2024 level shift. Negative interaction coefficients $\beta_1$--$\beta_3$ indicate that post-2024 compression is strongest in historically less liquid segments, which is exactly the liquidity-premium prediction.
 
