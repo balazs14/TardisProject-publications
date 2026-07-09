@@ -46,7 +46,7 @@ def plot_daily_amu_timeseries(frame: pd.DataFrame, output_path: str | Path | Non
     _add_event_markers(ax)
     ax.set_ylabel("Mean MMA (bp)")
     ax.set_xlabel("Day")
-    ax.set_title("Daily MMA by exchange and underlying")
+    ax.set_title("Daily mean MMA by exchange and underlying")
     return _finalize_figure(fig, output_path)
 
 

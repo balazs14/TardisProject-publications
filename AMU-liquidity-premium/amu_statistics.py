@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import inspect
 from collections.abc import Iterable
 from datetime import date
 from pathlib import Path
@@ -30,6 +31,8 @@ PUBLICATION_DIR = Path(__file__).resolve().parent
 filters_cfg = CONFIG["filters"]
 statistics_cfg = CONFIG["statistics"]
 pcp_cfg = CONFIG["pcp"]
+panel_cfg = CONFIG["panel"]
+regression_cfg = CONFIG["regression"]
 
 rel_strike_min_default = float(filters_cfg["rel_strike_min"])
 rel_strike_max_default = float(filters_cfg["rel_strike_max"])
@@ -46,6 +49,44 @@ pcp_metric_kwargs = {
     "r": float(pcp_cfg["r"]),
     "contract_size": float(pcp_cfg["contract_size"]),
 }
+
+
+def write_dynamic_tex_assumptions(publication_dir: str | Path = PUBLICATION_DIR) -> dict[str, Path]:
+    """Write dynamic TeX inputs used by the paper from live config/code defaults."""
+    output_dir = Path(publication_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    nonatm_distance = float(regression_cfg["nonatm_distance"])
+    short_tte_cutoff = float(regression_cfg["short_tte_cutoff"])
+    cost_per_notional = float(pcp_cfg["cost_per_notional"])
+    max_amu_bp = int(filters_cfg["max_amu_bp"])
+    min_quote_size_dollar = float(filters_cfg["min_quote_size_dollar"])
+    spread_bp_max = int(filters_cfg["spread_bp_max"])
+    rel_strike_min = float(filters_cfg["rel_strike_min"])
+    rel_strike_max = float(filters_cfg["rel_strike_max"])
+
+    # Import lazily to avoid coupling module import order.
+    from amu_panel import build_amu_panel
+
+    sample_freq_default = inspect.signature(build_amu_panel).parameters["sample_freq"].default
+
+    regression_cutoffs_path = output_dir / "regression_cutoffs.tex"
+    regression_cutoffs_path.write_text(
+        "\\newcommand{\\RegNonAtmCutoff}{" + f"{nonatm_distance:g}" + "}\n"
+        "\\newcommand{\\RegShortTteCutoff}{" + f"{short_tte_cutoff:g}" + "}\n"
+        "\\newcommand{\\CostPerNotional}{" + f"{cost_per_notional:g}" + "}\n"
+        "\\newcommand{\\MaxAmuBps}{" + f"{max_amu_bp:d}" + "}\n"
+        "\\newcommand{\\SampleFreqDefault}{" + f"{sample_freq_default}" + "}\n"
+        "\\newcommand{\\MinQuoteSizeDollar}{" + f"{min_quote_size_dollar:g}" + "}\n"
+        "\\newcommand{\\SpreadBpMax}{" + f"{spread_bp_max:d}" + "}\n"
+        "\\newcommand{\\RelStrikeMin}{" + f"{rel_strike_min:g}" + "}\n"
+        "\\newcommand{\\RelStrikeMax}{" + f"{rel_strike_max:g}" + "}\n",
+        encoding="utf-8",
+    )
+
+    return {
+        "regression_cutoffs": regression_cutoffs_path,
+    }
 
 def filter_ticks(
     df: pl.DataFrame | pl.LazyFrame | pd.DataFrame,

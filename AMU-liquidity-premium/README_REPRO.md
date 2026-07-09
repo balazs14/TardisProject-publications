@@ -25,8 +25,8 @@ This script does four things:
 
 1. rebuilds the AMU baseline artifacts directly from the daily aligned dataset parquet files,
 2. builds the grouped daily AMU panel features used by the paper,
-3. writes the regression tables into `publications/AMU-liquidity-premium/regressions/`,
-4. writes the figure files into `publications/AMU-liquidity-premium/liquidity_figures/`.
+3. writes the regression tables into `publications/AMU-liquidity-premium/artifacts/`,
+4. writes the figure files into `publications/AMU-liquidity-premium/artifacts/`.
 
 Generated AMU baseline artifacts in `publications/AMU-liquidity-premium/`:
 
@@ -42,18 +42,18 @@ Generated AMU baseline artifacts in `publications/AMU-liquidity-premium/`:
 
 Generated figure files:
 
-- `liquidity_figures/liquidity_daily_amu.png`
-- `liquidity_figures/liquidity_pre_post_heatmap.png`
-- `liquidity_figures/liquidity_event_study.png`
-- `liquidity_figures/liquidity_friction_gradient.png`
-- `liquidity_figures/liquidity_compression_decomposition.png`
+- `artifacts/liquidity_daily_amu.png`
+- `artifacts/liquidity_pre_post_heatmap.png`
+- `artifacts/liquidity_event_study.png`
+- `artifacts/liquidity_friction_gradient.png`
+- `artifacts/liquidity_compression_decomposition.png`
 
 Generated regression files:
 
-- `regressions/baseline_post2024.csv`
-- `regressions/forward_component.csv`
-- `regressions/backward_component.csv`
-- `regressions/interaction_segments.csv`
+- `artifacts/baseline_post2024.csv`
+- `artifacts/forward_component.csv`
+- `artifacts/backward_component.csv`
+- `artifacts/interaction_segments.csv`
 
 ## Build the PDF
 
@@ -83,4 +83,4 @@ FROM_DATE=2024-01-01 TO_DATE=2024-12-31 BUILD_PDF=0 bash publications/AMU-liquid
 - `amu_statistics.py` now reads `datasets/{exchange}/{exchange}_aligned_put_call_quotes_trades_chain_*_5min.parquet` directly and does not depend on `publications/AMU/` or a `compacted.parquet` intermediate.
 - The regression code lives in `publications/AMU-liquidity-premium/panel_regressions.py`.
 - The figure code lives in `publications/AMU-liquidity-premium/panel_figures.py`.
-- The manuscript includes the generated figures from the local `liquidity_figures/` directory.
+- The manuscript includes the generated figures from the local `artifacts/` directory.

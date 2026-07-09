@@ -1,4 +1,4 @@
 amu_frames*parquet
 amu_frames*pkl
-liquidity_figures/
+artifacts/
 regressions/

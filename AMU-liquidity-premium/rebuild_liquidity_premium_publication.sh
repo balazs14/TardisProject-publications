@@ -5,8 +5,7 @@ set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 PAPER_DIR="$ROOT_DIR/publications/AMU-liquidity-premium"
 VENV_PYTHON="$ROOT_DIR/venv/bin/python"
-FIGURE_DIR="$PAPER_DIR/liquidity_figures"
-TABLE_DIR="$PAPER_DIR/regressions"
+FIGURE_DIR="$PAPER_DIR/artifacts"
 
 FROM_DATE=${FROM_DATE:-2020-01-01}
 TO_DATE=${TO_DATE:-2026-06-05}
@@ -20,7 +19,7 @@ export BUILD_PDF
 export LOG_LEVEL
 export AMU_FORCE_RECREATE_CACHE
 
-mkdir -p "$FIGURE_DIR" "$TABLE_DIR"
+mkdir -p "$FIGURE_DIR"
 
 cd "$PAPER_DIR"
 
@@ -29,8 +28,7 @@ import os
 import logging
 from pathlib import Path
 
-from amu_config import CONFIG
-from amu_statistics import generate_all_statistics
+from amu_statistics import generate_all_statistics, write_dynamic_tex_assumptions
 from amu_cache import build_shared_cache_path
 from panel_figures import generate_all_figures
 from panel_regressions import write_regression_tables
@@ -67,17 +65,10 @@ logging.getLogger(__name__).info(
 logging.getLogger(__name__).info("shared dataframe cache path=%s", cache_path)
 logging.getLogger(__name__).info("force recreate cache=%s", force_recreate_cache)
 
-regression_cfg = CONFIG["regression"]
-nonatm_distance = float(regression_cfg["nonatm_distance"])
-short_tte_cutoff = float(regression_cfg["short_tte_cutoff"])
-Path("regression_cutoffs.tex").write_text(
-	"\\newcommand{\\RegNonAtmCutoff}{" + f"{nonatm_distance:g}" + "}\n"
-	"\\newcommand{\\RegShortTteCutoff}{" + f"{short_tte_cutoff:g}" + "}\n",
-	encoding="utf-8",
-)
+write_dynamic_tex_assumptions(Path("artifacts"))
 
 generate_all_statistics(
-	Path("liquidity_figures"),
+	Path("artifacts"),
 	from_date=from_date,
 	to_date=to_date,
 	force_recreate_cache=force_recreate_cache,
@@ -85,14 +76,14 @@ generate_all_statistics(
 )
 
 write_regression_tables(
-	Path("regressions"),
+	Path("artifacts"),
 	from_date=from_date,
 	to_date=to_date,
 	cache_path=cache_path,
 	force_recreate_cache=force_recreate_cache,
 )
 generate_all_figures(
-	Path("liquidity_figures"),
+	Path("artifacts"),
 	from_date=from_date,
 	to_date=to_date,
 	cache_path=cache_path,
