@@ -47,60 +47,6 @@ pcp_metric_kwargs = {
     "contract_size": float(pcp_cfg["contract_size"]),
 }
 
-
-def _parse_file_day(file_path: Path) -> date | None:
-    parts = file_path.stem.split("_")
-    if len(parts) < 5:
-        return None
-    try:
-        return date.fromisoformat(parts[-2])
-    except ValueError:
-        return None
-
-
-def _day_in_range(day: date, from_date: str | None, to_date: str | None) -> bool:
-    if from_date is not None and day < date.fromisoformat(from_date):
-        return False
-    if to_date is not None and day > date.fromisoformat(to_date):
-        return False
-    return True
-
-
-def _aligned_chain_files(
-    exchange: str,
-    sample_freq: str,
-    raw_data_dir: str,
-    from_date: str | None = None,
-    to_date: str | None = None,
-) -> list[Path]:
-    root = PROJECT_ROOT / raw_data_dir.format(exchange=exchange)
-    pattern = f"{exchange}_aligned_put_call_quotes_trades_chain_*_{sample_freq}.parquet"
-    files = []
-    for file_path in sorted(root.glob(pattern)):
-        file_day = _parse_file_day(file_path)
-        if file_day is None or _day_in_range(file_day, from_date, to_date):
-            files.append(file_path)
-    return files
-
-def _ticks_filter_expr(
-    *,
-    rel_strike_min: float,
-    rel_strike_max: float,
-    spread_bp_max: int,
-    min_quote_size_dollar: float,
-    apply_rel_strike: bool,
-) -> pl.Expr:
-    expr = (
-        pl.col("call_opt_spread_bp").is_between(0, spread_bp_max)
-        & pl.col("put_opt_spread_bp").is_between(0, spread_bp_max)
-        & pl.col("min_quote_size_dollar").is_not_null()
-        & (pl.col("min_quote_size_dollar") >= min_quote_size_dollar)
-    )
-    if apply_rel_strike:
-        expr = expr & pl.col("rel_strike").is_between(rel_strike_min, rel_strike_max)
-    return expr
-
-
 def filter_ticks(
     df: pl.DataFrame | pl.LazyFrame | pd.DataFrame,
     rel_strike_min: float = rel_strike_min_default,
@@ -137,77 +83,81 @@ def filter_ticks(
         return df.loc[mask].copy()
 
     if isinstance(df, (pl.DataFrame, pl.LazyFrame)):
-        return df.filter(
-            _ticks_filter_expr(
-                rel_strike_min=rel_strike_min,
-                rel_strike_max=rel_strike_max,
-                spread_bp_max=spread_bp_max,
-                min_quote_size_dollar=min_quote_size_dollar,
-                apply_rel_strike=apply_rel_strike,
-            )
+        expr = (
+            pl.col("call_opt_spread_bp").is_between(0, spread_bp_max)
+            & pl.col("put_opt_spread_bp").is_between(0, spread_bp_max)
+            & pl.col("min_quote_size_dollar").is_not_null()
+            & (pl.col("min_quote_size_dollar") >= min_quote_size_dollar)
         )
+        if apply_rel_strike:
+            expr = expr & pl.col("rel_strike").is_between(rel_strike_min, rel_strike_max)
+        return df.filter(expr)
 
     raise TypeError(f"Unsupported frame type: {type(df)}")
 
 
-def _mark_up_pcpb(df: pl.DataFrame) -> pl.DataFrame:
-    return df.with_columns(
-        (pl.col("amu_fwd_bp") + pl.col("call_opt_spread_bp")).alias("fwd_call"),
-        (pl.col("amu_fwd_bp") + pl.col("put_opt_spread_bp")).alias("fwd_put"),
-        (pl.col("amu_bck_bp") + pl.col("call_opt_spread_bp")).alias("bck_call"),
-        (pl.col("amu_bck_bp") + pl.col("put_opt_spread_bp")).alias("bck_put"),
-    )
-
-
-def _pcpb_block_from_file(file_path: Path) -> pl.DataFrame:
-    raw = pl.read_parquet(file_path)
-    if raw.is_empty():
-        return pl.DataFrame()
-
-    pcpb = compute_pcp_metrics(raw, **pcp_metric_kwargs)
-    if pcpb.is_empty():
-        return pl.DataFrame()
-
-    return _mark_up_pcpb(pcpb).select(pcpb_columns)
-
-
-def _cache_frame_path(cache_path: str | Path, key: str) -> Path:
-    cache_meta = Path(cache_path)
-    base_name = cache_meta.name.removesuffix("_meta.pkl")
-    return cache_meta.parent / f"{base_name}__{key}.parquet"
-
-
-def _build_amu_statistics_frame_to_cache(
+@debug_runtime("build_amu_statistics_frame_cached_path")
+def build_amu_statistics_frame_cached_path(
     *,
     cache_path: str | Path,
-    key: str,
-    exchanges: Iterable[str],
-    sample_freq: str,
-    raw_data_dir: str,
-    from_date: str | None,
-    to_date: str | None,
+    exchanges: Iterable[str] = ("okex", "deribit"),
+    sample_freq: str = "5min",
+    raw_data_dir: str = "datasets/{exchange}/",
+    from_date: str | None = None,
+    to_date: str | None = None,
 ) -> Path:
-    frame_path = _cache_frame_path(cache_path, key)
+    key = "amu_statistics_frame"
+    cached = get_cached_frame_parquet_path(cache_path, key)
+    if cached is not None:
+        logger.debug("Cache hit for build_amu_statistics_frame_cached_path: %s", cache_path)
+        return cached
+
+    logger.debug("Cache miss for build_amu_statistics_frame_cached_path: %s", cache_path)
+    cache_meta = Path(cache_path)
+    base_name = cache_meta.name.removesuffix("_meta.pkl")
+    frame_path = cache_meta.parent / f"{base_name}__{key}.parquet"
     tmp_path = frame_path.with_suffix(frame_path.suffix + ".tmp")
     if tmp_path.exists():
         tmp_path.unlink()
 
+    from_day = date.fromisoformat(from_date) if from_date is not None else None
+    to_day = date.fromisoformat(to_date) if to_date is not None else None
     writer: pq.ParquetWriter | None = None
     total_rows = 0
     total_cols = 0
+
     try:
         for exchange in exchanges:
-            for file_path in _aligned_chain_files(
-                exchange,
-                sample_freq,
-                raw_data_dir,
-                from_date=from_date,
-                to_date=to_date,
-            ):
+            root = PROJECT_ROOT / raw_data_dir.format(exchange=exchange)
+            pattern = f"{exchange}_aligned_put_call_quotes_trades_chain_*_{sample_freq}.parquet"
+            for file_path in sorted(root.glob(pattern)):
+                parts = file_path.stem.split("_")
+                file_day = None
+                if len(parts) >= 5:
+                    try:
+                        file_day = date.fromisoformat(parts[-2])
+                    except ValueError:
+                        file_day = None
+                if file_day is not None:
+                    if from_day is not None and file_day < from_day:
+                        continue
+                    if to_day is not None and file_day > to_day:
+                        continue
+
                 logger.debug(f"reading file {file_path}")
-                block = _pcpb_block_from_file(file_path)
+                raw = pl.read_parquet(file_path)
+                if raw.is_empty():
+                    continue
+                block = compute_pcp_metrics(raw, **pcp_metric_kwargs)
                 if block.is_empty():
                     continue
+                block = block.with_columns(
+                    (pl.col("amu_fwd_bp") + pl.col("call_opt_spread_bp")).alias("fwd_call_bp"),
+                    (pl.col("amu_fwd_bp") + pl.col("put_opt_spread_bp")).alias("fwd_put_bp"),
+                    (pl.col("amu_bck_bp") + pl.col("call_opt_spread_bp")).alias("bck_call_bp"),
+                    (pl.col("amu_bck_bp") + pl.col("put_opt_spread_bp")).alias("bck_put_bp"),
+                ).select(pcpb_columns)
+
                 table = block.to_arrow()
                 if writer is None:
                     tmp_path.parent.mkdir(parents=True, exist_ok=True)
@@ -217,9 +167,7 @@ def _build_amu_statistics_frame_to_cache(
                 total_cols = block.width
 
         if writer is None:
-            empty = pl.DataFrame(schema={column: pl.Null for column in pcpb_columns})
-            empty.write_parquet(tmp_path)
-            total_rows = 0
+            pl.DataFrame(schema={column: pl.Null for column in pcpb_columns}).write_parquet(tmp_path)
             total_cols = len(pcpb_columns)
         else:
             writer.close()
@@ -241,35 +189,9 @@ def _build_amu_statistics_frame_to_cache(
             writer.close()
 
 
-@debug_runtime("build_amu_statistics_frame_cached_path")
-def build_amu_statistics_frame_cached_path(
-    *,
-    cache_path: str | Path,
-    exchanges: Iterable[str] = ("okex", "deribit"),
-    sample_freq: str = "5min",
-    raw_data_dir: str = "datasets/{exchange}/",
-    from_date: str | None = None,
-    to_date: str | None = None,
-) -> Path:
-    key = "amu_statistics_frame"
-    cached = get_cached_frame_parquet_path(cache_path, key)
-    if cached is not None:
-        logger.debug("Cache hit for build_amu_statistics_frame_cached_path: %s", cache_path)
-        return cached
-
-    logger.debug("Cache miss for build_amu_statistics_frame_cached_path: %s", cache_path)
-    return _build_amu_statistics_frame_to_cache(
-        cache_path=cache_path,
-        key=key,
-        exchanges=exchanges,
-        sample_freq=sample_freq,
-        raw_data_dir=raw_data_dir,
-        from_date=from_date,
-        to_date=to_date,
-    )
-
-
 def dataframe_to_tabular_tex(df: pd.DataFrame, path: Path) -> None:
+    print(df)
+    logger.debug("Writing table to %s with shape=%s", path, df.shape)
     latex = df.to_latex(
         index=True,
         escape=False,
@@ -279,10 +201,6 @@ def dataframe_to_tabular_tex(df: pd.DataFrame, path: Path) -> None:
         bold_rows=False,
     )
     path.write_text(latex, encoding="utf-8")
-
-
-def _safe_name(value: object) -> str:
-    return str(value).strip().lower().replace("-", "_").replace("/", "_")
 
 
 def _gaussian_kernel_smooth(x: np.ndarray, y: np.ndarray, *, bandwidth: float = 0.02) -> np.ndarray:
@@ -312,15 +230,26 @@ def _parquet_num_rows(parquet_path: str | Path) -> int:
 
 def _amu_agg_exprs() -> list[pl.Expr]:
     return [
-        pl.col("fwd_call").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("fwd_call_bp"),
-        pl.col("bck_call").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("bck_call_bp"),
-        pl.col("bck_put").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("bck_put_bp"),
-        pl.col("fwd_put").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("fwd_put_bp"),
-        (pl.col("fwd_call") > 0).sum().alias("fwd_call_num"),
-        (pl.col("bck_call") > 0).sum().alias("bck_call_num"),
-        (pl.col("bck_put") > 0).sum().alias("bck_put_num"),
-        (pl.col("fwd_put") > 0).sum().alias("fwd_put_num"),
+        pl.col("fwd_call_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("fwd_call_bp_clipped"),
+        pl.col("bck_call_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("bck_call_bp_clipped"),
+        pl.col("bck_put_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("bck_put_bp_clipped"),
+        pl.col("fwd_put_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("fwd_put_bp_clipped"),
+        (pl.col("fwd_call_bp") > 0).sum().alias("fwd_call_num"),
+        (pl.col("bck_call_bp") > 0).sum().alias("bck_call_num"),
+        (pl.col("bck_put_bp") > 0).sum().alias("bck_put_num"),
+        (pl.col("fwd_put_bp") > 0).sum().alias("fwd_put_num"),
         pl.len().alias("num_pairs"),
+        (
+            (
+                (pl.col("fwd_call_bp") > 0)
+                | (pl.col("bck_call_bp") > 0)
+                | (pl.col("bck_put_bp") > 0)
+                | (pl.col("fwd_put_bp") > 0)
+            )
+            .cast(pl.Int64)
+            .sum()
+            .alias("num_has_amu")
+        ),
     ]
 
 
@@ -334,10 +263,10 @@ def _add_amu_bps_columns(frame: pl.LazyFrame) -> pl.LazyFrame:
         ).alias("num_amu")
     ).with_columns(
         (
-            pl.col("fwd_call_bp") * pl.col("fwd_call_num")
-            + pl.col("bck_call_bp") * pl.col("bck_call_num")
-            + pl.col("bck_put_bp") * pl.col("bck_put_num")
-            + pl.col("fwd_put_bp") * pl.col("fwd_put_num")
+            pl.col("fwd_call_bp_clipped") * pl.col("fwd_call_num")
+            + pl.col("bck_call_bp_clipped") * pl.col("bck_call_num")
+            + pl.col("bck_put_bp_clipped") * pl.col("bck_put_num")
+            + pl.col("fwd_put_bp_clipped") * pl.col("fwd_put_num")
         ).alias("weighted_sum")
     ).with_columns(
         pl.when(pl.col("num_amu") > 0)
@@ -422,7 +351,7 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
             pl.col("ref_sym").alias("underlying"),
             "exchange",
             pl.col("amu_bps").alias("AMU(bps)"),
-            pl.col("num_amu").alias("MU occurs"),
+            pl.col("num_has_amu").alias("MU occurs"),
             pl.col("num_pairs").alias("Num Observations"),
         )
         .sort(["underlying", "exchange"])
@@ -441,6 +370,7 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
 
 @debug_runtime("plot_4_spreads_from_parquet")
 def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, rng: int = 100) -> list[Path]:
+    parquet = pq.ParquetFile(str(parquet_path))
     columns = [
         "exchange",
         "ref_sym",
@@ -448,12 +378,11 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
         "call_opt_spread_bp",
         "put_opt_spread_bp",
         "min_quote_size_dollar",
-        "fwd_call",
-        "fwd_put",
-        "bck_call",
-        "bck_put",
+        "fwd_call_bp",
+        "fwd_put_bp",
+        "bck_call_bp",
+        "bck_put_bp",
     ]
-    parquet = pq.ParquetFile(str(parquet_path))
     bin_edges = np.linspace(-rng, rng, 101)
     bin_width = float(bin_edges[1] - bin_edges[0])
     hist_counts: dict[tuple[str, str, str], np.ndarray] = {}
@@ -466,7 +395,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
             continue
         for (exchange, ref_sym), subset in chunk.group_by(["exchange", "ref_sym"], maintain_order=False):
             market = (str(exchange), str(ref_sym))
-            for column in ["fwd_call", "fwd_put", "bck_call", "bck_put"]:
+            for column in ["fwd_call_bp", "fwd_put_bp", "bck_call_bp", "bck_put_bp"]:
                 values = subset.get_column(column).cast(pl.Float64, strict=False).to_numpy()
                 values = values[np.isfinite(values)]
                 if values.size == 0:
@@ -487,7 +416,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
         fig, ax = plt.subplots(figsize=(10, 6))
         visible_max = 0.0
         amu_parts: list[tuple[float, int]] = []
-        for column, color in zip(["fwd_call", "fwd_put", "bck_call", "bck_put"], sns.color_palette("deep", n_colors=4), strict=False):
+        for column, color in zip(["fwd_call_bp", "fwd_put_bp", "bck_call_bp", "bck_put_bp"], sns.color_palette("deep", n_colors=4), strict=False):
             key = (exchange, ref_sym, column)
             if key not in hist_counts or sample_sizes[key] == 0:
                 continue
@@ -516,11 +445,30 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
         ax.text(0.75, 0.5, f"mean AMU = {amu_text:.1f} bp", transform=ax.transAxes, bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5), va="top", ha="center")
         ax.text(0.25, 0.75, "no trading opportunities", transform=ax.transAxes, bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5), va="top", ha="center")
 
-        output_path = output_dir / f"{_safe_name(exchange)}_{_safe_name(ref_sym)}_4_spreads.pdf"
+        output_path = output_dir / (
+            f"{str(exchange).strip().lower().replace('-', '_').replace('/', '_')}_"
+            f"{str(ref_sym).strip().lower().replace('-', '_').replace('/', '_')}_4_spreads.pdf"
+        )
         fig.tight_layout()
         fig.savefig(output_path, dpi=220, bbox_inches="tight")
         plt.close(fig)
         output_paths.append(output_path)
+        logger.debug(
+            "Saved spread figure %s | market=%s/%s curves=%d samples=%d mean_amu_bp=%.2f y_max=%.4f",
+            output_path,
+            exchange,
+            ref_sym,
+            len(amu_parts),
+            amu_num,
+            amu_text,
+            visible_max,
+        )
+    logger.debug(
+        "Spread figure summary: markets=%d figures=%d histogram_series=%d",
+        len(markets),
+        len(output_paths),
+        len(hist_counts),
+    )
     return output_paths
 
 
@@ -564,6 +512,20 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
     ax.tick_params(axis="x", labelrotation=90)
 
     output_path = output_dir / "multi_exchange_amu_bps_by_date.pdf"
+    amu_min = float(daily_amu["amu_bps"].min()) if not daily_amu.empty else np.nan
+    amu_max = float(daily_amu["amu_bps"].max()) if not daily_amu.empty else np.nan
+    btc_min = float(btc_index["index"].min()) if not btc_index.empty else np.nan
+    btc_max = float(btc_index["index"].max()) if not btc_index.empty else np.nan
+    logger.debug(
+        "Date plot summary: rows=%d markets=%d amu_bp_range=[%.2f, %.2f] btc_index_range=[%.2f, %.2f] output=%s",
+        len(daily_amu),
+        daily_amu["market"].nunique() if "market" in daily_amu else 0,
+        amu_min,
+        amu_max,
+        btc_min,
+        btc_max,
+        output_path,
+    )
     fig.tight_layout()
     fig.savefig(output_path, dpi=220, bbox_inches="tight")
     plt.close(fig)
@@ -587,7 +549,7 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
         )
         .group_by(["market", "rel_strike_bin"])
         .agg(_amu_agg_exprs())
-    ).select(["market", "rel_strike_bin", "amu_bps", "num_amu", "num_pairs"]).sort(["market", "rel_strike_bin"]).collect().to_pandas()
+    ).select(["market", "rel_strike_bin", "amu_bps", "num_has_amu", "num_pairs"]).sort(["market", "rel_strike_bin"]).collect().to_pandas()
 
     curve_df["amu_bps_smooth"] = np.nan
     for market, group in curve_df.groupby("market", sort=False):
@@ -596,13 +558,13 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
             group["amu_bps"].to_numpy(),
         )
 
-    counts_long = curve_df[["market", "rel_strike_bin", "num_amu", "num_pairs"]].melt(
+    counts_long = curve_df[["market", "rel_strike_bin", "num_has_amu", "num_pairs"]].melt(
         id_vars=["market", "rel_strike_bin"],
-        value_vars=["num_amu", "num_pairs"],
+        value_vars=["num_has_amu", "num_pairs"],
         var_name="metric",
         value_name="count",
     )
-    counts_long["metric"] = counts_long["metric"].map({"num_amu": "Num MU ticks in bin", "num_pairs": "Num ticks in bin"})
+    counts_long["metric"] = counts_long["metric"].map({"num_has_amu": "Num MU ticks in bin", "num_pairs": "Num ticks in bin"})
     counts_long["count_smooth"] = np.nan
     for (market, metric), group in counts_long.groupby(["market", "metric"], sort=False):
         counts_long.loc[group.index, "count_smooth"] = _gaussian_kernel_smooth(
@@ -642,6 +604,17 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
     )
 
     output_path = output_dir / "multi_exchange_amu_bps_by_rel_strike.pdf"
+    strike_min = float(curve_df["rel_strike_bin"].min()) if not curve_df.empty else np.nan
+    strike_max = float(curve_df["rel_strike_bin"].max()) if not curve_df.empty else np.nan
+    logger.debug(
+        "Rel-strike plot summary: rows=%d markets=%d rel_strike_range=[%.2f, %.2f] mean_num_has_amu=%.2f output=%s",
+        len(curve_df),
+        curve_df["market"].nunique() if "market" in curve_df else 0,
+        strike_min,
+        strike_max,
+        float(curve_df["num_has_amu"].mean()) if not curve_df.empty else np.nan,
+        output_path,
+    )
     fig.tight_layout()
     fig.savefig(output_path, dpi=220, bbox_inches="tight")
     plt.close(fig)
@@ -674,7 +647,7 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
         )
         .group_by(["market", "tte_bin_center"])
         .agg(_amu_agg_exprs())
-    ).select(["market", "tte_bin_center", "amu_bps", "num_amu", "num_pairs"]).sort(["market", "tte_bin_center"]).collect().to_pandas()
+    ).select(["market", "tte_bin_center", "amu_bps", "num_has_amu", "num_pairs"]).sort(["market", "tte_bin_center"]).collect().to_pandas()
 
     curve_df["amu_bps_smooth"] = np.nan
     for market, group in curve_df.groupby("market", sort=False):
@@ -683,13 +656,13 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
             group["amu_bps"].to_numpy(),
         )
 
-    counts_long = curve_df[["market", "tte_bin_center", "num_amu", "num_pairs"]].melt(
+    counts_long = curve_df[["market", "tte_bin_center", "num_has_amu", "num_pairs"]].melt(
         id_vars=["market", "tte_bin_center"],
-        value_vars=["num_amu", "num_pairs"],
+        value_vars=["num_has_amu", "num_pairs"],
         var_name="metric",
         value_name="count",
     )
-    counts_long["metric"] = counts_long["metric"].map({"num_amu": "Num MU ticks in bin", "num_pairs": "Num ticks in bin"})
+    counts_long["metric"] = counts_long["metric"].map({"num_has_amu": "Num MU ticks in bin", "num_pairs": "Num ticks in bin"})
     counts_long["count_smooth"] = np.nan
     for (market, metric), group in counts_long.groupby(["market", "metric"], sort=False):
         counts_long.loc[group.index, "count_smooth"] = _gaussian_kernel_smooth(
@@ -729,6 +702,17 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
     )
 
     output_path = output_dir / "multi_exchange_amu_bps_by_tte.pdf"
+    tte_min = float(curve_df["tte_bin_center"].min()) if not curve_df.empty else np.nan
+    tte_max = float(curve_df["tte_bin_center"].max()) if not curve_df.empty else np.nan
+    logger.debug(
+        "TTE plot summary: rows=%d markets=%d tte_range=[%.4f, %.4f] mean_num_has_amu=%.2f output=%s",
+        len(curve_df),
+        curve_df["market"].nunique() if "market" in curve_df else 0,
+        tte_min,
+        tte_max,
+        float(curve_df["num_has_amu"].mean()) if not curve_df.empty else np.nan,
+        output_path,
+    )
     fig.tight_layout()
     fig.savefig(output_path, dpi=220, bbox_inches="tight")
     plt.close(fig)

@@ -102,10 +102,10 @@ pcpb_columns = [
   "put_stale",
   "amu_fwd_bp",
   "amu_bck_bp",
-  "fwd_call",
-  "fwd_put",
-  "bck_call",
-  "bck_put",
+  "fwd_call_bp",
+  "fwd_put_bp",
+  "bck_call_bp",
+  "bck_put_bp",
 ]
 
 [regression]
