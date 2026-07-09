@@ -350,8 +350,8 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
         lf.select(
             pl.col("ref_sym").alias("underlying"),
             "exchange",
-            pl.col("amu_bps").alias("AMU(bps)"),
-            pl.col("num_has_amu").alias("MU occurs"),
+            pl.col("amu_bps").alias("mean AMU(bps)"),
+            pl.col("num_has_amu").alias("AMU occurs"),
             pl.col("num_pairs").alias("Num Observations"),
         )
         .sort(["underlying", "exchange"])
@@ -359,8 +359,8 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
         .to_pandas()
     )
     table = table.set_index(["underlying", "exchange"])
-    table["AMU(bps)"] = table["AMU(bps)"].map(lambda value: f"{value:.2f}" if pd.notna(value) else "")
-    for column in ["MU occurs", "Num Observations"]:
+    table["mean AMU(bps)"] = table["mean AMU(bps)"].map(lambda value: f"{value:.2f}" if pd.notna(value) else "")
+    for column in ["AMU occurs", "Num Observations"]:
         table[column] = table[column].map(lambda value: f"{int(value):,}" if pd.notna(value) else "")
 
     output_path = output_dir / "amu_summary_table.tex"
@@ -387,6 +387,9 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
     bin_width = float(bin_edges[1] - bin_edges[0])
     hist_counts: dict[tuple[str, str, str], np.ndarray] = {}
     sample_sizes: dict[tuple[str, str, str], int] = {}
+    clipped_sums: dict[tuple[str, str, str], float] = {}
+    raw_counts: dict[tuple[str, str, str], int] = {}
+    positive_counts: dict[tuple[str, str, str], int] = {}
 
     for batch in parquet.iter_batches(batch_size=100_000, columns=columns):
         chunk = pl.from_arrow(batch)
@@ -409,6 +412,11 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
                     hist_counts[key] += hist
                     sample_sizes[key] += int(values.size)
 
+                clipped_values = np.clip(values, 0.0, float(max_amu_bp_default))
+                clipped_sums[key] = clipped_sums.get(key, 0.0) + float(clipped_values.sum())
+                raw_counts[key] = raw_counts.get(key, 0) + int(values.size)
+                positive_counts[key] = positive_counts.get(key, 0) + int(np.sum(values > 0))
+
     markets = sorted({(exchange, ref_sym) for (exchange, ref_sym, _) in hist_counts.keys()})
     output_paths: list[Path] = []
     sns.set_theme(style="whitegrid", context="talk")
@@ -428,9 +436,9 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
             ax.plot(x_fine[x_fine < 0], y_fine[x_fine < 0], color=color, linestyle="--", linewidth=1.6, alpha=0.9)
             ax.plot(x_fine[x_fine >= 0], y_fine[x_fine >= 0], color=color, linestyle="-", linewidth=2.6, alpha=1.0, label=column)
 
-            clipped_centers = np.clip(centers, 0.0, max_amu_bp_default)
-            mean_clip = float(np.sum(clipped_centers * counts) * bin_width)
-            n_pos = int(np.sum(hist_counts[key][centers > 0]))
+            count = raw_counts.get(key, 0)
+            mean_clip = (clipped_sums[key] / count) if count > 0 else np.nan
+            n_pos = positive_counts.get(key, 0)
             amu_parts.append((mean_clip, n_pos))
 
         amu_num = sum(count for _, count in amu_parts)
@@ -564,7 +572,7 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
         var_name="metric",
         value_name="count",
     )
-    counts_long["metric"] = counts_long["metric"].map({"num_has_amu": "Num MU ticks in bin", "num_pairs": "Num ticks in bin"})
+    counts_long["metric"] = counts_long["metric"].map({"num_has_amu": "Num AMU ticks in bin", "num_pairs": "Num ticks in bin"})
     counts_long["count_smooth"] = np.nan
     for (market, metric), group in counts_long.groupby(["market", "metric"], sort=False):
         counts_long.loc[group.index, "count_smooth"] = _gaussian_kernel_smooth(
@@ -586,7 +594,7 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
         style="metric",
         linewidth=1.8,
         palette="deep",
-        dashes={"Num MU ticks in bin": "", "Num ticks in bin": (4, 2)},
+        dashes={"Num AMU ticks in bin": "", "Num ticks in bin": (4, 2)},
         legend=False,
         ax=ax_bottom,
     )
@@ -597,7 +605,7 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
 
     ax_bottom.legend(
         handles=[
-            Line2D([0], [0], color="black", linestyle="-", linewidth=1.8, label="Num MU ticks in bin"),
+            Line2D([0], [0], color="black", linestyle="-", linewidth=1.8, label="Num AMU ticks in bin"),
             Line2D([0], [0], color="black", linestyle="--", linewidth=1.8, label="Num ticks in bin"),
         ],
         title="",
@@ -662,7 +670,7 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
         var_name="metric",
         value_name="count",
     )
-    counts_long["metric"] = counts_long["metric"].map({"num_has_amu": "Num MU ticks in bin", "num_pairs": "Num ticks in bin"})
+    counts_long["metric"] = counts_long["metric"].map({"num_has_amu": "Num AMU ticks in bin", "num_pairs": "Num ticks in bin"})
     counts_long["count_smooth"] = np.nan
     for (market, metric), group in counts_long.groupby(["market", "metric"], sort=False):
         counts_long.loc[group.index, "count_smooth"] = _gaussian_kernel_smooth(
@@ -684,7 +692,7 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
         style="metric",
         linewidth=1.8,
         palette="deep",
-        dashes={"Num MU ticks in bin": "", "Num ticks in bin": (4, 2)},
+        dashes={"Num AMU ticks in bin": "", "Num ticks in bin": (4, 2)},
         legend=False,
         ax=ax_bottom,
     )
@@ -695,7 +703,7 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
 
     ax_bottom.legend(
         handles=[
-            Line2D([0], [0], color="black", linestyle="-", linewidth=1.8, label="Num MU ticks in bin"),
+            Line2D([0], [0], color="black", linestyle="-", linewidth=1.8, label="Num AMU ticks in bin"),
             Line2D([0], [0], color="black", linestyle="--", linewidth=1.8, label="Num ticks in bin"),
         ],
         title="",
