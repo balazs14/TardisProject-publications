@@ -108,7 +108,7 @@ def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None =
     for ax, column, title in zip(
         axes,
         ("spread_bp", "depth_proxy"),
-        ("AMU versus option spread", "AMU versus log quote depth"),
+        ("MMA versus option spread", "MMA versus log quote depth"),
         strict=False,
     ):
         binned = _binned_means(filtered, column, bins)
@@ -116,7 +116,7 @@ def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None =
         sns.lineplot(data=binned, x=column, y="mean_amu_bp", ax=ax, legend=False)
         ax.set_title(title)
         ax.set_xlabel(column)
-    axes[0].set_ylabel("Mean AMU (bp)")
+    axes[0].set_ylabel("Mean MMA (bp)")
     fig.suptitle("Liquidity-friction gradients")
     return _finalize_figure(fig, output_path)
 

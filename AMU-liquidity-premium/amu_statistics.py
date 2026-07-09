@@ -351,7 +351,7 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
             pl.col("ref_sym").alias("underlying"),
             "exchange",
             pl.col("amu_bps").alias("mean AMU(bps)"),
-            pl.col("num_has_amu").alias("AMU occurs"),
+            pl.col("num_has_amu").alias("positive MMA occurs"),
             pl.col("num_pairs").alias("Num Observations"),
         )
         .sort(["underlying", "exchange"])
@@ -360,7 +360,7 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
     )
     table = table.set_index(["underlying", "exchange"])
     table["mean AMU(bps)"] = table["mean AMU(bps)"].map(lambda value: f"{value:.2f}" if pd.notna(value) else "")
-    for column in ["AMU occurs", "Num Observations"]:
+    for column in ["positive MMA occurs", "Num Observations"]:
         table[column] = table[column].map(lambda value: f"{int(value):,}" if pd.notna(value) else "")
 
     output_path = output_dir / "amu_summary_table.tex"
@@ -446,7 +446,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
         ax.axvline(0, color="black", linestyle="-", linewidth=3.0, alpha=0.8)
         ax.set_xlim(-rng, rng)
         ax.set_ylim(0, visible_max * 1.05 if visible_max > 0 else 1.0)
-        ax.set_xlabel("AMU bp")
+        ax.set_xlabel("MMA bp")
         ax.set_ylabel("Density")
         ax.set_title(f"{exchange} {ref_sym}")
         ax.legend(title="Spread")
@@ -572,7 +572,7 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
         var_name="metric",
         value_name="count",
     )
-    counts_long["metric"] = counts_long["metric"].map({"num_has_amu": "Num AMU ticks in bin", "num_pairs": "Num ticks in bin"})
+    counts_long["metric"] = counts_long["metric"].map({"num_has_amu": "Num positive MMA ticks in bin", "num_pairs": "Num ticks in bin"})
     counts_long["count_smooth"] = np.nan
     for (market, metric), group in counts_long.groupby(["market", "metric"], sort=False):
         counts_long.loc[group.index, "count_smooth"] = _gaussian_kernel_smooth(
@@ -594,7 +594,7 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
         style="metric",
         linewidth=1.8,
         palette="deep",
-        dashes={"Num AMU ticks in bin": "", "Num ticks in bin": (4, 2)},
+        dashes={"Num positive MMA ticks in bin": "", "Num ticks in bin": (4, 2)},
         legend=False,
         ax=ax_bottom,
     )
@@ -605,7 +605,7 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
 
     ax_bottom.legend(
         handles=[
-            Line2D([0], [0], color="black", linestyle="-", linewidth=1.8, label="Num AMU ticks in bin"),
+            Line2D([0], [0], color="black", linestyle="-", linewidth=1.8, label="Num positive MMA ticks in bin"),
             Line2D([0], [0], color="black", linestyle="--", linewidth=1.8, label="Num ticks in bin"),
         ],
         title="",
@@ -670,7 +670,7 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
         var_name="metric",
         value_name="count",
     )
-    counts_long["metric"] = counts_long["metric"].map({"num_has_amu": "Num AMU ticks in bin", "num_pairs": "Num ticks in bin"})
+    counts_long["metric"] = counts_long["metric"].map({"num_has_amu": "Num positive MMA ticks in bin", "num_pairs": "Num ticks in bin"})
     counts_long["count_smooth"] = np.nan
     for (market, metric), group in counts_long.groupby(["market", "metric"], sort=False):
         counts_long.loc[group.index, "count_smooth"] = _gaussian_kernel_smooth(
@@ -692,7 +692,7 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
         style="metric",
         linewidth=1.8,
         palette="deep",
-        dashes={"Num AMU ticks in bin": "", "Num ticks in bin": (4, 2)},
+        dashes={"Num positive MMA ticks in bin": "", "Num ticks in bin": (4, 2)},
         legend=False,
         ax=ax_bottom,
     )
@@ -703,7 +703,7 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
 
     ax_bottom.legend(
         handles=[
-            Line2D([0], [0], color="black", linestyle="-", linewidth=1.8, label="Num AMU ticks in bin"),
+            Line2D([0], [0], color="black", linestyle="-", linewidth=1.8, label="Num positive MMA ticks in bin"),
             Line2D([0], [0], color="black", linestyle="--", linewidth=1.8, label="Num ticks in bin"),
         ],
         title="",
