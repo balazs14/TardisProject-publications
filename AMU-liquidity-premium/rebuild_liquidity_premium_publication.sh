@@ -12,11 +12,13 @@ FROM_DATE=${FROM_DATE:-2020-01-01}
 TO_DATE=${TO_DATE:-2026-06-05}
 BUILD_PDF=${BUILD_PDF:-1}
 LOG_LEVEL=${LOG_LEVEL:-INFO}
+AMU_FORCE_RECREATE_CACHE=${AMU_FORCE_RECREATE_CACHE:-0}
 
 export FROM_DATE
 export TO_DATE
 export BUILD_PDF
 export LOG_LEVEL
+export AMU_FORCE_RECREATE_CACHE
 
 mkdir -p "$FIGURE_DIR" "$TABLE_DIR"
 
@@ -37,6 +39,7 @@ to_date = os.environ["TO_DATE"]
 log_level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
 log_level = getattr(logging, log_level_name, logging.INFO)
 matplotlib_log_level = max(log_level, logging.INFO)
+force_recreate_cache = os.environ.get("AMU_FORCE_RECREATE_CACHE", "0") == "1"
 cache_path = build_shared_cache_path(Path("."), from_date, to_date)
 
 logging.basicConfig(
@@ -61,16 +64,30 @@ logging.getLogger(__name__).info(
 	log_level_name,
 )
 logging.getLogger(__name__).info("shared dataframe cache path=%s", cache_path)
+logging.getLogger(__name__).info("force recreate cache=%s", force_recreate_cache)
 
 generate_all_statistics(
 	Path("liquidity_figures"),
 	from_date=from_date,
 	to_date=to_date,
+	force_recreate_cache=force_recreate_cache,
 	cache_path=cache_path,
 )
 
-write_regression_tables(Path("regressions"), from_date=from_date, to_date=to_date, cache_path=cache_path)
-generate_all_figures(Path("liquidity_figures"), from_date=from_date, to_date=to_date, cache_path=cache_path)
+write_regression_tables(
+	Path("regressions"),
+	from_date=from_date,
+	to_date=to_date,
+	cache_path=cache_path,
+	force_recreate_cache=force_recreate_cache,
+)
+generate_all_figures(
+	Path("liquidity_figures"),
+	from_date=from_date,
+	to_date=to_date,
+	cache_path=cache_path,
+	force_recreate_cache=force_recreate_cache,
+)
 PY
 
 if [[ "$BUILD_PDF" == "1" ]]; then

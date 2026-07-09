@@ -105,12 +105,16 @@ def build_amu_statistics_frame_cached_path(
     raw_data_dir: str = "datasets/{exchange}/",
     from_date: str | None = None,
     to_date: str | None = None,
+    force_recreate_cache: bool = False,
 ) -> Path:
-    key = "amu_statistics_frame"
-    cached = get_cached_frame_parquet_path(cache_path, key)
-    if cached is not None:
-        logger.debug("Cache hit for build_amu_statistics_frame_cached_path: %s", cache_path)
-        return cached
+    key = "amu_statistics_frame_v2"
+    if not force_recreate_cache:
+        cached = get_cached_frame_parquet_path(cache_path, key)
+        if cached is not None:
+            logger.debug("Cache hit for build_amu_statistics_frame_cached_path: %s", cache_path)
+            return cached
+    else:
+        logger.info("Force cache recreation enabled for statistics parquet: %s", cache_path)
 
     logger.debug("Cache miss for build_amu_statistics_frame_cached_path: %s", cache_path)
     cache_meta = Path(cache_path)
@@ -151,12 +155,7 @@ def build_amu_statistics_frame_cached_path(
                 block = compute_pcp_metrics(raw, **pcp_metric_kwargs)
                 if block.is_empty():
                     continue
-                block = block.with_columns(
-                    (pl.col("amu_fwd_bp") + pl.col("call_opt_spread_bp")).alias("fwd_call_bp"),
-                    (pl.col("amu_fwd_bp") + pl.col("put_opt_spread_bp")).alias("fwd_put_bp"),
-                    (pl.col("amu_bck_bp") + pl.col("call_opt_spread_bp")).alias("bck_call_bp"),
-                    (pl.col("amu_bck_bp") + pl.col("put_opt_spread_bp")).alias("bck_put_bp"),
-                ).select(pcpb_columns)
+                block = block.select(pcpb_columns)
 
                 table = block.to_arrow()
                 if writer is None:
@@ -230,21 +229,21 @@ def _parquet_num_rows(parquet_path: str | Path) -> int:
 
 def _amu_agg_exprs() -> list[pl.Expr]:
     return [
-        pl.col("fwd_call_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("fwd_call_bp_clipped"),
-        pl.col("bck_call_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("bck_call_bp_clipped"),
-        pl.col("bck_put_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("bck_put_bp_clipped"),
-        pl.col("fwd_put_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("fwd_put_bp_clipped"),
-        (pl.col("fwd_call_bp") > 0).sum().alias("fwd_call_num"),
-        (pl.col("bck_call_bp") > 0).sum().alias("bck_call_num"),
-        (pl.col("bck_put_bp") > 0).sum().alias("bck_put_num"),
-        (pl.col("fwd_put_bp") > 0).sum().alias("fwd_put_num"),
+        pl.col("fwd_joincall_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("fwd_joincall_bp_clipped"),
+        pl.col("bck_joincall_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("bck_joincall_bp_clipped"),
+        pl.col("bck_joinput_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("bck_joinput_bp_clipped"),
+        pl.col("fwd_joinput_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("fwd_joinput_bp_clipped"),
+        (pl.col("fwd_joincall_bp") > 0).sum().alias("fwd_joincall_num"),
+        (pl.col("bck_joincall_bp") > 0).sum().alias("bck_joincall_num"),
+        (pl.col("bck_joinput_bp") > 0).sum().alias("bck_joinput_num"),
+        (pl.col("fwd_joinput_bp") > 0).sum().alias("fwd_joinput_num"),
         pl.len().alias("num_pairs"),
         (
             (
-                (pl.col("fwd_call_bp") > 0)
-                | (pl.col("bck_call_bp") > 0)
-                | (pl.col("bck_put_bp") > 0)
-                | (pl.col("fwd_put_bp") > 0)
+                (pl.col("fwd_joincall_bp") > 0)
+                | (pl.col("bck_joincall_bp") > 0)
+                | (pl.col("bck_joinput_bp") > 0)
+                | (pl.col("fwd_joinput_bp") > 0)
             )
             .cast(pl.Int64)
             .sum()
@@ -256,17 +255,17 @@ def _amu_agg_exprs() -> list[pl.Expr]:
 def _add_amu_bps_columns(frame: pl.LazyFrame) -> pl.LazyFrame:
     return frame.with_columns(
         (
-            pl.col("fwd_call_num")
-            + pl.col("bck_call_num")
-            + pl.col("bck_put_num")
-            + pl.col("fwd_put_num")
+            pl.col("fwd_joincall_num")
+            + pl.col("bck_joincall_num")
+            + pl.col("bck_joinput_num")
+            + pl.col("fwd_joinput_num")
         ).alias("num_amu")
     ).with_columns(
         (
-            pl.col("fwd_call_bp_clipped") * pl.col("fwd_call_num")
-            + pl.col("bck_call_bp_clipped") * pl.col("bck_call_num")
-            + pl.col("bck_put_bp_clipped") * pl.col("bck_put_num")
-            + pl.col("fwd_put_bp_clipped") * pl.col("fwd_put_num")
+            pl.col("fwd_joincall_bp_clipped") * pl.col("fwd_joincall_num")
+            + pl.col("bck_joincall_bp_clipped") * pl.col("bck_joincall_num")
+            + pl.col("bck_joinput_bp_clipped") * pl.col("bck_joinput_num")
+            + pl.col("fwd_joinput_bp_clipped") * pl.col("fwd_joinput_num")
         ).alias("weighted_sum")
     ).with_columns(
         pl.when(pl.col("num_amu") > 0)
@@ -378,10 +377,10 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
         "call_opt_spread_bp",
         "put_opt_spread_bp",
         "min_quote_size_dollar",
-        "fwd_call_bp",
-        "fwd_put_bp",
-        "bck_call_bp",
-        "bck_put_bp",
+        "fwd_joincall_bp",
+        "fwd_joinput_bp",
+        "bck_joincall_bp",
+        "bck_joinput_bp",
     ]
     bin_edges = np.linspace(-rng, rng, 101)
     bin_width = float(bin_edges[1] - bin_edges[0])
@@ -398,7 +397,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
             continue
         for (exchange, ref_sym), subset in chunk.group_by(["exchange", "ref_sym"], maintain_order=False):
             market = (str(exchange), str(ref_sym))
-            for column in ["fwd_call_bp", "fwd_put_bp", "bck_call_bp", "bck_put_bp"]:
+            for column in ["fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp"]:
                 values = subset.get_column(column).cast(pl.Float64, strict=False).to_numpy()
                 values = values[np.isfinite(values)]
                 if values.size == 0:
@@ -424,7 +423,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
         fig, ax = plt.subplots(figsize=(10, 6))
         visible_max = 0.0
         amu_parts: list[tuple[float, int]] = []
-        for column, color in zip(["fwd_call_bp", "fwd_put_bp", "bck_call_bp", "bck_put_bp"], sns.color_palette("deep", n_colors=4), strict=False):
+        for column, color in zip(["fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp"], sns.color_palette("deep", n_colors=4), strict=False):
             key = (exchange, ref_sym, column)
             if key not in hist_counts or sample_sizes[key] == 0:
                 continue
@@ -733,12 +732,9 @@ def generate_all_statistics(
     *,
     from_date: str,
     to_date: str,
-    recreate_pcpb: bool = False,
+    force_recreate_cache: bool = False,
     cache_path: str | Path | None = None,
 ) -> dict[str, Path | list[Path]]:
-    if recreate_pcpb:
-        logger.info("AMU_RECREATE_PCPB is ignored; AMU statistics now rebuild directly from dataset parquet files.")
-
     output_root = Path(output_dir)
     output_root.mkdir(parents=True, exist_ok=True)
     active_cache_path = cache_path or (output_root / f"amu_frames_{from_date}_to_{to_date}_meta.pkl")
@@ -746,6 +742,7 @@ def generate_all_statistics(
         cache_path=active_cache_path,
         from_date=from_date,
         to_date=to_date,
+        force_recreate_cache=force_recreate_cache,
     )
     assert _parquet_num_rows(pcpb_parquet_path) > 0, f"No AMU statistics data found for range {from_date}..{to_date}"
     inspect_pcpb_input_from_parquet(pcpb_parquet_path)
@@ -765,5 +762,5 @@ def main() -> None:
         PUBLICATION_DIR,
         from_date=os.environ.get("FROM_DATE", "2020-01-01"),
         to_date=os.environ.get("TO_DATE", "2026-06-05"),
-        recreate_pcpb=os.environ.get("AMU_RECREATE_PCPB", "0") == "1",
+        force_recreate_cache=os.environ.get("AMU_FORCE_RECREATE_CACHE", "0") == "1",
     )

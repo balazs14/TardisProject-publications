@@ -261,20 +261,22 @@ For each exchange, underlying, strike, maturity, and timestamp, the dataset cont
 
 \subsection{Liquidity and friction variables}
 
-The panel is grouped at the $(\text{day},\text{exchange},\text{ref\_sym},\text{rel\_strike\_bucket},\text{tte\_bucket})$ level and includes directly usable AMU outcomes and liquidity proxies. The primary dependent variables are:
+The panel is grouped at the $(\text{day},\text{exchange},\text{ref\_sym},\text{rel\_strike\_bucket},\text{tte\_bucket})$ level and includes directly usable MMA outcomes and liquidity proxies. The primary dependent variable is the panel-cell mean MMA:
 \begin{equation}
-\overline{\mathrm{AMU}}^{\mathrm{fwd}}_{g,t}=\texttt{mean\_amu\_fwd\_bp},
-\qquad
-\overline{\mathrm{AMU}}^{\mathrm{bck}}_{g,t}=\texttt{mean\_amu\_bck\_bp},
-\end{equation}
-and the symmetric summary
-\begin{equation}
-\overline{\mathrm{AMU}}_{g,t}=\frac{1}{2}\left(\overline{\mathrm{AMU}}^{\mathrm{fwd}}_{g,t}+\overline{\mathrm{AMU}}^{\mathrm{bck}}_{g,t}\right).
+\overline{\mathrm{MMA}}_{g,t}=\texttt{mean\_mma\_bp}.
 \end{equation}
 
 The core controls already in the panel are option spread measures (\texttt{mean\_call\_opt\_spread\_bp}, \texttt{mean\_put\_opt\_spread\_bp}, \texttt{mean\_bigger\_opt\_spread\_bp}), quote-size and depth proxies (\texttt{mean\_min\_quote\_size\_dollar}, bid/ask amounts), moneyness and maturity buckets (\texttt{rel\_strike\_bucket}, \texttt{tte\_bucket}), open interest, and stale-quote fractions (\texttt{frac\_call\_stale}, \texttt{frac\_put\_stale}, \texttt{frac\_spot\_stale}).
 
 This variable set is sufficient to test the liquidity-premium mechanism in the spirit of limits-to-arbitrage models \citep{amihud1986asset, shleifer1997limits, garleanu2011margin}: higher implementation frictions should map into higher average AMU. The design deliberately emphasizes variables that are observable at the quote and panel level rather than latent dealer-balance-sheet objects. The paper therefore tests whether AMU behaves as a microstructure-based proxy for the cost of parity enforcement.
+
+In the regressions, the spread and depth controls are defined explicitly as
+\begin{equation}
+\mathrm{AveragePutCallSpreadBP}_{g,t}=\frac{1}{2}\left(\texttt{mean\_call\_opt\_spread\_bp}_{g,t}+\texttt{mean\_put\_opt\_spread\_bp}_{g,t}\right),
+\end{equation}
+\begin{equation}
+\mathrm{LogMeanMinQuoteSizeUSD}_{g,t}=\log\!\left(\texttt{mean\_min\_quote\_size\_dollar}_{g,t}\right).
+\end{equation}
 
 \subsection{Institutional event dates}
 
@@ -284,27 +286,18 @@ In the baseline implementation, the event design is introduced through calendar 
 
 \subsection{Empirical specifications}
 
-The empirical strategy is organized around three questions. First, does AMU compress after 2024 even after controlling for within-cell liquidity conditions? Second, are directional AMU components symmetric, or do they reveal different frictions on the forward and backward PCP paths? Third, is any post-2024 compression stronger in the segments that are historically least liquid?
+The empirical strategy is organized around two questions. First, does mean MMA compress after 2024 even after controlling for within-cell liquidity conditions? Second, is any post-2024 compression stronger in the segments that are historically least liquid?
 
 The baseline panel specification is:
 
 \begin{equation}
-\overline{\mathrm{AMU}}_{g,t}=\beta_0+\beta_1\mathrm{Post2024}_t+\beta_2\mathrm{Spread}_{g,t}+\beta_3\mathrm{DepthProxy}_{g,t}+\beta_4\mathrm{Stale}_{g,t}+\gamma_g+\varepsilon_{g,t},
+\overline{\mathrm{MMA}}_{g,t}=\beta_0+\beta_1\mathrm{Post2024}_t+\beta_2\mathrm{AveragePutCallSpreadBP}_{g,t}+\beta_3\mathrm{LogMeanMinQuoteSizeUSD}_{g,t}+\beta_4\mathrm{Stale}_{g,t}+\gamma_g+\varepsilon_{g,t},
 \end{equation}
 
-where $g$ indexes the panel cell $(\text{exchange},\text{ref\_sym},\text{rel\_strike\_bucket},\text{tte\_bucket})$ and $\gamma_g$ are cell fixed effects. In this within-cell design, a negative $\beta_1$ after friction controls is evidence of residual post-2024 compression beyond ordinary within-cell changes in spreads, depth, and quote quality.
-
-A second specification uses directional AMU components to respect PCP implementation asymmetry:
+where $g$ indexes the panel cell $(\text{exchange},\text{ref\_sym},\text{rel\_strike\_bucket},\text{tte\_bucket})$ and $\gamma_g$ are cell fixed effects. In this within-cell design, a negative $\beta_1$ after friction controls is evidence of residual post-2024 compression beyond ordinary within-cell changes in spreads, depth, and quote quality. To connect the time-series regime shift to the cross-sectional liquidity facts, an interaction specification is also estimated:
 
 \begin{equation}
-\overline{\mathrm{AMU}}^{d}_{g,t}=\beta^{d}_0+\beta^{d}_1\mathrm{Post2024}_t+\beta^{d}_2\mathrm{Spread}_{g,t}+\beta^{d}_3\mathrm{DepthProxy}_{g,t}+\gamma_g+\varepsilon^{d}_{g,t},
-\quad d\in\{\mathrm{fwd},\mathrm{bck}\}.
-\end{equation}
-
-To connect the time-series regime shift to the cross-sectional liquidity facts, an interaction specification is also estimated:
-
-\begin{equation}
-\overline{\mathrm{AMU}}_{g,t}=\beta_0
+\overline{\mathrm{MMA}}_{g,t}=\beta_0
 +\beta_1\left(\mathrm{Post2024}_t\times\mathrm{ETH}_g\right)
 +\beta_2\left(\mathrm{Post2024}_t\times\mathrm{OTM}_g\right)
 +\beta_3\left(\mathrm{Post2024}_t\times\mathrm{ShortTTE}_g\right)
@@ -325,7 +318,7 @@ The figure set should focus on outputs generated from the 2020--2026 AMU panel:
 
 \textbf{Figure 3:} Event-study plot of AMU around each institutional event date (stacked windows, e.g. $[-60,+60]$ days), shown separately by exchange.
 
-\textbf{Figure 4:} Binned-scatter or partial-residual plot of MMA versus option spread/depth proxies, demonstrating the friction-gradient predicted by limits-to-arbitrage theory.
+\textbf{Figure 4:} Binned-scatter or partial-residual plot of MMA versus average put-call spread (bp) and log mean minimum quote size (USD), demonstrating the friction-gradient predicted by limits-to-arbitrage theory.
 
 \textbf{Figure 5:} Compression decomposition plot: change in AMU from pre- to post-2024 by segment (ETH/BTC, OTM/ATM, short/long TTE).
 
@@ -355,7 +348,7 @@ These figures are aligned with the liquidity-premium framing while staying withi
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{liquidity_figures/liquidity_friction_gradient.png}
-\caption{Binned MMA relationships with option-spread and quote-depth proxies.}
+\caption{Binned MMA relationships with average put-call spread (bp) and log mean minimum quote size (USD).}
 \label{fig:liquidity_friction_gradient}
 \end{figure}
 

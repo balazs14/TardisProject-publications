@@ -28,6 +28,7 @@ filters_cfg = CONFIG["filters"]
 mean_panel_columns = list(panel_cfg["mean_panel_columns"])
 sum_panel_columns = list(panel_cfg["sum_panel_columns"])
 stale_panel_columns = list(panel_cfg["stale_panel_columns"])
+
 rel_strike_buckets = int(panel_cfg["rel_strike_buckets"])
 tte_buckets = int(panel_cfg["tte_buckets"])
 tte_sqrt_min = float(panel_cfg["tte_sqrt_min"])
@@ -143,8 +144,8 @@ def _required_panel_columns() -> list[str]:
         "rel_strike",
         "tte",
         "index",
-        "amu_fwd_bp",
-        "amu_bck_bp",
+        "mma_fwd_bp",
+        "mma_bck_bp",
         "pcpb_fwd_bp",
         "pcpb_bck_bp",
         "call_opt_spread_bp",
@@ -155,7 +156,14 @@ def _required_panel_columns() -> list[str]:
 
 def _panel_metrics() -> list[pl.Expr]:
     metrics = [pl.len().alias("n_obs")]
-    metrics.extend(pl.mean(column).alias(f"mean_{column}") for column in mean_panel_columns)
+    mean_output_names = {
+        "call_opt_spread_bp": "mean_call_spread_bp",
+        "put_opt_spread_bp": "mean_put_spread_bp",
+    }
+    metrics.extend(
+        pl.mean(column).alias(mean_output_names.get(column, f"mean_{column}"))
+        for column in mean_panel_columns
+    )
     metrics.extend(pl.sum(column).alias(f"sum_{column}") for column in sum_panel_columns)
     metrics.extend(
         (pl.col(column).cast(pl.Float64, strict=False).mean() * 1.0).alias(f"frac_{column}")
@@ -200,6 +208,7 @@ def build_amu_panel(
     from_date: str | None = None,
     to_date: str | None = None,
     cache_path: str | Path | None = None,
+    force_recreate_cache: bool = False,
 ) -> pl.DataFrame:
     """Build a compact panel from aligned put/call quote-trade-chain files.
 
@@ -207,11 +216,13 @@ def build_amu_panel(
     within the inclusive range are processed.
     """
 
-    if cache_path is not None:
+    if cache_path is not None and not force_recreate_cache:
         cached_panel = get_cached_frame(cache_path, "amu_panel")
         if cached_panel is not None:
             logger.debug("Cache hit for build_amu_panel: %s", cache_path)
             return cached_panel
+    elif cache_path is not None and force_recreate_cache:
+        logger.info("Force cache recreation enabled for panel parquet: %s", cache_path)
 
     panel = pl.DataFrame()
     for exchange in exchanges:

@@ -37,16 +37,16 @@ def generate_all_figures(output_dir: str | Path, **build_kwargs) -> dict[str, Pa
 def plot_daily_amu_timeseries(frame: pd.DataFrame, output_path: str | Path | None = None) -> plt.Figure:
     filtered = filter_analysis_panel(frame)
     plot_frame = (
-        filtered.groupby(["day", "exchange", "ref_sym"], as_index=False)["mean_amu_bp"]
+        filtered.groupby(["day", "exchange", "ref_sym"], as_index=False)["mean_mma_bp"]
         .mean()
         .assign(series=lambda df: df["exchange"] + " | " + df["ref_sym"])
     )
     fig, ax = plt.subplots(figsize=(11, 5))
-    sns.lineplot(data=plot_frame, x="day", y="mean_amu_bp", hue="series", ax=ax)
+    sns.lineplot(data=plot_frame, x="day", y="mean_mma_bp", hue="series", ax=ax)
     _add_event_markers(ax)
-    ax.set_ylabel("Mean AMU (bp)")
+    ax.set_ylabel("Mean MMA (bp)")
     ax.set_xlabel("Day")
-    ax.set_title("Daily AMU by exchange and underlying")
+    ax.set_title("Daily MMA by exchange and underlying")
     return _finalize_figure(fig, output_path)
 
 
@@ -56,9 +56,9 @@ def plot_pre_post_heatmaps(frame: pd.DataFrame, output_path: str | Path | None =
     for ax, post_flag, title in zip(axes, (0.0, 1.0), ("Pre-2024", "Post-2024"), strict=False):
         heatmap = (
             filtered.loc[filtered["post_2024"] == post_flag]
-            .groupby(["rel_strike_bucket", "tte_bucket"], as_index=False)["mean_amu_bp"]
+            .groupby(["rel_strike_bucket", "tte_bucket"], as_index=False)["mean_mma_bp"]
             .mean()
-            .pivot(index="tte_bucket", columns="rel_strike_bucket", values="mean_amu_bp")
+            .pivot(index="tte_bucket", columns="rel_strike_bucket", values="mean_mma_bp")
         )
         if heatmap.empty:
             _annotate_empty_panel(ax, f"No observations for {title.lower()} sample")
@@ -71,7 +71,7 @@ def plot_pre_post_heatmaps(frame: pd.DataFrame, output_path: str | Path | None =
         ax.set_title(title)
         ax.set_xlabel("Relative strike bucket")
     axes[0].set_ylabel("TTE bucket")
-    fig.suptitle("Mean AMU across strike and maturity buckets")
+    fig.suptitle("Mean MMA across strike and maturity buckets")
     return _finalize_figure(fig, output_path)
 
 
@@ -84,7 +84,7 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
         tmp["rel_day"] = (tmp["day"] - event_day).dt.days
         event_rows.append(tmp.loc[tmp["rel_day"].between(-window, window)])
     plot_frame = pd.concat(event_rows, ignore_index=True)
-    plot_frame = plot_frame.groupby(["exchange", "event", "rel_day"], as_index=False)["mean_amu_bp"].mean()
+    plot_frame = plot_frame.groupby(["exchange", "event", "rel_day"], as_index=False)["mean_mma_bp"].mean()
     fig, axes = plt.subplots(2, 1, figsize=(11, 8), sharex=True, sharey=True)
     if plot_frame.empty:
         for ax in axes:
@@ -93,10 +93,10 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
         fig.suptitle("Event-study windows around 2024 regime markers")
         return _finalize_figure(fig, output_path)
     for ax, exchange in zip(axes, sorted(plot_frame["exchange"].unique()), strict=False):
-        sns.lineplot(data=plot_frame.loc[plot_frame["exchange"] == exchange], x="rel_day", y="mean_amu_bp", hue="event", ax=ax)
+        sns.lineplot(data=plot_frame.loc[plot_frame["exchange"] == exchange], x="rel_day", y="mean_mma_bp", hue="event", ax=ax)
         ax.axvline(0, color="black", linestyle="--", linewidth=1)
         ax.set_title(exchange)
-        ax.set_ylabel("Mean AMU (bp)")
+        ax.set_ylabel("Mean MMA (bp)")
     axes[-1].set_xlabel("Days relative to event")
     fig.suptitle("Event-study windows around 2024 regime markers")
     return _finalize_figure(fig, output_path)
@@ -105,17 +105,18 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
 def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None = None, bins: int = 20) -> plt.Figure:
     filtered = filter_analysis_panel(frame)
     fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
-    for ax, column, title in zip(
+    for ax, column, title, xlabel in zip(
         axes,
-        ("spread_bp", "depth_proxy"),
+        ("average_put_call_spread_bp", "log_mean_min_quote_size_dollar"),
         ("MMA versus option spread", "MMA versus log quote depth"),
+        ("Average put-call spread (bp)", "Log mean minimum quote size (USD)"),
         strict=False,
     ):
         binned = _binned_means(filtered, column, bins)
-        sns.scatterplot(data=binned, x=column, y="mean_amu_bp", ax=ax)
-        sns.lineplot(data=binned, x=column, y="mean_amu_bp", ax=ax, legend=False)
+        sns.scatterplot(data=binned, x=column, y="mean_mma_bp", ax=ax)
+        sns.lineplot(data=binned, x=column, y="mean_mma_bp", ax=ax, legend=False)
         ax.set_title(title)
-        ax.set_xlabel(column)
+        ax.set_xlabel(xlabel)
     axes[0].set_ylabel("Mean MMA (bp)")
     fig.suptitle("Liquidity-friction gradients")
     return _finalize_figure(fig, output_path)
@@ -132,11 +133,11 @@ def plot_compression_decomposition(frame: pd.DataFrame, output_path: str | Path 
         ignore_index=True,
     )
     fig, ax = plt.subplots(figsize=(10, 5))
-    sns.barplot(data=segments, x="segment", y="delta_amu_bp", hue="group", ax=ax)
+    sns.barplot(data=segments, x="segment", y="delta_mma_bp", hue="group", ax=ax)
     ax.axhline(0.0, color="black", linewidth=1)
-    ax.set_ylabel("Post-2024 minus pre-2024 mean AMU (bp)")
+    ax.set_ylabel("Post-2024 minus pre-2024 mean MMA (bp)")
     ax.set_xlabel("Segment family")
-    ax.set_title("AMU compression by segment")
+    ax.set_title("MMA compression by segment")
     return _finalize_figure(fig, output_path)
 
 
@@ -147,18 +148,18 @@ def _add_event_markers(ax: plt.Axes) -> None:
 
 
 def _binned_means(frame: pd.DataFrame, column: str, bins: int) -> pd.DataFrame:
-    work = frame[[column, "mean_amu_bp"]].dropna().copy()
+    work = frame[[column, "mean_mma_bp"]].dropna().copy()
     work["bin"] = pd.qcut(work[column], q=min(bins, work[column].nunique()), duplicates="drop")
-    return work.groupby("bin", as_index=False).agg({column: "mean", "mean_amu_bp": "mean"})
+    return work.groupby("bin", as_index=False).agg({column: "mean", "mean_mma_bp": "mean"})
 
 
 def _segment_delta(frame: pd.DataFrame, segment: str, groups: dict[str, pd.Series]) -> pd.DataFrame:
     rows = []
     for label, mask in groups.items():
         segment_frame = frame.loc[mask]
-        pre = segment_frame.loc[segment_frame["post_2024"] == 0.0, "mean_amu_bp"].mean()
-        post = segment_frame.loc[segment_frame["post_2024"] == 1.0, "mean_amu_bp"].mean()
-        rows.append({"segment": segment, "group": label, "delta_amu_bp": post - pre})
+        pre = segment_frame.loc[segment_frame["post_2024"] == 0.0, "mean_mma_bp"].mean()
+        post = segment_frame.loc[segment_frame["post_2024"] == 1.0, "mean_mma_bp"].mean()
+        rows.append({"segment": segment, "group": label, "delta_mma_bp": post - pre})
     return pd.DataFrame(rows)
 
 

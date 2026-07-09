@@ -67,10 +67,8 @@ mean_panel_columns = [
   "pcpb_bck_real_ann_bp",
   "call_opt_spread_bp",
   "put_opt_spread_bp",
-  "bigger_opt_spread_bp",
-  "smaller_opt_spread_bp",
-  "amu_fwd_bp",
-  "amu_bck_bp",
+  "mma_fwd_bp",
+  "mma_bck_bp",
   "min_quote_size_dollar",
   "contract_size",
 ]
@@ -100,12 +98,10 @@ pcpb_columns = [
   "min_quote_size_dollar",
   "call_stale",
   "put_stale",
-  "amu_fwd_bp",
-  "amu_bck_bp",
-  "fwd_call_bp",
-  "fwd_put_bp",
-  "bck_call_bp",
-  "bck_put_bp",
+  "fwd_joincall_bp",
+  "fwd_joinput_bp",
+  "bck_joincall_bp",
+  "bck_joinput_bp",
 ]
 
 [regression]

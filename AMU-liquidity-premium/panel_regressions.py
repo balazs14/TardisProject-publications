@@ -42,10 +42,12 @@ def build_liquidity_analysis_panel(
 
     frame = panel.to_pandas().copy()
     frame["day"] = pd.to_datetime(frame["day"])
-    frame["mean_amu_bp"] = 0.5 * (frame["mean_amu_fwd_bp"] + frame["mean_amu_bck_bp"])
+    frame["mean_mma_bp"] = 0.5 * (frame["mean_mma_fwd_bp"] + frame["mean_mma_bck_bp"])
     frame["post_2024"] = (frame["day"].dt.date >= post_2024_start).astype(float)
-    frame["spread_bp"] = frame["mean_bigger_opt_spread_bp"]
-    frame["depth_proxy"] = np.log(frame["mean_min_quote_size_dollar"].clip(lower=1.0))
+    frame["average_put_call_spread_bp"] = 0.5 * (
+        frame["mean_call_spread_bp"] + frame["mean_put_spread_bp"]
+    )
+    frame["log_mean_min_quote_size_dollar"] = np.log(frame["mean_min_quote_size_dollar"].clip(lower=1.0))
     frame["stale_proxy"] = frame[["frac_call_stale", "frac_put_stale", "frac_spot_stale"]].mean(axis=1)
     frame["eth"] = frame["ref_sym"].str.contains("ETH", na=False).astype(float)
     frame["nonatm"] = (frame["rel_strike_bucket"].sub(1.0).abs() > nonatm_distance).astype(float)
@@ -75,8 +77,8 @@ def filter_analysis_panel(
     apply_rel_strike: bool = True,
 ) -> pd.DataFrame:
     required = {
-        "mean_bigger_opt_spread_bp",
-        "mean_smaller_opt_spread_bp",
+        "mean_call_spread_bp",
+        "mean_put_spread_bp",
         "mean_min_quote_size_dollar",
     }
     if apply_rel_strike:
@@ -85,8 +87,8 @@ def filter_analysis_panel(
     assert not missing, f"Missing panel filter columns: {sorted(missing)}"
 
     mask = (
-        pd.to_numeric(frame["mean_bigger_opt_spread_bp"], errors="coerce").between(0, spread_bp_max)
-        & pd.to_numeric(frame["mean_smaller_opt_spread_bp"], errors="coerce").between(0, spread_bp_max)
+        pd.to_numeric(frame["mean_call_spread_bp"], errors="coerce").between(0, spread_bp_max)
+        & pd.to_numeric(frame["mean_put_spread_bp"], errors="coerce").between(0, spread_bp_max)
         & pd.to_numeric(frame["mean_min_quote_size_dollar"], errors="coerce").ge(min_quote_size_dollar)
     )
     if apply_rel_strike:
@@ -98,8 +100,8 @@ def baseline_regression_spec() -> RegressionSpec:
     # Post2024 varies only by day, so day fixed effects would absorb it.
     return RegressionSpec(
         name="baseline_post2024",
-        dependent="mean_amu_bp",
-        regressors=("post_2024", "spread_bp", "depth_proxy", "stale_proxy"),
+        dependent="mean_mma_bp",
+        regressors=("post_2024", "average_put_call_spread_bp", "log_mean_min_quote_size_dollar", "stale_proxy"),
         fixed_effects=("cell_id",),
     )
 
@@ -108,8 +110,8 @@ def forward_regression_spec() -> RegressionSpec:
     # The directional post-2024 term is likewise identified off within-cell time variation.
     return RegressionSpec(
         name="forward_component",
-        dependent="mean_amu_fwd_bp",
-        regressors=("post_2024", "spread_bp", "depth_proxy"),
+        dependent="mean_mma_fwd_bp",
+        regressors=("post_2024", "average_put_call_spread_bp", "log_mean_min_quote_size_dollar"),
         fixed_effects=("cell_id",),
     )
 
@@ -117,8 +119,8 @@ def forward_regression_spec() -> RegressionSpec:
 def backward_regression_spec() -> RegressionSpec:
     return RegressionSpec(
         name="backward_component",
-        dependent="mean_amu_bck_bp",
-        regressors=("post_2024", "spread_bp", "depth_proxy"),
+        dependent="mean_mma_bck_bp",
+        regressors=("post_2024", "average_put_call_spread_bp", "log_mean_min_quote_size_dollar"),
         fixed_effects=("cell_id",),
     )
 
@@ -127,7 +129,7 @@ def interaction_regression_spec() -> RegressionSpec:
     # Cell fixed effects absorb ETH/ATM/ShortTTE main effects; day fixed effects absorb Post2024.
     return RegressionSpec(
         name="interaction_segments",
-        dependent="mean_amu_bp",
+        dependent="mean_mma_bp",
         regressors=("post_2024_x_eth", "post_2024_x_nonatm", "post_2024_x_short_tte"),
         fixed_effects=("cell_id", "day"),
     )
