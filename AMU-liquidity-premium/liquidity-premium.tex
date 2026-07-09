@@ -75,6 +75,9 @@ Put--call parity (PCP) is one of the most basic no-arbitrage restrictions in opt
 
 This paper studies that wedge in cryptocurrency option markets. Our starting point is \textit{Absolute Market Unfairness} (AMU), a model-free measure of the positive arbitrage profit implied by quoted option and futures prices after contract-specific conversion and explicit trading-cost adjustments. AMU is designed for crypto derivatives markets, where inverse settlement, non-standard collateral conventions, and fragmented exchange design make textbook parity relations insufficient on their own. By expressing the executable wedge in basis points of comparable notional, AMU turns heterogeneous option quotes into a common market-quality measure.
 
+
+The trading costs are knowable, but they are specified in a very complex way. Throughout this paper we assume a fixed proportional cost of {\CostPerNotional}  for a full arbitrage round trip. This is reasonable but definitely not exact. However, the time-dependence of the AMU measure is robust to the exact cost level. Different venues can also be compared directly from the point of view of efficiency if the same cost structure is assumed. At the end of the day, the trading cost assumptions only serve to ensure that AMU values are reasonable, but the comparisons do not depend on them.  
+
 The paper then asks a second question: what economic object does AMU measure? The cross-sectional evidence already points to a liquidity-premium interpretation. AMU is higher for ETH than for BTC, higher away from the money than near the money, higher in short maturities than in longer maturities, and higher during periods of market stress. Those are exactly the segments in which arbitrage is harder to implement and market makers can preserve wider effective markups. This suggests that observed PCP deviations are not best understood as random pricing mistakes, but as the residual compensation left to liquidity suppliers when the law of one price is costly to enforce.
 
 The time-series motivation is the institutionalization of crypto markets around 2024. The approval of U.S. spot Bitcoin exchange-traded products in January 2024, the later Ether ETF milestones, and the staged implementation of MiCA plausibly expanded the set of investors able to deploy arbitrage capital in a legally and operationally robust way \citep{sec_spot_bitcoin_etp_2024, sec_spot_ether_etp_2024, esma_mica_2024}. Our working hypothesis is therefore not that traders suddenly discovered parity, but that the no-arbitrage band narrowed as custody, regulation, execution, and competition improved.
@@ -105,23 +108,7 @@ ETF pricing provides a second analogy. ETF prices are kept close to net asset va
 
 Put--call parity remains the right no-arbitrage benchmark in crypto options, but the implementation is contract-specific. The most liquid contracts in our sample are inverse BTCUSD and ETHUSD options on Deribit and OKX, where contracts are quoted against a USD index but collateral, premium, and settlement are denominated in the underlying cryptocurrency. As a result, parity must be written after converting option premia and futures legs into a common currency using the platform-specific payoff convention \citep{alexander2023crypto, lucic2024valuation}. We therefore focus on inverse options and matching expiry futures, rather than presenting a general taxonomy of all crypto contract classes in the main text.
 
-\subsection{From executable arbitrage to AMU}
-
-Let $X_{i,t}$ denote the quoted put--call parity wedge for option pair $i$ at time $t$, expressed in basis points of the underlying notional after contract-specific conversion into a common currency. In a standard textbook setting, $X_{i,t}=0$. In our terminology, the signed path-level quantity is \textit{market maker arbitrage} (MMA):
-
-\begin{equation}
-\mathrm{MMA}_{i,t}=\frac{\Pi_{i,t}}{N_{i,t}}\times 10{,}000,
-\end{equation}
-
-and AMU is the positive-part average of MMA:
-
-\begin{equation}
-\mathrm{AMU}_{g,t}=\frac{1}{n_{g,t}}\sum_{i\in g,t}\max\!\left(0,\mathrm{MMA}_{i,t}\right),
-\end{equation}
-
-where $\Pi_{i,t}$ is the best available PCP-arbitrage profit across the implementable arbitrage paths and $N_{i,t}$ is the option contract's underlying notional. In practice, $\Pi_{i,t}$ is computed from synchronized option and futures quotes using the relevant inverse-contract payoff structure \citep{alexander2023crypto, lucic2024valuation}, with explicit commission and bid--ask adjustments.
-
-MMA is path-specific, because executable profit depends on forward/backward implementation and on whether the call-side or put-side quote is joined. The four path definitions are shown in linear and inverse form below, where join call and join put are implemented via the quote identities $C_{ask}=C_{bid}+\mathrm{spr}_c$ and $P_{ask}=P_{bid}+\mathrm{spr}_p$.
+MMA is path-specific, because executable profit depends on forward/backward implementation and on whether the call-side or put-side quote is joined. The four path definitions are shown in Table~\ref{tab:arbitrage_eight_formulas}. The positive part of the MMA distribution is then aggregated into AMU, which is a daily summary measure of the residual arbitrage wedge after contract-specific conversion and trading-cost adjustments.
 
 \begin{table}[htbp]
 \centering
@@ -148,6 +135,22 @@ $(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \bottomrule
 \end{tabularx}
 \end{table}
+
+\subsection{From executable arbitrage to AMU}
+
+Let $X_{i,t}$ denote the quoted put--call parity wedge for option pair $i$ at time $t$, expressed in basis points of the underlying notional after contract-specific conversion into a common currency. In a standard textbook setting, $X_{i,t}=0$. In our terminology, the signed path-level quantity is \textit{market maker arbitrage} (MMA):
+
+\begin{equation}
+\mathrm{MMA}_{i,t}=\frac{\Pi_{i,t}}{N_{i,t}}\times 10{,}000,
+\end{equation}
+
+and AMU is the positive-part average of MMA:
+
+\begin{equation}
+\mathrm{AMU}_{g,t}=\frac{1}{n_{g,t}}\sum_{i\in g,t}\max\!\left(0,\mathrm{MMA}_{i,t}\right),
+\end{equation}
+
+where $\Pi_{i,t}$ is the best available PCP-arbitrage profit across the implementable arbitrage paths and $N_{i,t}$ is the option contract's underlying notional. In practice, $\Pi_{i,t}$ is computed from synchronized option and futures quotes using the relevant inverse-contract payoff structure \citep{alexander2023crypto, lucic2024valuation}, with explicit commission and bid--ask adjustments. The path-level linear and inverse formulas are summarized in Table~\ref{tab:arbitrage_eight_formulas}.
 
 For inverse crypto contracts, option premia are first converted into a common settlement unit via index scaling, consistent with the inverse payoff conventions in \citet{alexander2023crypto, lucic2024valuation}. Operationally, we evaluate these executable paths on synchronized quotes, convert each path into basis points of comparable notional (this is the MMA), and then aggregate with $\max(0,\mathrm{MMA})$ to obtain AMU. The daily AMU summary is therefore not a settlement-price anomaly. It is the average positive executable wedge left in quoted prices after the contract mechanics and trading frictions are handled correctly.
 
