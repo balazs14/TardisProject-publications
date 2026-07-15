@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import inspect
+import pickle
 from collections.abc import Iterable
 from datetime import date
 from pathlib import Path
@@ -38,6 +39,8 @@ rel_strike_min_default = float(filters_cfg["rel_strike_min"])
 rel_strike_max_default = float(filters_cfg["rel_strike_max"])
 spread_bp_max_default = int(filters_cfg["spread_bp_max"])
 min_quote_size_dollar_default = float(filters_cfg["min_quote_size_dollar"])
+min_mma_bp_default = float(filters_cfg["min_mma_bp"])
+max_mma_bp_default = float(filters_cfg["max_mma_bp"])
 max_amu_bp_default = int(filters_cfg["max_amu_bp"])
 
 pcpb_columns = list(statistics_cfg["pcpb_columns"])
@@ -50,6 +53,11 @@ pcp_metric_kwargs = {
     "contract_size": float(pcp_cfg["contract_size"]),
 }
 
+event_dates = {
+    label: pd.Timestamp(value)
+    for label, value in CONFIG["figures"]["event_dates"].items()
+}
+
 
 def write_dynamic_tex_assumptions(publication_dir: str | Path = PUBLICATION_DIR) -> dict[str, Path]:
     """Write dynamic TeX inputs used by the paper from live config/code defaults."""
@@ -60,6 +68,7 @@ def write_dynamic_tex_assumptions(publication_dir: str | Path = PUBLICATION_DIR)
     short_tte_cutoff = float(regression_cfg["short_tte_cutoff"])
     cost_per_notional = float(pcp_cfg["cost_per_notional"])
     max_amu_bp = int(filters_cfg["max_amu_bp"])
+    max_mma_bp = int(filters_cfg["max_mma_bp"])
     min_quote_size_dollar = float(filters_cfg["min_quote_size_dollar"])
     spread_bp_max = int(filters_cfg["spread_bp_max"])
     rel_strike_min = float(filters_cfg["rel_strike_min"])
@@ -71,16 +80,38 @@ def write_dynamic_tex_assumptions(publication_dir: str | Path = PUBLICATION_DIR)
     sample_freq_default = inspect.signature(build_amu_panel).parameters["sample_freq"].default
 
     regression_cutoffs_path = output_dir / "regression_cutoffs.tex"
+    cutoff_macros = {
+        "RegNonAtmCutoff": f"{nonatm_distance:g}",
+        "RegShortTteCutoff": f"{short_tte_cutoff:g}",
+        "CostPerNotional": f"{cost_per_notional:g}",
+        "MaxAmuBps": f"{max_amu_bp:d}",
+        "MaxMmaBps": f"{max_mma_bp:d}",
+        "SampleFreqDefault": f"{sample_freq_default}",
+        "MinQuoteSizeDollar": f"{min_quote_size_dollar:g}",
+        "SpreadBpMax": f"{spread_bp_max:d}",
+        "RelStrikeMin": f"{rel_strike_min:g}",
+        "RelStrikeMax": f"{rel_strike_max:g}",
+    }
+    required_cutoff_macros = {
+        "RegNonAtmCutoff",
+        "RegShortTteCutoff",
+        "CostPerNotional",
+        "MaxAmuBps",
+        "MaxMmaBps",
+        "SampleFreqDefault",
+        "MinQuoteSizeDollar",
+        "SpreadBpMax",
+        "RelStrikeMin",
+        "RelStrikeMax",
+    }
+    missing_cutoff_macros = required_cutoff_macros - set(cutoff_macros)
+    assert not missing_cutoff_macros, f"Missing regression cutoff macros: {sorted(missing_cutoff_macros)}"
+
     regression_cutoffs_path.write_text(
-        "\\newcommand{\\RegNonAtmCutoff}{" + f"{nonatm_distance:g}" + "}\n"
-        "\\newcommand{\\RegShortTteCutoff}{" + f"{short_tte_cutoff:g}" + "}\n"
-        "\\newcommand{\\CostPerNotional}{" + f"{cost_per_notional:g}" + "}\n"
-        "\\newcommand{\\MaxAmuBps}{" + f"{max_amu_bp:d}" + "}\n"
-        "\\newcommand{\\SampleFreqDefault}{" + f"{sample_freq_default}" + "}\n"
-        "\\newcommand{\\MinQuoteSizeDollar}{" + f"{min_quote_size_dollar:g}" + "}\n"
-        "\\newcommand{\\SpreadBpMax}{" + f"{spread_bp_max:d}" + "}\n"
-        "\\newcommand{\\RelStrikeMin}{" + f"{rel_strike_min:g}" + "}\n"
-        "\\newcommand{\\RelStrikeMax}{" + f"{rel_strike_max:g}" + "}\n",
+        "".join(
+            f"\\newcommand{{\\{name}}}{{{value}}}\n"
+            for name, value in cutoff_macros.items()
+        ),
         encoding="utf-8",
     )
 
@@ -94,6 +125,8 @@ def filter_ticks(
     rel_strike_max: float = rel_strike_max_default,
     spread_bp_max: int = spread_bp_max_default,
     min_quote_size_dollar: float = min_quote_size_dollar_default,
+    min_mma_bp: float = min_mma_bp_default,
+    max_mma_bp: float = max_mma_bp_default,
     *,
     apply_rel_strike: bool = True,
 ) -> pl.DataFrame | pl.LazyFrame | pd.DataFrame:
@@ -121,6 +154,13 @@ def filter_ticks(
         )
         if apply_rel_strike:
             mask = mask & pd.to_numeric(df["rel_strike"], errors="coerce").between(rel_strike_min, rel_strike_max)
+        mma_columns = [
+            column
+            for column in ("fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp", "mma_fwd_bp", "mma_bck_bp")
+            if column in df.columns
+        ]
+        for column in mma_columns:
+            mask = mask & pd.to_numeric(df[column], errors="coerce").between(min_mma_bp, max_mma_bp)
         return df.loc[mask].copy()
 
     if isinstance(df, (pl.DataFrame, pl.LazyFrame)):
@@ -132,6 +172,13 @@ def filter_ticks(
         )
         if apply_rel_strike:
             expr = expr & pl.col("rel_strike").is_between(rel_strike_min, rel_strike_max)
+        mma_columns = [
+            column
+            for column in ("fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp", "mma_fwd_bp", "mma_bck_bp")
+            if column in column_names
+        ]
+        for column in mma_columns:
+            expr = expr & pl.col(column).is_between(min_mma_bp, max_mma_bp)
         return df.filter(expr)
 
     raise TypeError(f"Unsupported frame type: {type(df)}")
@@ -148,7 +195,7 @@ def build_amu_statistics_frame_cached_path(
     to_date: str | None = None,
     force_recreate_cache: bool = False,
 ) -> Path:
-    key = "amu_statistics_frame_v2"
+    key = "amu_statistics_frame"
     if not force_recreate_cache:
         cached = get_cached_frame_parquet_path(cache_path, key)
         if cached is not None:
@@ -241,6 +288,10 @@ def dataframe_to_tabular_tex(df: pd.DataFrame, path: Path) -> None:
         bold_rows=False,
     )
     path.write_text(latex, encoding="utf-8")
+
+
+# Backward-compatible alias for temporary rename used during debugging.
+F_tabular_tex = dataframe_to_tabular_tex
 
 
 def _gaussian_kernel_smooth(x: np.ndarray, y: np.ndarray, *, bandwidth: float = 0.02) -> np.ndarray:
@@ -336,47 +387,57 @@ def inspect_pcpb_input_from_parquet(parquet_path: str | Path) -> None:
 
 @debug_runtime("write_summary_daily_table_from_parquet")
 def write_summary_daily_table_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
-    filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
-    strikes_lf = filter_ticks(_lazy_pcpb(parquet_path), apply_rel_strike=False)
-    group_keys = ["ref_sym", "exchange", "timestamp"]
-    per_ts = filtered_lf.group_by(group_keys).agg(
-        pl.len().alias("num_contracts_ts"),
-        pl.col("exp").n_unique().alias("num_expirations_ts"),
-        pl.col("call_opt_spread_bp").mean().alias("call_spread_bp_ts"),
-        pl.col("put_opt_spread_bp").mean().alias("put_spread_bp_ts"),
-    )
-    strikes_per_ts = strikes_lf.group_by(group_keys).agg(
-        pl.col("strike").n_unique().alias("num_strikes_ts"),
-    )
-    per_ts = per_ts.join(strikes_per_ts, on=group_keys, how="left")
-    n_days = filtered_lf.group_by(["ref_sym", "exchange"]).agg(pl.col("mdy").n_unique().alias("Num days in sample"))
-    summary = (
-        per_ts.group_by(["ref_sym", "exchange"])
-        .agg(
-            pl.col("num_contracts_ts").mean().alias("Avg num contracts"),
-            pl.col("num_expirations_ts").mean().alias("Avg num expirations"),
-            pl.col("num_strikes_ts").mean().alias("Avg num strikes"),
-            pl.col("call_spread_bp_ts").mean().alias("Avg call spread (bp)"),
-            pl.col("put_spread_bp_ts").mean().alias("Avg put spread (bp)"),
+    cache_path = output_dir / "descriptive_summary_daily_numeric_cache.pkl"
+    if not _regression_force_recreate_cache_enabled() and cache_path.exists():
+        with cache_path.open("rb") as handle:
+            summary_t = pickle.load(handle)
+        logger.debug("write_summary_daily_table_from_parquet using cached numerical output cache_path=%s", cache_path)
+    else:
+        filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
+        strikes_lf = filter_ticks(_lazy_pcpb(parquet_path), apply_rel_strike=False)
+        group_keys = ["ref_sym", "exchange", "timestamp"]
+        per_ts = filtered_lf.group_by(group_keys).agg(
+            pl.len().alias("num_contracts_ts"),
+            pl.col("exp").n_unique().alias("num_expirations_ts"),
+            pl.col("call_opt_spread_bp").mean().alias("call_spread_bp_ts"),
+            pl.col("put_opt_spread_bp").mean().alias("put_spread_bp_ts"),
         )
-        .join(n_days, on=["ref_sym", "exchange"], how="left")
-        .sort(["ref_sym", "exchange"])
-        .collect()
-    )
+        strikes_per_ts = strikes_lf.group_by(group_keys).agg(
+            pl.col("strike").n_unique().alias("num_strikes_ts"),
+        )
+        per_ts = per_ts.join(strikes_per_ts, on=group_keys, how="left")
+        n_days = filtered_lf.group_by(["ref_sym", "exchange"]).agg(pl.col("mdy").n_unique().alias("Num days in sample"))
+        summary = (
+            per_ts.group_by(["ref_sym", "exchange"])
+            .agg(
+                pl.col("num_contracts_ts").mean().alias("Avg num contracts"),
+                pl.col("num_expirations_ts").mean().alias("Avg num expirations"),
+                pl.col("num_strikes_ts").mean().alias("Avg num strikes"),
+                pl.col("call_spread_bp_ts").mean().alias("Avg call spread (bp)"),
+                pl.col("put_spread_bp_ts").mean().alias("Avg put spread (bp)"),
+            )
+            .join(n_days, on=["ref_sym", "exchange"], how="left")
+            .sort(["ref_sym", "exchange"])
+            .collect()
+        )
 
-    summary_pd = summary.to_pandas()
-    for column in [
-        "Avg num contracts",
-        "Avg num expirations",
-        "Avg num strikes",
-        "Num days in sample",
-        "Avg call spread (bp)",
-        "Avg put spread (bp)",
-    ]:
-        summary_pd[column] = pd.to_numeric(summary_pd[column], errors="coerce").round(0).astype("Int64")
+        summary_pd = summary.to_pandas()
+        for column in [
+            "Avg num contracts",
+            "Avg num expirations",
+            "Avg num strikes",
+            "Num days in sample",
+            "Avg call spread (bp)",
+            "Avg put spread (bp)",
+        ]:
+            summary_pd[column] = pd.to_numeric(summary_pd[column], errors="coerce").round(0).astype("Int64")
 
-    summary_t = summary_pd.set_index(["ref_sym", "exchange"]).T
-    summary_t.columns = summary_t.columns.set_names([None, None])
+        summary_t = summary_pd.set_index(["ref_sym", "exchange"]).T
+        summary_t.columns = summary_t.columns.set_names([None, None])
+        with cache_path.open("wb") as handle:
+            pickle.dump(summary_t, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        logger.debug("write_summary_daily_table_from_parquet refreshed numerical cache cache_path=%s", cache_path)
+
     output_path = output_dir / "summary_daily_option_coverage_table.tex"
     dataframe_to_tabular_tex(summary_t, output_path)
     return output_path
@@ -384,28 +445,42 @@ def write_summary_daily_table_from_parquet(parquet_path: str | Path, *, output_d
 
 @debug_runtime("write_amu_summary_table_from_parquet")
 def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
-    filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
-    lf = _add_amu_bps_columns(filtered_lf.group_by(["ref_sym", "exchange"]).agg(_amu_agg_exprs()))
-    table = (
-        lf.select(
-            pl.col("ref_sym").alias("underlying"),
-            "exchange",
-            pl.col("amu_bps").alias("mean AMU(bps)"),
-            pl.col("num_has_amu").alias("positive MMA occurs"),
-            pl.col("num_pairs").alias("Num Observations"),
+    cache_path = output_dir / "descriptive_amu_summary_numeric_cache.pkl"
+    if not _regression_force_recreate_cache_enabled() and cache_path.exists():
+        with cache_path.open("rb") as handle:
+            table = pickle.load(handle)
+        logger.debug("write_amu_summary_table_from_parquet using cached numerical output cache_path=%s", cache_path)
+    else:
+        filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
+        lf = _add_amu_bps_columns(filtered_lf.group_by(["ref_sym", "exchange"]).agg(_amu_agg_exprs()))
+        table = (
+            lf.select(
+                pl.col("ref_sym").alias("underlying"),
+                "exchange",
+                pl.col("amu_bps").alias("mean AMU(bps)"),
+                pl.col("num_has_amu").alias("positive MMA occurs"),
+                pl.col("num_pairs").alias("Num Observations"),
+            )
+            .sort(["underlying", "exchange"])
+            .collect()
+            .to_pandas()
         )
-        .sort(["underlying", "exchange"])
-        .collect()
-        .to_pandas()
-    )
-    table = table.set_index(["underlying", "exchange"])
-    table["mean AMU(bps)"] = table["mean AMU(bps)"].map(lambda value: f"{value:.2f}" if pd.notna(value) else "")
-    for column in ["positive MMA occurs", "Num Observations"]:
-        table[column] = table[column].map(lambda value: f"{int(value):,}" if pd.notna(value) else "")
+        table = table.set_index(["underlying", "exchange"])
+        table["mean AMU(bps)"] = table["mean AMU(bps)"].map(lambda value: f"{value:.2f}" if pd.notna(value) else "")
+        for column in ["positive MMA occurs", "Num Observations"]:
+            table[column] = table[column].map(lambda value: f"{int(value):,}" if pd.notna(value) else "")
+        with cache_path.open("wb") as handle:
+            pickle.dump(table, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        logger.debug("write_amu_summary_table_from_parquet refreshed numerical cache cache_path=%s", cache_path)
 
     output_path = output_dir / "amu_summary_table.tex"
     dataframe_to_tabular_tex(table, output_path)
     return output_path
+
+
+def _regression_force_recreate_cache_enabled() -> bool:
+    value = os.environ.get("REGRESSION_FORCE_RECREATE_CACHE", "1").strip().lower()
+    return value not in {"0", "false", "no", "off"}
 
 
 @debug_runtime("plot_4_spreads_from_parquet")
@@ -425,6 +500,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
     ]
     bin_edges = np.linspace(-rng, rng, 101)
     bin_width = float(bin_edges[1] - bin_edges[0])
+    cost_per_notional_bp = -float(pcp_cfg["cost_per_notional"]) * 10_000.0
     hist_counts: dict[tuple[str, str, str], np.ndarray] = {}
     sample_sizes: dict[tuple[str, str, str], int] = {}
     clipped_sums: dict[tuple[str, str, str], float] = {}
@@ -517,7 +593,211 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
         len(output_paths),
         len(hist_counts),
     )
+
+    target_markets = [
+        ("deribit", "BTCUSD"),
+        ("okex", "BTCUSD"),
+        ("deribit", "ETHUSD"),
+        ("okex", "ETHUSD"),
+    ]
+    fig, ax = plt.subplots(figsize=(10, 6))
+    visible_max = 0.0
+    spread_columns = ["fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp"]
+    for column, color in zip(["fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp"], sns.color_palette("deep", n_colors=4), strict=False):
+        curves: list[np.ndarray] = []
+        for exchange, ref_sym in target_markets:
+            key = (exchange, ref_sym, column)
+            if key not in hist_counts or sample_sizes.get(key, 0) == 0:
+                continue
+            curves.append(hist_counts[key] / (sample_sizes[key] * bin_width))
+        if not curves:
+            continue
+        avg_counts = np.mean(np.vstack(curves), axis=0)
+        visible_max = max(visible_max, float(np.nanmax(avg_counts)) if avg_counts.size else 0.0)
+        centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+        x_fine = np.linspace(-rng, rng, 800)
+        y_fine = np.interp(x_fine, centers, avg_counts, left=0.0, right=0.0)
+        ax.plot(x_fine[x_fine < 0], y_fine[x_fine < 0], color=color, linestyle="--", linewidth=1.6, alpha=0.9)
+        ax.plot(x_fine[x_fine >= 0], y_fine[x_fine >= 0], color=color, linestyle="-", linewidth=2.6, alpha=1.0, label=column)
+
+    overall_clipped_sum = 0.0
+    overall_positive_count = 0
+    for exchange, ref_sym in target_markets:
+        for column in spread_columns:
+            key = (exchange, ref_sym, column)
+            overall_clipped_sum += clipped_sums.get(key, 0.0)
+            overall_positive_count += positive_counts.get(key, 0)
+    overall_amu_bp = (overall_clipped_sum / overall_positive_count) if overall_positive_count > 0 else np.nan
+
+    ax.axvline(0, color="black", linestyle="-", linewidth=3.0, alpha=0.8)
+    ax.axvline(cost_per_notional_bp, color="black", linestyle="--", linewidth=2.0, alpha=0.8)
+    ax.set_xlim(-rng, rng)
+    ax.set_ylim(0, visible_max * 1.05 if visible_max > 0 else 1.0)
+    ax.set_xlabel("MMA bp")
+    ax.set_ylabel("Density")
+    ax.set_title("MMA distribution")
+    ax.legend(title="Spread")
+    ax.text(
+        0.16,
+        0.90,
+        "no MM arbitrage",
+        color="#b2182b",
+        transform=ax.transAxes,
+        bbox=dict(boxstyle="round", facecolor="white", edgecolor="#b2182b", alpha=0.85),
+        va="top",
+        ha="left",
+    )
+    ax.text(
+        0.98,
+        0.90,
+        f"AMU = {overall_amu_bp:.1f} bp",
+        color="#1b9e77",
+        transform=ax.transAxes,
+        bbox=dict(boxstyle="round", facecolor="white", edgecolor="#1b9e77", alpha=0.85),
+        va="top",
+        ha="right",
+    )
+    ax.text(
+        0.98,
+        0.82,
+        f"Cost = {cost_per_notional_bp:.1f} bp",
+        color="black",
+        transform=ax.transAxes,
+        va="top",
+        ha="right",
+    )
+    output_path_avg = output_dir / "all_markets_avg_4_spreads.pdf"
+    fig.tight_layout()
+    fig.savefig(output_path_avg, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    output_paths.append(output_path_avg)
+    logger.debug("Saved aggregate spread figure %s", output_path_avg)
+
     return output_paths
+
+
+@debug_runtime("plot_total_mma_hist_pre_post_btc_etp_from_parquet")
+def plot_total_mma_hist_pre_post_btc_etp_from_parquet(parquet_path: str | Path, *, output_dir: Path, rng: int = 100) -> Path:
+    parquet = pq.ParquetFile(str(parquet_path))
+    columns = [
+        "mdy",
+        "rel_strike",
+        "call_opt_spread_bp",
+        "put_opt_spread_bp",
+        "min_quote_size_dollar",
+        "fwd_joincall_bp",
+        "fwd_joinput_bp",
+        "bck_joincall_bp",
+        "bck_joinput_bp",
+    ]
+    spread_columns = ["fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp"]
+    bin_edges = np.linspace(-rng, rng, 101)
+    bin_width = float(bin_edges[1] - bin_edges[0])
+    cost_per_notional_bp = -float(pcp_cfg["cost_per_notional"]) * 10_000.0
+
+    event_day = pd.Timestamp(str(regression_cfg["post_2024_start"])).date()
+
+    pre_hist = np.zeros(len(bin_edges) - 1, dtype=float)
+    post_hist = np.zeros(len(bin_edges) - 1, dtype=float)
+    pre_count = 0
+    post_count = 0
+    pre_clipped_sum = 0.0
+    post_clipped_sum = 0.0
+    pre_positive_count = 0
+    post_positive_count = 0
+
+    for batch in parquet.iter_batches(batch_size=100_000, columns=columns):
+        chunk = pl.from_arrow(batch)
+        chunk = filter_ticks(chunk)
+        if chunk.is_empty():
+            continue
+        mdy = pd.to_datetime(chunk.get_column("mdy").to_numpy(), errors="coerce")
+        pre_mask = np.asarray(mdy < pd.Timestamp(event_day))
+        post_mask = np.asarray(mdy >= pd.Timestamp(event_day))
+
+        for column in spread_columns:
+            values = chunk.get_column(column).cast(pl.Float64, strict=False).to_numpy()
+            valid = np.isfinite(values)
+            if np.any(pre_mask & valid):
+                v = values[pre_mask & valid]
+                hist, _ = np.histogram(v, bins=bin_edges, density=False)
+                pre_hist += hist
+                pre_count += int(v.size)
+                pre_clipped_sum += float(np.clip(v, 0.0, float(max_amu_bp_default)).sum())
+                pre_positive_count += int(np.sum(v > 0))
+            if np.any(post_mask & valid):
+                v = values[post_mask & valid]
+                hist, _ = np.histogram(v, bins=bin_edges, density=False)
+                post_hist += hist
+                post_count += int(v.size)
+                post_clipped_sum += float(np.clip(v, 0.0, float(max_amu_bp_default)).sum())
+                post_positive_count += int(np.sum(v > 0))
+
+    pre_density = pre_hist / (pre_count * bin_width) if pre_count > 0 else np.zeros_like(pre_hist)
+    post_density = post_hist / (post_count * bin_width) if post_count > 0 else np.zeros_like(post_hist)
+    centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+    x_fine = np.linspace(-rng, rng, 800)
+    pre_fine = np.interp(x_fine, centers, pre_density, left=0.0, right=0.0)
+    post_fine = np.interp(x_fine, centers, post_density, left=0.0, right=0.0)
+
+    sns.set_theme(style="whitegrid", context="talk")
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(x_fine, pre_fine, color="#1f77b4", linewidth=2.4, label="Pre 2024")
+    ax.plot(x_fine, post_fine, color="#d62728", linewidth=2.4, label="Post 2024")
+    ax.axvline(0, color="black", linestyle="-", linewidth=2.6, alpha=0.85)
+    ax.axvline(cost_per_notional_bp, color="black", linestyle="--", linewidth=2.0, alpha=0.8)
+    ax.set_xlim(-rng, rng)
+    visible_max = max(float(np.nanmax(pre_fine)) if pre_fine.size else 0.0, float(np.nanmax(post_fine)) if post_fine.size else 0.0)
+    ax.set_ylim(0, visible_max * 1.05 if visible_max > 0 else 1.0)
+    ax.set_xlabel("MMA bp")
+    ax.set_ylabel("Density")
+    ax.set_title("Total MMA histogram: Pre/Post 2024")
+    ax.legend(title="")
+
+    pre_amu_bp = (pre_clipped_sum / pre_positive_count) if pre_positive_count > 0 else np.nan
+    post_amu_bp = (post_clipped_sum / post_positive_count) if post_positive_count > 0 else np.nan
+    ax.text(
+        0.16,
+        0.90,
+        "no MM arbitrage",
+        color="#b2182b",
+        transform=ax.transAxes,
+        bbox=dict(boxstyle="round", facecolor="white", edgecolor="#b2182b", alpha=0.85),
+        va="top",
+        ha="left",
+    )
+    ax.text(
+        0.98,
+        0.90,
+        f"Pre AMU = {pre_amu_bp:.1f} bp",
+        color="#1f77b4",
+        transform=ax.transAxes,
+        bbox=dict(boxstyle="round", facecolor="white", edgecolor="#1f77b4", alpha=0.85),
+        va="top",
+        ha="right",
+    )
+    ax.text(
+        0.98,
+        0.80,
+        f"Post AMU = {post_amu_bp:.1f} bp",
+        color="#d62728",
+        transform=ax.transAxes,
+        bbox=dict(boxstyle="round", facecolor="white", edgecolor="#d62728", alpha=0.85),
+        va="top",
+        ha="right",
+    )
+
+    output_path = output_dir / "total_mma_hist_pre_post_btc_etp.pdf"
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    logger.debug(
+        "Saved pre/post MMA histogram %s pre_count=%d post_count=%d",
+        output_path,
+        pre_count,
+        post_count,
+    )
+    return output_path
 
 
 @debug_runtime("plot_amu_bps_by_date_from_parquet")
@@ -550,7 +830,14 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
 
     lines, labels = ax.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax.legend(lines + lines2, labels + labels2, loc="upper left", title="")
+    ax.legend(
+        lines + lines2,
+        labels + labels2,
+        loc="upper left",
+        bbox_to_anchor=(-0.15, 1.0),
+        borderaxespad=0.0,
+        title="",
+    )
     if ax2.legend_ is not None:
         ax2.legend_.remove()
 
@@ -572,6 +859,94 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
         amu_max,
         btc_min,
         btc_max,
+        output_path,
+    )
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    return output_path
+
+
+@debug_runtime("plot_amu_bps_avg_2023_2024_with_events_from_parquet")
+def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
+    filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
+    lf = filtered_lf.with_columns(
+        (pl.col("exchange").cast(pl.Utf8) + pl.lit(" | ") + pl.col("ref_sym").cast(pl.Utf8)).alias("market")
+    )
+    daily_amu = _add_amu_bps_columns(
+        lf.group_by(["mdy", "exchange", "ref_sym", "market"]).agg(_amu_agg_exprs())
+    ).select(["mdy", "exchange", "ref_sym", "market", "amu_bps"]).sort(["market", "mdy"]).collect().to_pandas()
+
+    start = pd.Timestamp("2023-01-01")
+    end = pd.Timestamp("2024-12-31")
+    target_markets = {
+        ("deribit", "BTCUSD"),
+        ("okex", "BTCUSD"),
+        ("deribit", "ETHUSD"),
+        ("okex", "ETHUSD"),
+    }
+    plot_frame = daily_amu.loc[
+        daily_amu.apply(lambda row: (str(row["exchange"]), str(row["ref_sym"])) in target_markets, axis=1)
+    ].copy()
+    plot_frame["mdy"] = pd.to_datetime(plot_frame["mdy"])
+    plot_frame = plot_frame.loc[plot_frame["mdy"].between(start, end)]
+
+    avg_daily = (
+        plot_frame.groupby("mdy", as_index=False)["amu_bps"]
+        .mean()
+        .sort_values("mdy")
+    )
+
+    sns.set_theme(style="whitegrid", context="talk")
+    fig, ax = plt.subplots(figsize=(11, 6))
+    if avg_daily.empty:
+        ax.set_axis_off()
+        ax.text(
+            0.5,
+            0.5,
+            "No AMU observations for 2023-01-01 to 2024-12-31 in the target markets",
+            ha="center",
+            va="center",
+            wrap=True,
+        )
+    else:
+        sns.lineplot(data=avg_daily, x="mdy", y="amu_bps", color="#1f77b4", linewidth=2.6, ax=ax)
+
+    from matplotlib.lines import Line2D
+
+    event_handles: list[Line2D] = []
+    event_palette = sns.color_palette("tab10", n_colors=max(len(event_dates), 1))
+    for idx, (label, event_day) in enumerate(event_dates.items()):
+        event_ts = pd.Timestamp(event_day)
+        if start <= event_ts <= end:
+            event_color = event_palette[idx % len(event_palette)]
+            ax.axvline(event_ts, color=event_color, linestyle="-", linewidth=2.2, alpha=0.95)
+            event_handles.append(Line2D([0], [0], color=event_color, linestyle="-", linewidth=2.2, label=label))
+
+    avg_handle = Line2D([0], [0], color="#1f77b4", linestyle="-", linewidth=2.6, label="Avg AMU (all markets)")
+    handles = [avg_handle, *event_handles]
+    if handles:
+        ax.legend(
+            handles=handles,
+            loc="upper left",
+            bbox_to_anchor=(1.02, 1.0),
+            borderaxespad=0.0,
+            title="Vertical lines: main events",
+        )
+
+    ax.set_xlabel("Date")
+    ax.set_ylabel("AMU bps")
+    ax.set_title("AMU by Date (2023-2024) with Main Events")
+    ax.tick_params(axis="x", labelrotation=90)
+
+    output_path = output_dir / "multi_exchange_amu_bps_by_date_2023_2024_avg_events.pdf"
+    amu_min = float(avg_daily["amu_bps"].min()) if not avg_daily.empty else np.nan
+    amu_max = float(avg_daily["amu_bps"].max()) if not avg_daily.empty else np.nan
+    logger.debug(
+        "Date avg-event plot summary: rows=%d amu_bp_range=[%.2f, %.2f] output=%s",
+        len(avg_daily),
+        amu_min,
+        amu_max,
         output_path,
     )
     fig.tight_layout()
@@ -792,7 +1167,9 @@ def generate_all_statistics(
         "summary_daily_option_coverage_table": write_summary_daily_table_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "amu_summary_table": write_amu_summary_table_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "spread_figures": plot_4_spreads_from_parquet(pcpb_parquet_path, output_dir=output_root),
+        "total_mma_hist_pre_post_btc_etp": plot_total_mma_hist_pre_post_btc_etp_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "multi_exchange_amu_bps_by_date": plot_amu_bps_by_date_from_parquet(pcpb_parquet_path, output_dir=output_root),
+        "multi_exchange_amu_bps_by_date_2023_2024_avg_events": plot_amu_bps_avg_2023_2024_with_events_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "multi_exchange_amu_bps_by_rel_strike": plot_amu_bps_by_rel_strike_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "multi_exchange_amu_bps_by_tte": plot_amu_bps_by_tte_from_parquet(pcpb_parquet_path, output_dir=output_root),
     }

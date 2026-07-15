@@ -36,13 +36,14 @@ def _load_config() -> dict[str, Any]:
 
 CONFIG = _load_config()
 
-CACHE_VERSION = int(CONFIG["cache"]["version"])
 PARQUET_BATCH_ROWS = int(CONFIG["cache"]["parquet_batch_rows"])
 
 REL_STRIKE_MIN = float(CONFIG["filters"]["rel_strike_min"])
 REL_STRIKE_MAX = float(CONFIG["filters"]["rel_strike_max"])
 SPREAD_BP_MAX = int(CONFIG["filters"]["spread_bp_max"])
 MIN_QUOTE_SIZE_DOLLAR = float(CONFIG["filters"]["min_quote_size_dollar"])
+MIN_MMA_BP = float(CONFIG["filters"]["min_mma_bp"])
+MAX_MMA_BP = float(CONFIG["filters"]["max_mma_bp"])
 MAX_AMU_BP = int(CONFIG["filters"]["max_amu_bp"])
 
 PCP_COST_PER_NOTIONAL = float(CONFIG["pcp"]["cost_per_notional"])

@@ -35,6 +35,7 @@ tte_sqrt_min = float(panel_cfg["tte_sqrt_min"])
 tte_sqrt_max = float(panel_cfg["tte_sqrt_max"])
 rel_strike_min = float(filters_cfg["rel_strike_min"])
 rel_strike_max = float(filters_cfg["rel_strike_max"])
+max_amu_bp = float(filters_cfg["max_amu_bp"])
 pcp_metric_kwargs = {
     "cost_per_notional": float(pcp_cfg["cost_per_notional"]),
     "fut_mgn_rate": float(pcp_cfg["fut_mgn_rate"]),
@@ -164,6 +165,7 @@ def _panel_metrics() -> list[pl.Expr]:
         pl.mean(column).alias(mean_output_names.get(column, f"mean_{column}"))
         for column in mean_panel_columns
     )
+    metrics.append(pl.mean("amu_bp").alias("mean_amu_bp"))
     metrics.extend(pl.sum(column).alias(f"sum_{column}") for column in sum_panel_columns)
     metrics.extend(
         (pl.col(column).cast(pl.Float64, strict=False).mean() * 1.0).alias(f"frac_{column}")
@@ -183,6 +185,13 @@ def _panel_block_from_file(file_path: Path) -> pl.DataFrame:
     if panel_ready.is_empty():
         return pl.DataFrame()
     panel_ready = panel_ready.with_columns(
+        (
+            0.5
+            * (
+                pl.col("mma_fwd_bp").clip(lower_bound=0.0, upper_bound=max_amu_bp)
+                + pl.col("mma_bck_bp").clip(lower_bound=0.0, upper_bound=max_amu_bp)
+            )
+        ).alias("amu_bp"),
         pl.col("timestamp").dt.date().alias("day"),
         _rel_strike_bucket(panel_ready),
         _tte_bucket(panel_ready),

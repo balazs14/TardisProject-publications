@@ -40,6 +40,7 @@
   \newcommand{\RegShortTteCutoff}{0.35}%
   \newcommand{\CostPerNotional}{0.003}%
   \newcommand{\MaxAmuBps}{100}%
+  \newcommand{\MaxMmaBps}{500}%
   \newcommand{\SampleFreqDefault}{5min}%
   \newcommand{\MinQuoteSizeDollar}{1000}%
   \newcommand{\SpreadBpMax}{300}%
@@ -177,41 +178,62 @@ Before turning to the liquidity-premium interpretation, the AMU measure yields f
 
 These are not causal claims by themselves. They are descriptive regularities that establish what the liquidity-premium explanation must account for. They also show why AMU is more informative than raw spreads alone: it isolates the part of the quoted spread structure that survives the full parity-arbitrage construction.
 
+% \begin{figure}[htbp]
+% \centering
+% \maybeincludegraphics[width=0.8\textwidth]{artifacts/okex_btcusd_4_spreads.pdf}
+% \caption{Distribution of the four market maker arbitrage (MMA) paths on OKX for BTCUSD option pairs. Only the positive tail corresponds to executable opportunities.}
+% \label{fig:okex_btcusd_4_spreads}
+% \end{figure}
+
+% \begin{figure}[htbp]
+% \centering
+% \maybeincludegraphics[width=0.8\textwidth]{artifacts/okex_ethusd_4_spreads.pdf}
+% \caption{Distribution of the four market maker arbitrage (MMA) paths on OKX for ETHUSD option pairs. Only the positive tail corresponds to executable opportunities.}
+% \label{fig:okex_ethusd_4_spreads}
+% \end{figure}
+
+% \begin{figure}[htbp]
+% \centering
+% \maybeincludegraphics[width=0.8\textwidth]{artifacts/deribit_btcusd_4_spreads.pdf}
+% \caption{Distribution of the four market maker arbitrage (MMA) paths on Deribit for BTCUSD option pairs. Only the positive tail corresponds to executable opportunities.}
+% \label{fig:deribit_btcusd_4_spreads}
+% \end{figure}
+
+% \begin{figure}[htbp]
+% \centering
+% \maybeincludegraphics[width=0.8\textwidth]{artifacts/deribit_ethusd_4_spreads.pdf}
+% \caption{Distribution of the four market maker arbitrage (MMA) paths on Deribit for ETHUSD option pairs. Only the positive tail corresponds to executable opportunities.}
+% \label{fig:deribit_ethusd_4_spreads}
+% \end{figure}
+
 \begin{figure}[htbp]
 \centering
-\maybeincludegraphics[width=0.8\textwidth]{artifacts/okex_btcusd_4_spreads.pdf}
-\caption{Distribution of the four market maker arbitrage (MMA) paths on OKX for BTCUSD option pairs. Only the positive tail corresponds to executable opportunities.}
-\label{fig:okex_btcusd_4_spreads}
+\maybeincludegraphics[width=0.8\textwidth]{artifacts/all_markets_avg_4_spreads.pdf}
+\caption{Average distribution of the four MMA paths across all markets.}
+\label{fig:all_markets_avg_4_spreads}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
-\maybeincludegraphics[width=0.8\textwidth]{artifacts/okex_ethusd_4_spreads.pdf}
-\caption{Distribution of the four market maker arbitrage (MMA) paths on OKX for ETHUSD option pairs. Only the positive tail corresponds to executable opportunities.}
-\label{fig:okex_ethusd_4_spreads}
+\maybeincludegraphics[width=0.8\textwidth]{artifacts/total_mma_hist_pre_post_btc_etp.pdf}
+\caption{Total MMA histogram across all four paths, split into Pre/Post 2024 periods.}
+\label{fig:total_mma_hist_pre_post_btc_etp}
 \end{figure}
 
-\begin{figure}[htbp]
-\centering
-\maybeincludegraphics[width=0.8\textwidth]{artifacts/deribit_btcusd_4_spreads.pdf}
-\caption{Distribution of the four market maker arbitrage (MMA) paths on Deribit for BTCUSD option pairs. Only the positive tail corresponds to executable opportunities.}
-\label{fig:deribit_btcusd_4_spreads}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\maybeincludegraphics[width=0.8\textwidth]{artifacts/deribit_ethusd_4_spreads.pdf}
-\caption{Distribution of the four market maker arbitrage (MMA) paths on Deribit for ETHUSD option pairs. Only the positive tail corresponds to executable opportunities.}
-\label{fig:deribit_ethusd_4_spreads}
-\end{figure}
-
-Figures \ref{fig:okex_btcusd_4_spreads}--\ref{fig:deribit_ethusd_4_spreads} show that the full distribution of MMA paths remains centered in non-executable territory, but the positive tail varies materially across exchange and underlying combinations. This is the distributional object behind the AMU summary measure.
+Figure \ref{fig:all_markets_avg_4_spreads} reports the average path densities across all markets, and Figure \ref{fig:total_mma_hist_pre_post_btc_etp} compares the total MMA histogram for Pre/Post 2024. These are the distributional objects behind the AMU summary measure.
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_date.pdf}
 \caption{Daily AMU by exchange and underlying in the 2020--2026 sample.}
 \label{fig:multi_exchange_amu_by_date}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_date_2023_2024_avg_events.pdf}
+\caption{Daily average AMU across all markets from 2023-01 through 2024-12, with main institutional event dates marked by vertical lines.}
+\label{fig:multi_exchange_amu_by_date_2023_2024_avg_events}
 \end{figure}
 
 \begin{figure}[htbp]
@@ -328,12 +350,11 @@ Component & Assumption \\
 \midrule
 Trading-cost parameter & \texttt{cost\_per\_notional} = \CostPerNotional. The cost term is \texttt{cost\_per\_notional} multiplied by index level. \\
 AMU clipping rule & MMA series are clipped to the interval $[0,\MaxAmuBps]$ basis points before positive-part averaging. \\
-Spread filter & Option spread filters use a maximum of \SpreadBpMax basis points for both call and put spreads. \\
+MMA clipping rule & MMA series are clipped to the interval $[-\MaxMmaBps,+\MaxMmaBps]$ basis points. \\
+Spread filter & Option spread filters use a maximum of $\SpreadBpMax$ basis points for both call and put spreads. \\
 Relative-strike filter & Allowed range is $[\RelStrikeMin,\RelStrikeMax]$. \\
 Minimum quote size & \texttt{min\_quote\_size\_dollar} must be at least \MinQuoteSizeDollar. \\
-Stale proxy & Mean of call/put/spot stale fractions at panel-cell level. \\
-Depth proxy & $\log(\texttt{mean\_min\_quote\_size\_dollar})$. \\
-Subsampling & Last-known observation carried forward to the configured interval (default: \texttt{\SampleFreqDefault}). If the last-known observation is missing, the value is marked stale.\\
+Subsampling & Last-known observation carried forward to the configured interval (default: \texttt{\SampleFreqDefault}). If the last-known bid/ask price/size observation is missing, or has not been updated in the intervalthe value is marked stale.\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -360,7 +381,7 @@ where $g$ indexes the panel cell $(\text{exchange},\text{ref\_sym},\text{rel\_st
 \overline{\mathrm{MMA}}_{g,t}=\beta_0
 +\beta_1\left(\mathrm{Post}_t\times\mathrm{ETH}_g\right)
 +\beta_2\left(\mathrm{Post}_t\times\mathrm{ATM}_g\right)
-+\beta_3\left(\mathrm{Post}_t\times\mathrm{Short}_g\right)
++\beta_3\left(\mathrm{Post}_t\times\mathrm{NearExp}_g\right)
 +\gamma_g+\delta_t+\varepsilon_{g,t}.
 \end{equation}
 
@@ -376,11 +397,11 @@ Abbreviation & Definition \\
 \midrule
 $\mathrm{Post}_t$ & Post-2024 regime indicator (1 for dates on/after 2024-01-10, 0 otherwise). \\
 $\mathrm{Spr}_{g,t}$ & Average put-call spread in basis points: $0.5\times(\texttt{mean\_call\_spread\_bp}+\texttt{mean\_put\_spread\_bp})$. \\
-$\mathrm{Depth}_{g,t}$ & Log quote-depth proxy: $\log(\texttt{mean\_min\_quote\_size\_dollar})$. \\
+$\mathrm{Depth}_{g,t}$ & Log quote-depth proxy: $\log(\texttt{mean\_min\_quote\_size\_dollar})$, where min quote size is taken over put and call bid/ask quote sizes. \\
 $\mathrm{Stale}_{g,t}$ & Mean stale-quote fraction across call, put, and spot legs. \\
 $\mathrm{ETH}_g$ & ETH-underlying segment indicator. \\
-$\mathrm{ATM}_g$ & At-the-money segment indicator: $|\texttt{rel\_strike\_bucket}-1|\le\RegNonAtmCutoff$ (equivalently $\mathrm{ATM}_g=1-\mathrm{OTM}_g$ with $\mathrm{OTM}_g\equiv\mathbf{1}\{|\texttt{rel\_strike\_bucket}-1|>\RegNonAtmCutoff\}$). \\
-$\mathrm{Short}_g$ & Short-maturity segment indicator: $\texttt{tte\_bucket}\le\RegShortTteCutoff$ years. \\
+$\mathrm{ATM}_g$ & At-the-money segment indicator: $|\texttt{rel\_strike\_bucket}-1|\le\RegNonAtmCutoff$. \\
+$\mathrm{NearExp}_g$ & Near-expiry segment indicator: $\texttt{tte\_bucket}\le\RegShortTteCutoff$ years. \\
 $\gamma_g$ & Panel-cell fixed effect for cell $g$ (absorbs time-invariant cell heterogeneity). \\
 $\delta_t$ & Date fixed effect (absorbs common day-level shocks and aggregate time variation). \\
 $\varepsilon_{g,t}$ & Idiosyncratic error term for cell $g$ at date $t$. \\
@@ -389,6 +410,29 @@ $\varepsilon_{g,t}$ & Idiosyncratic error term for cell $g$ at date $t$. \\
 \end{table}
 
 Here $\gamma_g$ absorb the time-invariant ETH, moneyness, and maturity segment main effects, while $\delta_t$ absorb the common post-2024 level shift. The interaction coefficients $\beta_1$--$\beta_3$ identify which segments experience stronger post-2024 compression, conditional on the fixed effects and friction controls.
+
+Table~\ref{tab:regression_model_summary} gives a compact overview of the baseline, AMU, and MMA-std specifications, and Table~\ref{tab:regression_coefficients} reports the coefficient estimates with HC1 standard errors and t-statistics. Figure~\ref{fig:regression_coefficients} visualizes the same estimates with 95\% confidence intervals.
+
+\begin{table}[htbp]
+\centering
+{\renewcommand{\arraystretch}{1.2}\normalfont\small\input{artifacts/regression_model_summary_table.tex}}
+\caption{Regression specification summary.}
+\label{tab:regression_model_summary}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+{\renewcommand{\arraystretch}{1.2}\normalfont\scriptsize\input{artifacts/regression_coefficients_table.tex}}
+\caption{Regression coefficient estimates with HC1 standard errors and t-statistics. Stars indicate \emph{p}-value bands based on the t-statistic. In the fixed-effects rows, \texttt{cell\_id} (and the subscript $g$) denotes the tuple $(\texttt{exchange},\texttt{ref\_symbol},\texttt{rel\_strike\_bucket},\texttt{tte\_bucket})$.}
+\label{tab:regression_coefficients}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\maybeincludegraphics[width=0.95\textwidth]{artifacts/regression_coefficients.png}
+\caption{Coefficient plots for the panel regressions. The intervals are approximate 95\% confidence intervals based on HC1 standard errors.}
+\label{fig:regression_coefficients}
+\end{figure}
 
 The threshold model in Section 4 motivates the interpretation of these panel results. Once the baseline reduced-form patterns are established, threshold and local-projection designs can be used as robustness checks for whether large deviations decay faster after 2024. They are therefore complements to, not substitutes for, the fixed-effects panel evidence.
 
@@ -404,14 +448,16 @@ The figure set should focus on outputs generated from the 2020--2026 AMU panel:
 
 \textbf{Figure 4:} Binned-scatter or partial-residual plot of MMA versus average put-call spread (bp) and log mean minimum quote size (USD), demonstrating the friction-gradient predicted by limits-to-arbitrage theory.
 
-\textbf{Figure 5:} Compression decomposition plot: change in AMU from pre- to post-2024 by segment (ETH/BTC, OTM/ATM, short/long TTE).
+\textbf{Figure 5:} Compression decomposition plot: four separate bar charts (shared y-axis) for pre- to post-2024 AMU changes across BTC/ETH, Deribit/OKX, ATM/Non-ATM, and NearExp/FarExp.
+
+\textbf{Figure 6:} Regression coefficient plot showing the baseline and interaction specifications with 95\% confidence intervals.
 
 These figures are aligned with the liquidity-premium framing while staying within the observed variables of the dataset.
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_daily_amu.png}
-\caption{Daily AMU by exchange and underlying, with the main 2024 institutional event dates marked.}
+\caption{AMU by date, with the main 2024 institutional event dates marked.}
 \label{fig:liquidity_daily_amu}
 \end{figure}
 
@@ -432,14 +478,14 @@ These figures are aligned with the liquidity-premium framing while staying withi
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_friction_gradient.png}
-\caption{Binned MMA relationships with average put-call spread (bp) and log mean minimum quote size (USD).}
+\caption{Global mean MMA vs put-call spread, quote size (USD) and exchange/underlying.}
 \label{fig:liquidity_friction_gradient}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_compression_decomposition.png}
-\caption{Pre- versus post-2024 AMU compression by underlying, moneyness, and maturity segment.}
+\caption{Pre- versus post-2024 AMU compression shown in four separate bar charts with a shared y-axis: BTC/ETH, Deribit/OKX, ATM/Non-ATM, and NearExp/FarExp.}
 \label{fig:liquidity_compression_decomposition}
 \end{figure}
 

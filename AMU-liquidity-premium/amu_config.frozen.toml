@@ -1,5 +1,4 @@
 [cache]
-version = 1
 parquet_batch_rows = 100000
 
 [filters]
@@ -7,6 +6,8 @@ rel_strike_min = 0.8
 rel_strike_max = 1.2
 spread_bp_max = 100000
 min_quote_size_dollar = 5000.0
+min_mma_bp = -100
+max_mma_bp = 100
 max_amu_bp = 100
 
 [pcp]

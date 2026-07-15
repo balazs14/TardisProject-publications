@@ -12,12 +12,14 @@ TO_DATE=${TO_DATE:-2026-06-05}
 BUILD_PDF=${BUILD_PDF:-1}
 LOG_LEVEL=${LOG_LEVEL:-INFO}
 AMU_FORCE_RECREATE_CACHE=${AMU_FORCE_RECREATE_CACHE:-0}
+REGRESSION_FORCE_RECREATE_CACHE=${REGRESSION_FORCE_RECREATE_CACHE:-1}
 
 export FROM_DATE
 export TO_DATE
 export BUILD_PDF
 export LOG_LEVEL
 export AMU_FORCE_RECREATE_CACHE
+export REGRESSION_FORCE_RECREATE_CACHE
 
 mkdir -p "$FIGURE_DIR"
 
@@ -64,6 +66,10 @@ logging.getLogger(__name__).info(
 )
 logging.getLogger(__name__).info("shared dataframe cache path=%s", cache_path)
 logging.getLogger(__name__).info("force recreate cache=%s", force_recreate_cache)
+logging.getLogger(__name__).info(
+	"force recreate regression/descriptive numeric cache=%s",
+	os.environ.get("REGRESSION_FORCE_RECREATE_CACHE", "1"),
+)
 
 write_dynamic_tex_assumptions(Path("artifacts"))
 

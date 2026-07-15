@@ -8,7 +8,7 @@ from typing import Any
 import polars as pl
 import pyarrow.parquet as pq
 
-from amu_config import CACHE_VERSION, PARQUET_BATCH_ROWS
+from amu_config import PARQUET_BATCH_ROWS
 
 
 def build_shared_cache_path(base_dir: str | Path, from_date: str, to_date: str) -> Path:
@@ -37,7 +37,7 @@ def put_cached_frame(
 ) -> None:
     path = Path(cache_path)
     payload = _read_payload(path)
-    payload["version"] = CACHE_VERSION
+    payload.pop("version", None)
     payload["from_date"] = from_date
     payload["to_date"] = to_date
     frames = payload.setdefault("frames", {})
@@ -95,7 +95,7 @@ def put_cached_frame_parquet_path(
 ) -> None:
     path = Path(cache_path)
     payload = _read_payload(path)
-    payload["version"] = CACHE_VERSION
+    payload.pop("version", None)
     payload["from_date"] = from_date
     payload["to_date"] = to_date
     frames = payload.setdefault("frames", {})
@@ -120,6 +120,24 @@ def put_cached_frame_parquet_path(
     tmp_path.replace(path)
 
 
+def delete_cached_frame_entry(cache_path: str | Path, key: str) -> None:
+    path = Path(cache_path)
+    if not path.exists():
+        return
+
+    payload = _read_payload(path)
+    payload.pop("version", None)
+    frames = payload.get("frames")
+    if not isinstance(frames, dict) or key not in frames:
+        return
+
+    frames.pop(key, None)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    with tmp_path.open("wb") as handle:
+        pickle.dump(payload, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    tmp_path.replace(path)
+
+
 def _read_payload(path: Path) -> dict[str, Any]:
     if not path.exists():
         return _empty_payload()
@@ -134,7 +152,7 @@ def _read_payload(path: Path) -> dict[str, Any]:
 
 
 def _empty_payload() -> dict[str, Any]:
-    return {"version": CACHE_VERSION, "frames": {}}
+    return {"frames": {}}
 
 
 def _frame_path_for_key(meta_path: Path, key: str) -> Path:

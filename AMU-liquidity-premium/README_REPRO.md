@@ -47,13 +47,14 @@ Generated figure files:
 - `artifacts/liquidity_event_study.png`
 - `artifacts/liquidity_friction_gradient.png`
 - `artifacts/liquidity_compression_decomposition.png`
+- `artifacts/regression_coefficients.png`
 
 Generated regression files:
 
 - `artifacts/baseline_post2024.csv`
-- `artifacts/forward_component.csv`
-- `artifacts/backward_component.csv`
 - `artifacts/interaction_segments.csv`
+- `artifacts/regression_model_summary_table.tex`
+- `artifacts/regression_coefficients_table.tex`
 
 ## Build the PDF
 
