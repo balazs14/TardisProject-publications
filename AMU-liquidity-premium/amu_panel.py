@@ -10,6 +10,7 @@ import polars as pl
 
 from amu_config import CONFIG, bootstrap_repo_root
 from amu_cache import get_cached_frame, put_cached_frame
+from amu_metrics import amu_ratio_expr, tickpath_amu_agg_exprs
 from tardis import package_set_log_level
 from tardis.process_pcp import compute_pcp_metrics
 from tardis.utils import debug_runtime
@@ -165,7 +166,14 @@ def _panel_metrics() -> list[pl.Expr]:
         pl.mean(column).alias(mean_output_names.get(column, f"mean_{column}"))
         for column in mean_panel_columns
     )
-    metrics.append(pl.mean("amu_bp").alias("mean_amu_bp"))
+    # AMU over positive-MMA tickpaths (shared definition in amu_metrics): accumulate
+    # the positive-part sum and the count of positive tickpaths across the four
+    # paths; mean_amu_bp is formed as their ratio after aggregation below.
+    metrics.extend(
+        tickpath_amu_agg_exprs(
+            max_amu_bp, sum_alias="sum_amu_tickpath_bp", count_alias="num_amu_tickpath"
+        )
+    )
     metrics.extend(pl.sum(column).alias(f"sum_{column}") for column in sum_panel_columns)
     metrics.extend(
         (pl.col(column).cast(pl.Float64, strict=False).mean() * 1.0).alias(f"frac_{column}")
@@ -185,20 +193,17 @@ def _panel_block_from_file(file_path: Path) -> pl.DataFrame:
     if panel_ready.is_empty():
         return pl.DataFrame()
     panel_ready = panel_ready.with_columns(
-        (
-            0.5
-            * (
-                pl.col("mma_fwd_bp").clip(lower_bound=0.0, upper_bound=max_amu_bp)
-                + pl.col("mma_bck_bp").clip(lower_bound=0.0, upper_bound=max_amu_bp)
-            )
-        ).alias("amu_bp"),
         pl.col("timestamp").dt.date().alias("day"),
         _rel_strike_bucket(panel_ready),
         _tte_bucket(panel_ready),
     )
 
     group_keys = ["day", "exchange", "ref_sym", "rel_strike_bucket", "tte_bucket"]
-    return panel_ready.group_by(group_keys, maintain_order=True).agg(_panel_metrics())
+    block = panel_ready.group_by(group_keys, maintain_order=True).agg(_panel_metrics())
+    # mean_amu_bp = mean MMA over the positive-MMA tickpaths in the cell.
+    return block.with_columns(
+        amu_ratio_expr("sum_amu_tickpath_bp", "num_amu_tickpath").alias("mean_amu_bp")
+    )
 
 
 def _append_block(panel: pl.DataFrame, block: pl.DataFrame) -> pl.DataFrame:

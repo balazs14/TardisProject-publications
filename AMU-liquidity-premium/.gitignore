@@ -2,3 +2,4 @@ amu_frames*parquet
 amu_frames*pkl
 artifacts/
 regressions/
+artifacts*

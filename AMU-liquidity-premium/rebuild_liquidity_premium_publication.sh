@@ -5,25 +5,41 @@ set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 PAPER_DIR="$ROOT_DIR/publications/AMU-liquidity-premium"
 VENV_PYTHON="$ROOT_DIR/venv/bin/python"
-FIGURE_DIR="$PAPER_DIR/artifacts"
 
 FROM_DATE=${FROM_DATE:-2020-01-01}
 TO_DATE=${TO_DATE:-2026-06-05}
 BUILD_PDF=${BUILD_PDF:-1}
 LOG_LEVEL=${LOG_LEVEL:-INFO}
 AMU_FORCE_RECREATE_CACHE=${AMU_FORCE_RECREATE_CACHE:-0}
-REGRESSION_FORCE_RECREATE_CACHE=${REGRESSION_FORCE_RECREATE_CACHE:-1}
+# ARTIFACTS_DIR controls where figures and tables are written.
+# Use e.g. ARTIFACTS_DIR=artifacts_short for a 2024-only build and
+# ARTIFACTS_DIR=artifacts_long for the full 2020-2026 build.
+# The script always creates/updates an "artifacts" symlink pointing at the
+# chosen directory so that liquidity-premium.tex sees the latest outputs.
+ARTIFACTS_DIR=${ARTIFACTS_DIR:-artifacts_long}
 
 export FROM_DATE
 export TO_DATE
 export BUILD_PDF
 export LOG_LEVEL
 export AMU_FORCE_RECREATE_CACHE
-export REGRESSION_FORCE_RECREATE_CACHE
-
-mkdir -p "$FIGURE_DIR"
+export ARTIFACTS_DIR
 
 cd "$PAPER_DIR"
+
+mkdir -p "$ARTIFACTS_DIR"
+
+# If artifacts/ is still a plain directory from before the multi-build scheme
+# was introduced, migrate it to artifacts_long/ on first run.
+if [[ -d artifacts && ! -L artifacts ]]; then
+    echo "Migrating plain artifacts/ to artifacts_long/ ..."
+    mv artifacts artifacts_long
+fi
+
+# Point the symlink at the target directory (relative, so the tex file works
+# even if the repo is moved).
+ln -sfn "$ARTIFACTS_DIR" artifacts
+echo "artifacts -> $ARTIFACTS_DIR"
 
 "$VENV_PYTHON" - <<'PY'
 import os
@@ -41,40 +57,33 @@ log_level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
 log_level = getattr(logging, log_level_name, logging.INFO)
 matplotlib_log_level = max(log_level, logging.INFO)
 force_recreate_cache = os.environ.get("AMU_FORCE_RECREATE_CACHE", "0") == "1"
-cache_path = build_shared_cache_path(Path("."), from_date, to_date)
+artifacts_dir = Path(os.environ["ARTIFACTS_DIR"])
+cache_path = build_shared_cache_path(artifacts_dir, from_date, to_date)
 
 logging.basicConfig(
 	level=log_level,
 	format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
-# Force publication pipeline loggers to requested level after module imports.
 logging.getLogger("tardis").setLevel(log_level)
 logging.getLogger("tardis.process_pcp").setLevel(log_level)
 logging.getLogger("amu_statistics").setLevel(log_level)
 logging.getLogger("amu_panel").setLevel(log_level)
 logging.getLogger("panel_regressions").setLevel(log_level)
 logging.getLogger("panel_figures").setLevel(log_level)
-# Keep matplotlib quiet unless explicitly logging warnings/errors.
 logging.getLogger("matplotlib").setLevel(matplotlib_log_level)
 
 logging.getLogger(__name__).info(
-	"rebuild pipeline started from_date=%s to_date=%s log_level=%s",
-	from_date,
-	to_date,
-	log_level_name,
+	"rebuild pipeline started from_date=%s to_date=%s artifacts_dir=%s log_level=%s",
+	from_date, to_date, artifacts_dir, log_level_name,
 )
 logging.getLogger(__name__).info("shared dataframe cache path=%s", cache_path)
 logging.getLogger(__name__).info("force recreate cache=%s", force_recreate_cache)
-logging.getLogger(__name__).info(
-	"force recreate regression/descriptive numeric cache=%s",
-	os.environ.get("REGRESSION_FORCE_RECREATE_CACHE", "1"),
-)
 
-write_dynamic_tex_assumptions(Path("artifacts"))
+write_dynamic_tex_assumptions(artifacts_dir)
 
 generate_all_statistics(
-	Path("artifacts"),
+	artifacts_dir,
 	from_date=from_date,
 	to_date=to_date,
 	force_recreate_cache=force_recreate_cache,
@@ -82,14 +91,15 @@ generate_all_statistics(
 )
 
 write_regression_tables(
-	Path("artifacts"),
+	artifacts_dir,
 	from_date=from_date,
 	to_date=to_date,
 	cache_path=cache_path,
 	force_recreate_cache=force_recreate_cache,
 )
+
 generate_all_figures(
-	Path("artifacts"),
+	artifacts_dir,
 	from_date=from_date,
 	to_date=to_date,
 	cache_path=cache_path,

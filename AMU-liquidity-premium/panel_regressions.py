@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-import os
-import pickle
 from pathlib import Path
 
 import numpy as np
@@ -20,23 +18,28 @@ from tardis.utils import debug_runtime
 
 logger = logging.getLogger(__name__)
 
-# Toggle to speed up local debugging. When False, fixed-effect dummies are omitted.
+# Fixed effects are per-specification (see each RegressionSpec.fixed_effects):
+# specs (1)-(2) are pooled OLS with explicit segment dummies, spec (3) adds cell
+# fixed effects. Set to False only to disable all fixed effects for debugging.
 ENABLE_FIXED_EFFECTS = True
-#ENABLE_FIXED_EFFECTS = False
 
 
 
 SPEC_DISPLAY_NAMES = {
-    "baseline_post2024": "MMA",
-    "amu_levels": "AMU",
-    "mma_std_levels": "MMA Std",
+    "amu_spec1": "(1)",
+    "amu_spec2": "(2)",
+    "amu_spec3": "(3)",
 }
+
+# The nested AMU specifications reported in the combined coefficient table.
+MAIN_SPEC_ORDER = ("amu_spec1", "amu_spec2", "amu_spec3")
 
 TERM_DISPLAY_NAMES = {
     "post_2024": "$\\mathrm{Post}_t$",
     "average_put_call_spread_bp": "$\\mathrm{Spr}_{g,t}$",
     "log_mean_min_quote_size_dollar": "$\\mathrm{Depth}_{g,t}$",
     "stale_proxy": "$\\mathrm{Stale}_{g,t}$",
+    "okx": "$\\mathrm{Exch}_g$",
     "eth": "$\\mathrm{ETH}_g$",
     "atm": "$\\mathrm{ATM}_g$",
     "short_tte": "$\\mathrm{NearExp}_g$",
@@ -92,6 +95,7 @@ def build_liquidity_analysis_panel(
     frame["log_mean_min_quote_size_dollar"] = np.log(frame["mean_min_quote_size_dollar"].clip(lower=1.0))
     frame["stale_proxy"] = frame[["frac_call_stale", "frac_put_stale", "frac_spot_stale"]].mean(axis=1)
     frame["eth"] = frame["ref_sym"].str.contains("ETH", na=False).astype(float)
+    frame["okx"] = frame["exchange"].str.contains("okex", case=False, na=False).astype(float)
     frame["nonatm"] = (frame["rel_strike_bucket"].sub(1.0).abs() > nonatm_distance).astype(float)
     frame["atm"] = 1.0 - frame["nonatm"]
     frame["short_tte"] = (frame["tte_bucket"] <= short_tte_cutoff).astype(float)
@@ -166,91 +170,45 @@ def filter_analysis_panel(
     return filtered
 
 
-def baseline_regression_spec() -> RegressionSpec:
-    # Post2024 varies only by day, so day fixed effects would absorb it.
-    return RegressionSpec(
-        name="baseline_post2024",
-        dependent="mean_mma_bp",
-        regressors=(
-            "post_2024",
-            "average_put_call_spread_bp",
-            "log_mean_min_quote_size_dollar",
-            "stale_proxy",
-            "eth",
-            "atm",
-            "short_tte",
-            "post_2024_x_eth",
-            "post_2024_x_atm",
-            "post_2024_x_short_tte",
-        ),
-        fixed_effects=("cell_id",),
-    )
+# Nested AMU specifications (HC1 SEs):
+#   (1) Post                          -> RQ2 (regime effect)
+#   (2) + Exch/ETH/ATM/NearExp        -> RQ1 (cross-sectional segments, linear dummies)
+#   (3) Post + Depth/Spread/Stale, cell fixed effects -> RQ3. The segment/bucket
+#       dependence is nonlinear, so it is absorbed by cell fixed effects rather
+#       than the linear dummies of (2); a residual Post is compression not
+#       explained by the frictions.
+_SPEC1_REGRESSORS = ("post_2024",)
+_SPEC2_REGRESSORS = _SPEC1_REGRESSORS + ("okx", "eth", "atm", "short_tte")
+_SPEC3_REGRESSORS = (
+    "post_2024",
+    "log_mean_min_quote_size_dollar",
+    "average_put_call_spread_bp",
+    "stale_proxy",
+)
 
 
-def interaction_regression_spec() -> RegressionSpec:
-    # Cell fixed effects absorb ETH/ATM/NearExp main effects; day fixed effects absorb Post2024.
-    return RegressionSpec(
-        name="interaction_segments",
-        dependent="mean_mma_bp",
-        regressors=("post_2024_x_eth", "post_2024_x_atm", "post_2024_x_short_tte"),
-        fixed_effects=("cell_id", "day"),
-    )
+def amu_spec1_regression_spec() -> RegressionSpec:
+    return RegressionSpec(name="amu_spec1", dependent="mean_amu_bp", regressors=_SPEC1_REGRESSORS, fixed_effects=())
 
 
-def amu_levels_regression_spec() -> RegressionSpec:
-    return RegressionSpec(
-        name="amu_levels",
-        dependent="mean_amu_bp",
-        regressors=(
-            "post_2024",
-            "average_put_call_spread_bp",
-            "log_mean_min_quote_size_dollar",
-            "stale_proxy",
-            "eth",
-            "atm",
-            "short_tte",
-            "post_2024_x_eth",
-            "post_2024_x_atm",
-            "post_2024_x_short_tte",
-        ),
-        fixed_effects=("cell_id",),
-    )
+def amu_spec2_regression_spec() -> RegressionSpec:
+    return RegressionSpec(name="amu_spec2", dependent="mean_amu_bp", regressors=_SPEC2_REGRESSORS, fixed_effects=())
 
 
-def mma_std_levels_regression_spec() -> RegressionSpec:
-    return RegressionSpec(
-        name="mma_std_levels",
-        dependent="std_mma_bp",
-        regressors=(
-            "post_2024",
-            "average_put_call_spread_bp",
-            "log_mean_min_quote_size_dollar",
-            "stale_proxy",
-            "eth",
-            "atm",
-            "short_tte",
-            "post_2024_x_eth",
-            "post_2024_x_atm",
-            "post_2024_x_short_tte",
-        ),
-        fixed_effects=("cell_id",),
-    )
+def amu_spec3_regression_spec() -> RegressionSpec:
+    return RegressionSpec(name="amu_spec3", dependent="mean_amu_bp", regressors=_SPEC3_REGRESSORS, fixed_effects=("cell_id",))
 
 
-def run_baseline_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
-    return _run_regression(baseline_regression_spec(), panel=panel, **build_kwargs)
+def run_amu_spec1_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
+    return _run_regression(amu_spec1_regression_spec(), panel=panel, **build_kwargs)
 
 
-def run_interaction_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
-    return _run_regression(interaction_regression_spec(), panel=panel, **build_kwargs)
+def run_amu_spec2_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
+    return _run_regression(amu_spec2_regression_spec(), panel=panel, **build_kwargs)
 
 
-def run_amu_levels_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
-    return _run_regression(amu_levels_regression_spec(), panel=panel, **build_kwargs)
-
-
-def run_mma_std_levels_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
-    return _run_regression(mma_std_levels_regression_spec(), panel=panel, **build_kwargs)
+def run_amu_spec3_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
+    return _run_regression(amu_spec3_regression_spec(), panel=panel, **build_kwargs)
 
 
 @debug_runtime("write_regression_tables")
@@ -258,49 +216,23 @@ def write_regression_tables(output_dir: str | Path, **build_kwargs) -> dict[str,
     output_root = Path(output_dir)
     output_root.mkdir(parents=True, exist_ok=True)
     paths: dict[str, Path] = {}
-    force_recreate_cache = _regression_force_recreate_cache_enabled()
-    cache_path = output_root / "regression_numeric_cache.pkl"
-    panel: pd.DataFrame | None = None
-
-    if not force_recreate_cache and cache_path.exists():
-        with cache_path.open("rb") as handle:
-            cached = pickle.load(handle)
-        results = cached["results"]
-        summary_table = _regression_summary_table(results)
-        coefficient_table = _regression_coefficient_table(results)
-        logger.debug(
-            "write_regression_tables using cached numerical outputs cache_path=%s rows=%d",
-            cache_path,
-            len(results),
-        )
-    else:
-        panel = build_liquidity_analysis_panel(**build_kwargs)
-        combined_results: list[pd.DataFrame] = []
-        logger.debug(
-            "write_regression_tables output_dir=%s panel_shape=%s force_recreate_cache=%s",
-            output_root,
-            panel.shape,
-            force_recreate_cache,
-        )
-        for runner in (
-            run_baseline_regression,
-            run_amu_levels_regression,
-            run_mma_std_levels_regression,
-        ):
-            result = runner(panel=panel)
-            combined_results.append(result)
-        results = pd.concat(combined_results, ignore_index=True)
-        summary_table = _regression_summary_table(results)
-        coefficient_table = _regression_coefficient_table(results)
-        with cache_path.open("wb") as handle:
-            pickle.dump(
-                {
-                    "results": results,
-                },
-                handle,
-                protocol=pickle.HIGHEST_PROTOCOL,
-            )
-        logger.debug("write_regression_tables refreshed numerical cache cache_path=%s", cache_path)
+    panel = build_liquidity_analysis_panel(**build_kwargs)
+    combined_results: list[pd.DataFrame] = []
+    logger.debug(
+        "write_regression_tables output_dir=%s panel_shape=%s",
+        output_root,
+        panel.shape,
+    )
+    for runner in (
+        run_amu_spec1_regression,
+        run_amu_spec2_regression,
+        run_amu_spec3_regression,
+    ):
+        result = runner(panel=panel)
+        combined_results.append(result)
+    results = pd.concat(combined_results, ignore_index=True)
+    summary_table = _regression_summary_table(results)
+    coefficient_table = _regression_coefficient_table(results)
 
     for spec_name in results["specification"].dropna().unique().tolist():
         spec_slice = results.loc[results["specification"] == spec_name].copy()
@@ -322,11 +254,6 @@ def write_regression_tables(output_dir: str | Path, **build_kwargs) -> dict[str,
         len(results),
     )
     return paths, panel
-
-
-def _regression_force_recreate_cache_enabled() -> bool:
-    value = os.environ.get("REGRESSION_FORCE_RECREATE_CACHE", "1").strip().lower()
-    return value not in {"0", "false", "no", "off"}
 
 
 @debug_runtime("_run_regression")
@@ -377,20 +304,10 @@ def _run_regression(
 
 
 def _effective_regression_spec(spec: RegressionSpec) -> RegressionSpec:
+    # Each spec carries its own fixed effects; regressors are kept as declared.
     if not ENABLE_FIXED_EFFECTS:
-        return RegressionSpec(
-            name=spec.name,
-            dependent=spec.dependent,
-            regressors=spec.regressors,
-            fixed_effects=(),
-        )
-    filtered_regressors = tuple(term for term in spec.regressors if term not in FE_ABSORBED_MAIN_EFFECTS)
-    return RegressionSpec(
-        name=spec.name,
-        dependent=spec.dependent,
-        regressors=filtered_regressors,
-        fixed_effects=spec.fixed_effects,
-    )
+        return RegressionSpec(spec.name, spec.dependent, spec.regressors, ())
+    return spec
 
 
 def _coerce_analysis_panel(panel: pd.DataFrame | pl.DataFrame | None, **build_kwargs) -> pd.DataFrame:
@@ -443,7 +360,8 @@ def _warn_on_constant_regressors(frame: pd.DataFrame, spec: RegressionSpec) -> N
 
 def _regression_summary_table(results: pd.DataFrame) -> pd.DataFrame:
     summary = (
-        results.drop_duplicates(subset=["specification"])
+        results.loc[results["specification"].isin(MAIN_SPEC_ORDER)]
+        .drop_duplicates(subset=["specification"])
         .loc[:, ["specification", "dependent", "nobs", "r2"]]
         .copy()
     )
@@ -460,18 +378,16 @@ def _regression_summary_table(results: pd.DataFrame) -> pd.DataFrame:
 
 def _regression_coefficient_table(results: pd.DataFrame) -> pd.DataFrame:
     results = results.copy()
-    spec_order = [spec for spec in ("baseline_post2024", "amu_levels", "mma_std_levels") if spec in results["specification"].unique()]
+    spec_order = [spec for spec in MAIN_SPEC_ORDER if spec in results["specification"].unique()]
     term_order = [
         "post_2024",
-        "average_put_call_spread_bp",
-        "log_mean_min_quote_size_dollar",
-        "stale_proxy",
+        "okx",
         "eth",
         "atm",
         "short_tte",
-        "post_2024_x_eth",
-        "post_2024_x_atm",
-        "post_2024_x_short_tte",
+        "log_mean_min_quote_size_dollar",
+        "average_put_call_spread_bp",
+        "stale_proxy",
     ]
 
     columns = pd.MultiIndex.from_tuples(
@@ -528,6 +444,42 @@ def _regression_coefficient_table(results: pd.DataFrame) -> pd.DataFrame:
     return table
 
 
+def _write_single_spec_coefficient_table(
+    results: pd.DataFrame,
+    spec_name: str,
+    term_order: tuple[str, ...],
+    path: str | Path,
+) -> None:
+    """Write a one-equation coefficient table (Coef + SE + standardized effect)."""
+    spec_rows = results.loc[results["specification"] == spec_name]
+    by_term = {row["term"]: row for _, row in spec_rows.iterrows()}
+    lines = [
+        r"\begin{tabular}{lll}",
+        r"\toprule",
+        r" & Coef & $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$ \\",
+        r"Term &  &  \\",
+        r"\midrule",
+    ]
+    for term in term_order:
+        if term not in by_term:
+            continue
+        row = by_term[term]
+        coef = f"{_format_signed_decimal(float(row['coefficient']), decimals=3)}{_significance_stars(float(row['t_stat']))}"
+        econ = "" if pd.isna(row["economic_significance"]) else _format_signed_percent(float(row["economic_significance"]))
+        lines.append(f"{TERM_DISPLAY_NAMES.get(term, term)} & {coef} & {econ} \\\\")
+        lines.append(f" & ({float(row['std_error']):.3f}) &  \\\\")
+    if not spec_rows.empty:
+        first = spec_rows.iloc[0]
+        fe = ", ".join(_fixed_effects_components_from_results(results, spec_name))
+        lines.append(rf"Total $R^2$ & {float(first['r2']):.3f} &  \\")
+        lines.append(rf"Observations & {int(first['nobs']):,} &  \\".replace(",", "{,}"))
+        lines.append(rf"Fixed effects & {fe} &  \\")
+    lines.append(r"\bottomrule")
+    lines.append(r"\end{tabular}")
+    Path(path).write_text("\n".join(lines) + "\n")
+    logger.debug("_write_single_spec_coefficient_table wrote %s rows=%d", path, len(spec_rows))
+
+
 def _significance_stars(t_stat: float) -> str:
     abs_t = abs(float(t_stat))
     if abs_t >= 2.58:
@@ -576,14 +528,7 @@ def _fixed_effects_components_from_results(results: pd.DataFrame, spec_name: str
             if not raw:
                 return ["None"]
             return [part for part in raw.split("|") if part] or ["None"]
-    fallback_specs = {
-        "baseline_post2024": baseline_regression_spec(),
-        "interaction_segments": interaction_regression_spec(),
-        "amu_levels": amu_levels_regression_spec(),
-        "mma_std_levels": mma_std_levels_regression_spec(),
-    }
-    spec = fallback_specs.get(spec_name)
-    return _fixed_effects_components_for_spec(spec) if spec is not None else ["None"]
+    return ["None"]
 
 
 @debug_runtime("_fit_ols_with_hc1")

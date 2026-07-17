@@ -8,6 +8,7 @@ import pandas as pd
 import seaborn as sns
 
 from amu_config import CONFIG
+from figure_arbitrage_paths import write_arbitrage_paths_figures
 from panel_regressions import (
     amu_levels_regression_spec,
     baseline_regression_spec,
@@ -43,6 +44,10 @@ def generate_all_figures(output_dir: str | Path, **build_kwargs) -> dict[str, Pa
     plot_friction_gradient(frame, paths["friction_gradient"])
     plot_compression_decomposition(frame, paths["compression"])
     plot_regression_coefficients(frame, paths["regression_coefficients"], **build_kwargs)
+    # Hand-built schematic figures (data-independent) so a fresh clone reproduces
+    # every figure in the paper, not just the data-driven ones.
+    for created in write_arbitrage_paths_figures(output_root):
+        paths[created.stem] = created
     return paths
 
 

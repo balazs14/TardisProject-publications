@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import os
 import inspect
-import pickle
 from collections.abc import Iterable
 from datetime import date
 from pathlib import Path
@@ -22,6 +21,7 @@ PROJECT_ROOT = bootstrap_repo_root(Path(__file__).resolve())
 from tardis.utils import debug_runtime
 from tardis.process_pcp import compute_pcp_metrics
 from amu_cache import get_cached_frame_parquet_path, put_cached_frame_parquet_path
+from amu_metrics import amu_ratio_expr, any_positive_count_expr, tickpath_amu_agg_exprs
 
 
 logger = logging.getLogger(__name__)
@@ -320,51 +320,18 @@ def _parquet_num_rows(parquet_path: str | Path) -> int:
 
 
 def _amu_agg_exprs() -> list[pl.Expr]:
+    # AMU is the mean of MMA over the positive-MMA *tickpaths* in the bucket
+    # (see amu_metrics for the shared definition). num_pairs is the tick count and
+    # num_has_amu the number of ticks with at least one positive path.
     return [
-        pl.col("fwd_joincall_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("fwd_joincall_bp_clipped"),
-        pl.col("bck_joincall_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("bck_joincall_bp_clipped"),
-        pl.col("bck_joinput_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("bck_joinput_bp_clipped"),
-        pl.col("fwd_joinput_bp").clip(lower_bound=0, upper_bound=max_amu_bp_default).mean().alias("fwd_joinput_bp_clipped"),
-        (pl.col("fwd_joincall_bp") > 0).sum().alias("fwd_joincall_num"),
-        (pl.col("bck_joincall_bp") > 0).sum().alias("bck_joincall_num"),
-        (pl.col("bck_joinput_bp") > 0).sum().alias("bck_joinput_num"),
-        (pl.col("fwd_joinput_bp") > 0).sum().alias("fwd_joinput_num"),
+        *tickpath_amu_agg_exprs(float(max_amu_bp_default), sum_alias="amu_possum", count_alias="num_amu"),
         pl.len().alias("num_pairs"),
-        (
-            (
-                (pl.col("fwd_joincall_bp") > 0)
-                | (pl.col("bck_joincall_bp") > 0)
-                | (pl.col("bck_joinput_bp") > 0)
-                | (pl.col("fwd_joinput_bp") > 0)
-            )
-            .cast(pl.Int64)
-            .sum()
-            .alias("num_has_amu")
-        ),
+        any_positive_count_expr().alias("num_has_amu"),
     ]
 
 
 def _add_amu_bps_columns(frame: pl.LazyFrame) -> pl.LazyFrame:
-    return frame.with_columns(
-        (
-            pl.col("fwd_joincall_num")
-            + pl.col("bck_joincall_num")
-            + pl.col("bck_joinput_num")
-            + pl.col("fwd_joinput_num")
-        ).alias("num_amu")
-    ).with_columns(
-        (
-            pl.col("fwd_joincall_bp_clipped") * pl.col("fwd_joincall_num")
-            + pl.col("bck_joincall_bp_clipped") * pl.col("bck_joincall_num")
-            + pl.col("bck_joinput_bp_clipped") * pl.col("bck_joinput_num")
-            + pl.col("fwd_joinput_bp_clipped") * pl.col("fwd_joinput_num")
-        ).alias("weighted_sum")
-    ).with_columns(
-        pl.when(pl.col("num_amu") > 0)
-        .then(pl.col("weighted_sum") / pl.col("num_amu"))
-        .otherwise(None)
-        .alias("amu_bps")
-    )
+    return frame.with_columns(amu_ratio_expr("amu_possum", "num_amu").alias("amu_bps"))
 
 
 @debug_runtime("inspect_pcpb_input_from_parquet")
@@ -387,56 +354,47 @@ def inspect_pcpb_input_from_parquet(parquet_path: str | Path) -> None:
 
 @debug_runtime("write_summary_daily_table_from_parquet")
 def write_summary_daily_table_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
-    cache_path = output_dir / "descriptive_summary_daily_numeric_cache.pkl"
-    if not _regression_force_recreate_cache_enabled() and cache_path.exists():
-        with cache_path.open("rb") as handle:
-            summary_t = pickle.load(handle)
-        logger.debug("write_summary_daily_table_from_parquet using cached numerical output cache_path=%s", cache_path)
-    else:
-        filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
-        strikes_lf = filter_ticks(_lazy_pcpb(parquet_path), apply_rel_strike=False)
-        group_keys = ["ref_sym", "exchange", "timestamp"]
-        per_ts = filtered_lf.group_by(group_keys).agg(
-            pl.len().alias("num_contracts_ts"),
-            pl.col("exp").n_unique().alias("num_expirations_ts"),
-            pl.col("call_opt_spread_bp").mean().alias("call_spread_bp_ts"),
-            pl.col("put_opt_spread_bp").mean().alias("put_spread_bp_ts"),
+    filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
+    strikes_lf = filter_ticks(_lazy_pcpb(parquet_path), apply_rel_strike=False)
+    group_keys = ["ref_sym", "exchange", "timestamp"]
+    per_ts = filtered_lf.group_by(group_keys).agg(
+        pl.len().alias("num_contracts_ts"),
+        pl.col("exp").n_unique().alias("num_expirations_ts"),
+        pl.col("call_opt_spread_bp").mean().alias("call_spread_bp_ts"),
+        pl.col("put_opt_spread_bp").mean().alias("put_spread_bp_ts"),
+    )
+    strikes_per_ts = strikes_lf.group_by(group_keys).agg(
+        pl.col("strike").n_unique().alias("num_strikes_ts"),
+    )
+    per_ts = per_ts.join(strikes_per_ts, on=group_keys, how="left")
+    n_days = filtered_lf.group_by(["ref_sym", "exchange"]).agg(pl.col("mdy").n_unique().alias("Num days in sample"))
+    summary = (
+        per_ts.group_by(["ref_sym", "exchange"])
+        .agg(
+            pl.col("num_contracts_ts").mean().alias("Avg num contracts"),
+            pl.col("num_expirations_ts").mean().alias("Avg num expirations"),
+            pl.col("num_strikes_ts").mean().alias("Avg num strikes"),
+            pl.col("call_spread_bp_ts").mean().alias("Avg call spread (bp)"),
+            pl.col("put_spread_bp_ts").mean().alias("Avg put spread (bp)"),
         )
-        strikes_per_ts = strikes_lf.group_by(group_keys).agg(
-            pl.col("strike").n_unique().alias("num_strikes_ts"),
-        )
-        per_ts = per_ts.join(strikes_per_ts, on=group_keys, how="left")
-        n_days = filtered_lf.group_by(["ref_sym", "exchange"]).agg(pl.col("mdy").n_unique().alias("Num days in sample"))
-        summary = (
-            per_ts.group_by(["ref_sym", "exchange"])
-            .agg(
-                pl.col("num_contracts_ts").mean().alias("Avg num contracts"),
-                pl.col("num_expirations_ts").mean().alias("Avg num expirations"),
-                pl.col("num_strikes_ts").mean().alias("Avg num strikes"),
-                pl.col("call_spread_bp_ts").mean().alias("Avg call spread (bp)"),
-                pl.col("put_spread_bp_ts").mean().alias("Avg put spread (bp)"),
-            )
-            .join(n_days, on=["ref_sym", "exchange"], how="left")
-            .sort(["ref_sym", "exchange"])
-            .collect()
-        )
+        .join(n_days, on=["ref_sym", "exchange"], how="left")
+        .sort(["ref_sym", "exchange"])
+        .collect()
+    )
 
-        summary_pd = summary.to_pandas()
-        for column in [
-            "Avg num contracts",
-            "Avg num expirations",
-            "Avg num strikes",
-            "Num days in sample",
-            "Avg call spread (bp)",
-            "Avg put spread (bp)",
-        ]:
-            summary_pd[column] = pd.to_numeric(summary_pd[column], errors="coerce").round(0).astype("Int64")
+    summary_pd = summary.to_pandas()
+    for column in [
+        "Avg num contracts",
+        "Avg num expirations",
+        "Avg num strikes",
+        "Num days in sample",
+        "Avg call spread (bp)",
+        "Avg put spread (bp)",
+    ]:
+        summary_pd[column] = pd.to_numeric(summary_pd[column], errors="coerce").round(0).astype("Int64")
 
-        summary_t = summary_pd.set_index(["ref_sym", "exchange"]).T
-        summary_t.columns = summary_t.columns.set_names([None, None])
-        with cache_path.open("wb") as handle:
-            pickle.dump(summary_t, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        logger.debug("write_summary_daily_table_from_parquet refreshed numerical cache cache_path=%s", cache_path)
+    summary_t = summary_pd.set_index(["ref_sym", "exchange"]).T
+    summary_t.columns = summary_t.columns.set_names([None, None])
 
     output_path = output_dir / "summary_daily_option_coverage_table.tex"
     dataframe_to_tabular_tex(summary_t, output_path)
@@ -445,42 +403,28 @@ def write_summary_daily_table_from_parquet(parquet_path: str | Path, *, output_d
 
 @debug_runtime("write_amu_summary_table_from_parquet")
 def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
-    cache_path = output_dir / "descriptive_amu_summary_numeric_cache.pkl"
-    if not _regression_force_recreate_cache_enabled() and cache_path.exists():
-        with cache_path.open("rb") as handle:
-            table = pickle.load(handle)
-        logger.debug("write_amu_summary_table_from_parquet using cached numerical output cache_path=%s", cache_path)
-    else:
-        filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
-        lf = _add_amu_bps_columns(filtered_lf.group_by(["ref_sym", "exchange"]).agg(_amu_agg_exprs()))
-        table = (
-            lf.select(
-                pl.col("ref_sym").alias("underlying"),
-                "exchange",
-                pl.col("amu_bps").alias("mean AMU(bps)"),
-                pl.col("num_has_amu").alias("positive MMA occurs"),
-                pl.col("num_pairs").alias("Num Observations"),
-            )
-            .sort(["underlying", "exchange"])
-            .collect()
-            .to_pandas()
+    filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
+    lf = _add_amu_bps_columns(filtered_lf.group_by(["ref_sym", "exchange"]).agg(_amu_agg_exprs()))
+    table = (
+        lf.select(
+            pl.col("ref_sym").alias("underlying"),
+            "exchange",
+            pl.col("amu_bps").alias("mean AMU(bps)"),
+            pl.col("num_has_amu").alias("positive MMA occurs on any path"),
+            pl.col("num_pairs").alias("Num Observations"),
         )
-        table = table.set_index(["underlying", "exchange"])
-        table["mean AMU(bps)"] = table["mean AMU(bps)"].map(lambda value: f"{value:.2f}" if pd.notna(value) else "")
-        for column in ["positive MMA occurs", "Num Observations"]:
-            table[column] = table[column].map(lambda value: f"{int(value):,}" if pd.notna(value) else "")
-        with cache_path.open("wb") as handle:
-            pickle.dump(table, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        logger.debug("write_amu_summary_table_from_parquet refreshed numerical cache cache_path=%s", cache_path)
+        .sort(["underlying", "exchange"])
+        .collect()
+        .to_pandas()
+    )
+    table = table.set_index(["underlying", "exchange"])
+    table["mean AMU(bps)"] = table["mean AMU(bps)"].map(lambda value: f"{value:.2f}" if pd.notna(value) else "")
+    for column in ["positive MMA occurs on any path", "Num Observations"]:
+        table[column] = table[column].map(lambda value: f"{int(value):,}" if pd.notna(value) else "")
 
     output_path = output_dir / "amu_summary_table.tex"
     dataframe_to_tabular_tex(table, output_path)
     return output_path
-
-
-def _regression_force_recreate_cache_enabled() -> bool:
-    value = os.environ.get("REGRESSION_FORCE_RECREATE_CACHE", "1").strip().lower()
-    return value not in {"0", "false", "no", "off"}
 
 
 @debug_runtime("plot_4_spreads_from_parquet")
