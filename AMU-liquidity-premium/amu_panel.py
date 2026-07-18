@@ -37,6 +37,7 @@ tte_sqrt_max = float(panel_cfg["tte_sqrt_max"])
 rel_strike_min = float(filters_cfg["rel_strike_min"])
 rel_strike_max = float(filters_cfg["rel_strike_max"])
 max_amu_bp = float(filters_cfg["max_amu_bp"])
+filter_stale = bool(filters_cfg.get("filter_stale", False))
 pcp_metric_kwargs = {
     "cost_per_notional": float(pcp_cfg["cost_per_notional"]),
     "fut_mgn_rate": float(pcp_cfg["fut_mgn_rate"]),
@@ -190,6 +191,10 @@ def _panel_block_from_file(file_path: Path) -> pl.DataFrame:
 
     panel_ready = compute_pcp_metrics(raw, **pcp_metric_kwargs)
     panel_ready = panel_ready.drop_nulls(_required_panel_columns())
+    if filter_stale:
+        for column in stale_panel_columns:
+            if column in panel_ready.columns:
+                panel_ready = panel_ready.filter(~pl.col(column).fill_null(False).cast(pl.Boolean))
     if panel_ready.is_empty():
         return pl.DataFrame()
     panel_ready = panel_ready.with_columns(

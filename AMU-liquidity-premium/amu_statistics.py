@@ -42,6 +42,8 @@ min_quote_size_dollar_default = float(filters_cfg["min_quote_size_dollar"])
 min_mma_bp_default = float(filters_cfg["min_mma_bp"])
 max_mma_bp_default = float(filters_cfg["max_mma_bp"])
 max_amu_bp_default = int(filters_cfg["max_amu_bp"])
+filter_stale_default = bool(filters_cfg.get("filter_stale", False))
+STALE_LEG_COLUMNS = ("call_stale", "put_stale", "spot_stale")
 
 pcpb_columns = list(statistics_cfg["pcpb_columns"])
 pcp_metric_kwargs = {
@@ -73,6 +75,7 @@ def write_dynamic_tex_assumptions(publication_dir: str | Path = PUBLICATION_DIR)
     spread_bp_max = int(filters_cfg["spread_bp_max"])
     rel_strike_min = float(filters_cfg["rel_strike_min"])
     rel_strike_max = float(filters_cfg["rel_strike_max"])
+    filter_stale = bool(filters_cfg.get("filter_stale", False))
 
     # Import lazily to avoid coupling module import order.
     from amu_panel import build_amu_panel
@@ -91,6 +94,7 @@ def write_dynamic_tex_assumptions(publication_dir: str | Path = PUBLICATION_DIR)
         "SpreadBpMax": f"{spread_bp_max:d}",
         "RelStrikeMin": f"{rel_strike_min:g}",
         "RelStrikeMax": f"{rel_strike_max:g}",
+        "FilterStale": "enabled" if filter_stale else "disabled",
     }
     required_cutoff_macros = {
         "RegNonAtmCutoff",
@@ -103,6 +107,7 @@ def write_dynamic_tex_assumptions(publication_dir: str | Path = PUBLICATION_DIR)
         "SpreadBpMax",
         "RelStrikeMin",
         "RelStrikeMax",
+        "FilterStale",
     }
     missing_cutoff_macros = required_cutoff_macros - set(cutoff_macros)
     assert not missing_cutoff_macros, f"Missing regression cutoff macros: {sorted(missing_cutoff_macros)}"
@@ -129,6 +134,7 @@ def filter_ticks(
     max_mma_bp: float = max_mma_bp_default,
     *,
     apply_rel_strike: bool = True,
+    filter_stale: bool = filter_stale_default,
 ) -> pl.DataFrame | pl.LazyFrame | pd.DataFrame:
     required = {
         "call_opt_spread_bp",
@@ -161,6 +167,10 @@ def filter_ticks(
         ]
         for column in mma_columns:
             mask = mask & pd.to_numeric(df[column], errors="coerce").between(min_mma_bp, max_mma_bp)
+        if filter_stale:
+            for column in STALE_LEG_COLUMNS:
+                if column in df.columns:
+                    mask = mask & ~df[column].fillna(False).astype(bool)
         return df.loc[mask].copy()
 
     if isinstance(df, (pl.DataFrame, pl.LazyFrame)):
@@ -179,6 +189,10 @@ def filter_ticks(
         ]
         for column in mma_columns:
             expr = expr & pl.col(column).is_between(min_mma_bp, max_mma_bp)
+        if filter_stale:
+            for column in STALE_LEG_COLUMNS:
+                if column in column_names:
+                    expr = expr & (~pl.col(column).fill_null(False).cast(pl.Boolean))
         return df.filter(expr)
 
     raise TypeError(f"Unsupported frame type: {type(df)}")
@@ -340,12 +354,12 @@ def inspect_pcpb_input_from_parquet(parquet_path: str | Path) -> None:
     logger.info("AMU columns: %s", ", ".join(parquet_file.schema.names))
 
     lf = _lazy_pcpb(parquet_path)
-    ref_syms = lf.select(pl.col("ref_sym").unique().sort()).collect().to_series().to_list()
-    exchanges = lf.select(pl.col("exchange").unique().sort()).collect().to_series().to_list()
+    ref_syms = lf.select(pl.col("ref_sym").unique().sort()).collect(engine="streaming").to_series().to_list()
+    exchanges = lf.select(pl.col("exchange").unique().sort()).collect(engine="streaming").to_series().to_list()
     min_ts, max_ts = lf.select(
         pl.col("timestamp").min().alias("min_ts"),
         pl.col("timestamp").max().alias("max_ts"),
-    ).collect().row(0)
+    ).collect(engine="streaming").row(0)
 
     logger.info("AMU ref_syms: %s", ref_syms)
     logger.info("AMU exchanges: %s", exchanges)
@@ -379,7 +393,7 @@ def write_summary_daily_table_from_parquet(parquet_path: str | Path, *, output_d
         )
         .join(n_days, on=["ref_sym", "exchange"], how="left")
         .sort(["ref_sym", "exchange"])
-        .collect()
+        .collect(engine="streaming")
     )
 
     summary_pd = summary.to_pandas()
@@ -414,7 +428,7 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
             pl.col("num_pairs").alias("Num Observations"),
         )
         .sort(["underlying", "exchange"])
-        .collect()
+        .collect(engine="streaming")
         .to_pandas()
     )
     table = table.set_index(["underlying", "exchange"])
@@ -752,7 +766,7 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
     )
     daily_amu = _add_amu_bps_columns(
         lf.group_by(["mdy", "exchange", "ref_sym", "market"]).agg(_amu_agg_exprs())
-    ).select(["mdy", "market", "amu_bps"]).sort(["market", "mdy"]).collect().to_pandas()
+    ).select(["mdy", "market", "amu_bps"]).sort(["market", "mdy"]).collect(engine="streaming").to_pandas()
 
     btc_index = (
         filtered_lf
@@ -760,7 +774,7 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
         .group_by("mdy")
         .agg(pl.col("index").mean().alias("index"))
         .sort("mdy")
-        .collect()
+        .collect(engine="streaming")
         .to_pandas()
     )
 
@@ -819,7 +833,7 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
     )
     daily_amu = _add_amu_bps_columns(
         lf.group_by(["mdy", "exchange", "ref_sym", "market"]).agg(_amu_agg_exprs())
-    ).select(["mdy", "exchange", "ref_sym", "market", "amu_bps"]).sort(["market", "mdy"]).collect().to_pandas()
+    ).select(["mdy", "exchange", "ref_sym", "market", "amu_bps"]).sort(["market", "mdy"]).collect(engine="streaming").to_pandas()
 
     start = pd.Timestamp("2023-01-01")
     end = pd.Timestamp("2024-12-31")
@@ -916,7 +930,7 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
         )
         .group_by(["market", "rel_strike_bin"])
         .agg(_amu_agg_exprs())
-    ).select(["market", "rel_strike_bin", "amu_bps", "num_has_amu", "num_pairs"]).sort(["market", "rel_strike_bin"]).collect().to_pandas()
+    ).select(["market", "rel_strike_bin", "amu_bps", "num_has_amu", "num_pairs"]).sort(["market", "rel_strike_bin"]).collect(engine="streaming").to_pandas()
 
     curve_df["amu_bps_smooth"] = np.nan
     for market, group in curve_df.groupby("market", sort=False):
@@ -1014,7 +1028,7 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
         )
         .group_by(["market", "tte_bin_center"])
         .agg(_amu_agg_exprs())
-    ).select(["market", "tte_bin_center", "amu_bps", "num_has_amu", "num_pairs"]).sort(["market", "tte_bin_center"]).collect().to_pandas()
+    ).select(["market", "tte_bin_center", "amu_bps", "num_has_amu", "num_pairs"]).sort(["market", "tte_bin_center"]).collect(engine="streaming").to_pandas()
 
     curve_df["amu_bps_smooth"] = np.nan
     for market, group in curve_df.groupby("market", sort=False):
@@ -1124,5 +1138,5 @@ def main() -> None:
         PUBLICATION_DIR,
         from_date=os.environ.get("FROM_DATE", "2020-01-01"),
         to_date=os.environ.get("TO_DATE", "2026-06-05"),
-        force_recreate_cache=os.environ.get("AMU_FORCE_RECREATE_CACHE", "0") == "1",
+        force_recreate_cache=os.environ.get("RECREATE_STAT_CACHE", "0") == "1",
     )

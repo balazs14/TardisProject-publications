@@ -10,7 +10,11 @@ FROM_DATE=${FROM_DATE:-2020-01-01}
 TO_DATE=${TO_DATE:-2026-06-05}
 BUILD_PDF=${BUILD_PDF:-1}
 LOG_LEVEL=${LOG_LEVEL:-INFO}
-AMU_FORCE_RECREATE_CACHE=${AMU_FORCE_RECREATE_CACHE:-0}
+# Recreate the two caches selectively (0 = reuse if present, 1 = rebuild from raw):
+#   RECREATE_STAT_CACHE  -> the tick-level statistics frame (18 GB)
+#   RECREATE_PANEL_CACHE -> the aggregated panel (drives the regressions)
+RECREATE_STAT_CACHE=${RECREATE_STAT_CACHE:-0}
+RECREATE_PANEL_CACHE=${RECREATE_PANEL_CACHE:-0}
 # ARTIFACTS_DIR controls where figures and tables are written.
 # Use e.g. ARTIFACTS_DIR=artifacts_short for a 2024-only build and
 # ARTIFACTS_DIR=artifacts_long for the full 2020-2026 build.
@@ -22,7 +26,8 @@ export FROM_DATE
 export TO_DATE
 export BUILD_PDF
 export LOG_LEVEL
-export AMU_FORCE_RECREATE_CACHE
+export RECREATE_STAT_CACHE
+export RECREATE_PANEL_CACHE
 export ARTIFACTS_DIR
 
 cd "$PAPER_DIR"
@@ -32,8 +37,8 @@ mkdir -p "$ARTIFACTS_DIR"
 # If artifacts/ is still a plain directory from before the multi-build scheme
 # was introduced, migrate it to artifacts_long/ on first run.
 if [[ -d artifacts && ! -L artifacts ]]; then
-    echo "Migrating plain artifacts/ to artifacts_long/ ..."
-    mv artifacts artifacts_long
+    echo "Migrating plain artifacts/ to artifacts_bak/ ..."
+    mv artifacts artifacts_bak
 fi
 
 # Point the symlink at the target directory (relative, so the tex file works
@@ -56,7 +61,8 @@ to_date = os.environ["TO_DATE"]
 log_level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
 log_level = getattr(logging, log_level_name, logging.INFO)
 matplotlib_log_level = max(log_level, logging.INFO)
-force_recreate_cache = os.environ.get("AMU_FORCE_RECREATE_CACHE", "0") == "1"
+recreate_stat_cache = os.environ.get("RECREATE_STAT_CACHE", "0") == "1"
+recreate_panel_cache = os.environ.get("RECREATE_PANEL_CACHE", "0") == "1"
 artifacts_dir = Path(os.environ["ARTIFACTS_DIR"])
 cache_path = build_shared_cache_path(artifacts_dir, from_date, to_date)
 
@@ -78,24 +84,28 @@ logging.getLogger(__name__).info(
 	from_date, to_date, artifacts_dir, log_level_name,
 )
 logging.getLogger(__name__).info("shared dataframe cache path=%s", cache_path)
-logging.getLogger(__name__).info("force recreate cache=%s", force_recreate_cache)
+logging.getLogger(__name__).info(
+	"recreate stat cache=%s panel cache=%s", recreate_stat_cache, recreate_panel_cache,
+)
 
 write_dynamic_tex_assumptions(artifacts_dir)
 
+# Statistics frame (tick-level, 18 GB): controlled by RECREATE_STAT_CACHE.
 generate_all_statistics(
 	artifacts_dir,
 	from_date=from_date,
 	to_date=to_date,
-	force_recreate_cache=force_recreate_cache,
+	force_recreate_cache=recreate_stat_cache,
 	cache_path=cache_path,
 )
 
+# Panel (aggregated, drives the regressions): controlled by RECREATE_PANEL_CACHE.
 write_regression_tables(
 	artifacts_dir,
 	from_date=from_date,
 	to_date=to_date,
 	cache_path=cache_path,
-	force_recreate_cache=force_recreate_cache,
+	force_recreate_cache=recreate_panel_cache,
 )
 
 generate_all_figures(
@@ -103,12 +113,13 @@ generate_all_figures(
 	from_date=from_date,
 	to_date=to_date,
 	cache_path=cache_path,
-	force_recreate_cache=force_recreate_cache,
+	force_recreate_cache=recreate_panel_cache,
 )
 PY
 
 if [[ "$BUILD_PDF" == "1" ]]; then
-	latexmk -C >/dev/null 2>&1 || true
+    latexmk -C >/dev/null 2>&1 || true
+        rm -fr build    
 	mkdir -p build
 	latexmk \
 	  -pdf \

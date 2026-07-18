@@ -10,14 +10,14 @@ import seaborn as sns
 from amu_config import CONFIG
 from figure_arbitrage_paths import write_arbitrage_paths_figures
 from panel_regressions import (
-    amu_levels_regression_spec,
-    baseline_regression_spec,
+    amu_spec1_regression_spec,
+    amu_spec2_regression_spec,
+    amu_spec3_regression_spec,
     build_liquidity_analysis_panel,
     filter_analysis_panel,
-    mma_std_levels_regression_spec,
-    run_amu_levels_regression,
-    run_baseline_regression,
-    run_mma_std_levels_regression,
+    run_amu_spec1_regression,
+    run_amu_spec2_regression,
+    run_amu_spec3_regression,
 )
 
 event_dates = {
@@ -157,7 +157,7 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
 def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None = None, bins: int = 20) -> plt.Figure:
     filtered = filter_analysis_panel(frame)
     filtered = filtered.loc[filtered["mean_mma_bp"] > -100.0].copy()
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5), sharey=True)
+    fig, axes = plt.subplots(1, 4, figsize=(22, 5), sharey=True)
     if filtered.empty:
         for ax in axes:
             _annotate_empty_panel(ax, "No observations with mean_mma_bp > -100")
@@ -165,10 +165,10 @@ def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None =
         return _finalize_figure(fig, output_path)
 
     for ax, column, title, xlabel in zip(
-        axes[:2],
-        ("average_put_call_spread_bp", "log_mean_min_quote_size_dollar"),
-        ("MMA versus option spread", "MMA versus log quote depth"),
-        ("Average put-call spread (bp)", "Log mean minimum quote size (USD)"),
+        axes[:3],
+        ("average_put_call_spread_bp", "log_mean_min_quote_size_dollar", "stale_proxy"),
+        ("MMA versus option spread", "MMA versus log quote depth", "MMA versus staleness"),
+        ("Average put-call spread (bp)", "Log mean minimum quote size (USD)", "Mean stale-quote fraction"),
         strict=False,
     ):
         binned = _binned_means(filtered, column, bins)
@@ -187,12 +187,12 @@ def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None =
         x="ref_sym",
         y="mean_mma_bp",
         hue="exchange",
-        ax=axes[2],
+        ax=axes[3],
     )
-    axes[2].set_title("MMA by underlying and exchange")
-    axes[2].set_xlabel("Underlying")
-    axes[2].set_ylabel("")
-    axes[2].legend(title="Exchange")
+    axes[3].set_title("MMA by underlying and exchange")
+    axes[3].set_xlabel("Underlying")
+    axes[3].set_ylabel("")
+    axes[3].legend(title="Exchange")
 
     axes[0].set_ylabel("Mean MMA (bp)")
     fig.suptitle("Liquidity-friction gradients")
@@ -251,72 +251,30 @@ def plot_regression_coefficients(
 ) -> plt.Figure:
     results = pd.concat(
         [
-            run_baseline_regression(panel=frame, **build_kwargs),
-            run_amu_levels_regression(panel=frame, **build_kwargs),
-            run_mma_std_levels_regression(panel=frame, **build_kwargs),
+            run_amu_spec1_regression(panel=frame, **build_kwargs),
+            run_amu_spec2_regression(panel=frame, **build_kwargs),
+            run_amu_spec3_regression(panel=frame, **build_kwargs),
         ],
         ignore_index=True,
     )
 
-    spec_order = [
-        baseline_regression_spec().name,
-        amu_levels_regression_spec().name,
-        mma_std_levels_regression_spec().name,
-    ]
+    specs = [amu_spec1_regression_spec(), amu_spec2_regression_spec(), amu_spec3_regression_spec()]
+    spec_order = [spec.name for spec in specs]
     pretty_titles = {
-        baseline_regression_spec().name: "Baseline",
-        amu_levels_regression_spec().name: "AMU",
-        mma_std_levels_regression_spec().name: "MMA Std",
+        specs[0].name: "(1) Post",
+        specs[1].name: "(2) + segments",
+        specs[2].name: "(3) + frictions, cell FE",
     }
-    term_order = {
-        baseline_regression_spec().name: [
-            "post_2024",
-            "average_put_call_spread_bp",
-            "log_mean_min_quote_size_dollar",
-            "stale_proxy",
-            "eth",
-            "atm",
-            "short_tte",
-            "post_2024_x_eth",
-            "post_2024_x_atm",
-            "post_2024_x_short_tte",
-        ],
-        amu_levels_regression_spec().name: [
-            "post_2024",
-            "average_put_call_spread_bp",
-            "log_mean_min_quote_size_dollar",
-            "stale_proxy",
-            "eth",
-            "atm",
-            "short_tte",
-            "post_2024_x_eth",
-            "post_2024_x_atm",
-            "post_2024_x_short_tte",
-        ],
-        mma_std_levels_regression_spec().name: [
-            "post_2024",
-            "average_put_call_spread_bp",
-            "log_mean_min_quote_size_dollar",
-            "stale_proxy",
-            "eth",
-            "atm",
-            "short_tte",
-            "post_2024_x_eth",
-            "post_2024_x_atm",
-            "post_2024_x_short_tte",
-        ],
-    }
+    term_order = {spec.name: list(spec.regressors) for spec in specs}
     term_labels = {
         "post_2024": "Post-2024",
-        "average_put_call_spread_bp": "Avg. put-call spread",
-        "log_mean_min_quote_size_dollar": "Log min quote size",
-        "stale_proxy": "Stale proxy",
-        "post_2024_x_eth": "Post x ETH",
-        "post_2024_x_atm": "Post x ATM",
-        "post_2024_x_short_tte": "Post x NearExp",
+        "okx": "OKX",
         "eth": "ETH",
         "atm": "ATM",
         "short_tte": "NearExp",
+        "log_mean_min_quote_size_dollar": "Depth",
+        "average_put_call_spread_bp": "Spread",
+        "stale_proxy": "Stale",
     }
 
     sns.set_theme(style="whitegrid", context="talk")
@@ -336,7 +294,7 @@ def plot_regression_coefficients(
         ax.set_title(pretty_titles[spec_name], fontsize=11)
         ax.set_xlabel("Coefficient with 95% CI")
 
-    fig.suptitle("Regression coefficients: baseline, AMU, and MMA-std specifications")
+    fig.suptitle("Nested AMU regressions: coefficient estimates with 95\\% CI")
     return _finalize_figure(fig, output_path)
 
 

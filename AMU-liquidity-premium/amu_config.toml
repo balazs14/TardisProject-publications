@@ -9,6 +9,9 @@ min_quote_size_dollar = 5000.0
 min_mma_bp = -500
 max_mma_bp = 500
 max_amu_bp = 100
+# When true, drop ticks whose call or put leg is stale (carried-forward, non-updated)
+# before any AMU/MMA aggregation. Default false: no stale filtering.
+filter_stale = false
 
 [pcp]
 cost_per_notional = 0.003
