@@ -10,14 +10,18 @@ matched put--call pair contributes four tickpaths, one per join path
 For any bucket:
 
 * MMA is the mean of the path payoff over *all* tickpaths.
-* AMU is the mean of the path payoff over the *positive-MMA* tickpaths only:
+* AMU comes in two explicit flavours built from the same positive-part sum:
 
-      AMU = ( sum over positive tickpaths of clip(mma, 0, max_amu_bp) )
-            / ( number of positive tickpaths ).
+  - conditional (`amu_conditional_bp_expr`): sum over positive tickpaths of
+    clip(mma, 0, max_amu_bp) / number of positive tickpaths -- the mean
+    executable size *given* an executable path exists.
+  - unconditional (`amu_unconditional_bp_expr`): the same positive-part sum
+    divided by *all* tickpaths -- i.e. (AMU>0 frequency) x (conditional size),
+    the expected executable wedge per quote.
 
-The aggregation is expressed as two additive accumulators -- a positive-part
-sum and a positive count -- so it composes correctly across files/blocks; the
-final AMU is the ratio of the accumulated totals (`amu_ratio_expr`).
+The aggregation is expressed as additive accumulators -- a positive-part sum, a
+positive tickpath count, and the tick count -- so it composes correctly across
+files/blocks; each AMU flavour is a ratio of accumulated totals.
 """
 from __future__ import annotations
 
@@ -75,5 +79,33 @@ def amu_ratio_expr(sum_col: str, count_col: str) -> pl.Expr:
     return (
         pl.when(pl.col(count_col) > 0)
         .then(pl.col(sum_col) / pl.col(count_col))
+        .otherwise(None)
+    )
+
+
+# Number of join paths per tick (tickpaths per tick). Total tickpaths in a bucket
+# is PATHS_PER_TICK * (number of ticks).
+PATHS_PER_TICK: int = len(JOIN_PATH_COLUMNS)
+
+
+def amu_conditional_bp_expr(sum_col: str, positive_count_col: str) -> pl.Expr:
+    """Conditional AMU (bp): positive-part sum / number of positive-MMA tickpaths.
+
+    The mean executable-arbitrage *size* conditional on an executable path existing.
+    """
+    return amu_ratio_expr(sum_col, positive_count_col)
+
+
+def amu_unconditional_bp_expr(sum_col: str, num_ticks_col: str, paths_per_tick: int = PATHS_PER_TICK) -> pl.Expr:
+    """Unconditional AMU (bp): positive-part sum / total tickpaths.
+
+    Equals (AMU>0 frequency) x (conditional size): the expected executable wedge
+    per quote, averaging in the zero (non-executable) tickpaths. ``num_ticks_col``
+    holds the tick count; total tickpaths = ``paths_per_tick * num_ticks``.
+    """
+    denom = paths_per_tick * pl.col(num_ticks_col)
+    return (
+        pl.when(pl.col(num_ticks_col) > 0)
+        .then(pl.col(sum_col) / denom)
         .otherwise(None)
     )

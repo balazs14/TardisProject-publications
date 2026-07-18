@@ -25,6 +25,11 @@ event_dates = {
     for label, value in CONFIG["figures"]["event_dates"].items()
 }
 
+# AMU flavour these figures plot. The panel carries both mean_amu_conditional_bp
+# and mean_amu_unconditional_bp; switch to "mean_amu_unconditional_bp" for the
+# per-quote (frequency x conditional) wedge instead of the conditional size.
+PANEL_AMU_COLUMN = "mean_amu_conditional_bp"
+
 
 def generate_all_figures(output_dir: str | Path, **build_kwargs) -> dict[str, Path]:
     frame = build_liquidity_analysis_panel(**build_kwargs)
@@ -54,12 +59,12 @@ def generate_all_figures(output_dir: str | Path, **build_kwargs) -> dict[str, Pa
 def plot_daily_amu_timeseries(frame: pd.DataFrame, output_path: str | Path | None = None) -> plt.Figure:
     filtered = filter_analysis_panel(frame)
     plot_frame = (
-        filtered.groupby(["day", "exchange", "ref_sym"], as_index=False)["mean_amu_bp"]
+        filtered.groupby(["day", "exchange", "ref_sym"], as_index=False)[PANEL_AMU_COLUMN]
         .mean()
         .assign(series=lambda df: df["exchange"] + " | " + df["ref_sym"])
     )
     fig, ax = plt.subplots(figsize=(11, 5))
-    sns.lineplot(data=plot_frame, x="day", y="mean_amu_bp", hue="series", ax=ax)
+    sns.lineplot(data=plot_frame, x="day", y=PANEL_AMU_COLUMN, hue="series", ax=ax)
     _add_event_markers(ax)
     ax.set_ylabel("Mean AMU (bp)")
     ax.set_xlabel("Day")
@@ -74,9 +79,9 @@ def plot_pre_post_heatmaps(frame: pd.DataFrame, output_path: str | Path | None =
     for ax, post_flag, title in zip(axes, (0.0, 1.0), ("Pre-2024", "Post-2024"), strict=False):
         heatmap = (
             filtered.loc[filtered["post_2024"] == post_flag]
-            .groupby(["rel_strike_bucket", "tte_bucket"], as_index=False)["mean_amu_bp"]
+            .groupby(["rel_strike_bucket", "tte_bucket"], as_index=False)[PANEL_AMU_COLUMN]
             .mean()
-            .pivot(index="tte_bucket", columns="rel_strike_bucket", values="mean_amu_bp")
+            .pivot(index="tte_bucket", columns="rel_strike_bucket", values=PANEL_AMU_COLUMN)
         )
         heatmaps.append(heatmap)
 
@@ -120,7 +125,7 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
         event_rows.append(tmp.loc[tmp["rel_day"].between(-window, window)])
     plot_frame = pd.concat(event_rows, ignore_index=True)
     # Aggregate across all markets (no exchange separation)
-    plot_frame = plot_frame.groupby(["event", "event_date", "rel_day"], as_index=False)["mean_amu_bp"].mean()
+    plot_frame = plot_frame.groupby(["event", "event_date", "rel_day"], as_index=False)[PANEL_AMU_COLUMN].mean()
     fig, ax = plt.subplots(figsize=(11, 6))
     
     if plot_frame.empty:
@@ -129,7 +134,7 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
         fig.suptitle("Event-study windows around 2024 regime markers")
         return _finalize_figure(fig, output_path)
     
-    sns.lineplot(data=plot_frame, x="rel_day", y="mean_amu_bp", hue="event", ax=ax, linewidth=2.0, marker=None)
+    sns.lineplot(data=plot_frame, x="rel_day", y=PANEL_AMU_COLUMN, hue="event", ax=ax, linewidth=2.0, marker=None)
     ax.axvline(0, color="black", linestyle="--", linewidth=1)
     ax.set_ylabel("Mean AMU (bp)")
     ax.set_xlabel("Days relative to event")
@@ -316,8 +321,8 @@ def _segment_delta(frame: pd.DataFrame, segment: str, groups: dict[str, pd.Serie
         segment_frame = frame.loc[mask]
         pre = segment_frame.loc[segment_frame["post_2024"] == 0.0, "mean_mma_bp"].mean()
         post = segment_frame.loc[segment_frame["post_2024"] == 1.0, "mean_mma_bp"].mean()
-        pre_amu = segment_frame.loc[segment_frame["post_2024"] == 0.0, "mean_amu_bp"].mean()
-        post_amu = segment_frame.loc[segment_frame["post_2024"] == 1.0, "mean_amu_bp"].mean()
+        pre_amu = segment_frame.loc[segment_frame["post_2024"] == 0.0, PANEL_AMU_COLUMN].mean()
+        post_amu = segment_frame.loc[segment_frame["post_2024"] == 1.0, PANEL_AMU_COLUMN].mean()
         rows.append({"segment": segment, "group": label, "delta_amu_bp": post_amu - pre_amu})
     return pd.DataFrame(rows)
 

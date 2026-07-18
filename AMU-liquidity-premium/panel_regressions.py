@@ -102,7 +102,10 @@ def build_liquidity_analysis_panel(
     frame["post_2024_x_eth"] = frame["post_2024"] * frame["eth"]
     frame["post_2024_x_atm"] = frame["post_2024"] * frame["atm"]
     frame["post_2024_x_short_tte"] = frame["post_2024"] * frame["short_tte"]
-    assert "mean_amu_bp" in frame.columns, "Expected mean_amu_bp in panel. Recreate cached amu_panel parquet files."
+    assert AMU_DEPENDENT in frame.columns, (
+        f"Expected {AMU_DEPENDENT} in panel. Recreate cached amu_panel parquet files "
+        "(they now carry mean_amu_conditional_bp and mean_amu_unconditional_bp)."
+    )
     frame["cell_id"] = (
         frame["exchange"]
         + "|"
@@ -170,6 +173,12 @@ def filter_analysis_panel(
     return filtered
 
 
+# AMU dependent variable for every spec below. The panel carries both explicit
+# flavours (mean_amu_conditional_bp, mean_amu_unconditional_bp); switch this one
+# constant to "mean_amu_unconditional_bp" to regress the per-quote (frequency x
+# conditional) wedge instead of the conditional size.
+AMU_DEPENDENT = "mean_amu_conditional_bp"
+
 # Nested AMU specifications (HC1 SEs):
 #   (1) Post                          -> RQ2 (regime effect)
 #   (2) + OKX/ETH/ATM/NearExp         -> RQ1 (cross-sectional segments, linear dummies)
@@ -188,15 +197,15 @@ _SPEC3_REGRESSORS = (
 
 
 def amu_spec1_regression_spec() -> RegressionSpec:
-    return RegressionSpec(name="amu_spec1", dependent="mean_amu_bp", regressors=_SPEC1_REGRESSORS, fixed_effects=())
+    return RegressionSpec(name="amu_spec1", dependent=AMU_DEPENDENT, regressors=_SPEC1_REGRESSORS, fixed_effects=())
 
 
 def amu_spec2_regression_spec() -> RegressionSpec:
-    return RegressionSpec(name="amu_spec2", dependent="mean_amu_bp", regressors=_SPEC2_REGRESSORS, fixed_effects=())
+    return RegressionSpec(name="amu_spec2", dependent=AMU_DEPENDENT, regressors=_SPEC2_REGRESSORS, fixed_effects=())
 
 
 def amu_spec3_regression_spec() -> RegressionSpec:
-    return RegressionSpec(name="amu_spec3", dependent="mean_amu_bp", regressors=_SPEC3_REGRESSORS, fixed_effects=("cell_id",))
+    return RegressionSpec(name="amu_spec3", dependent=AMU_DEPENDENT, regressors=_SPEC3_REGRESSORS, fixed_effects=("cell_id",))
 
 
 def run_amu_spec1_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
@@ -218,7 +227,7 @@ def write_text_macros(frame: pd.DataFrame, output_dir: str | Path) -> Path:
     never be typed by hand. ``frame`` is the filtered analysis panel.
     """
     cost_bp = int(round(float(CONFIG["pcp"]["cost_per_notional"]) * 10000.0))
-    amu = pd.to_numeric(frame["mean_amu_bp"], errors="coerce")
+    amu = pd.to_numeric(frame[AMU_DEPENDENT], errors="coerce")
     weights = pd.to_numeric(frame["n_obs"], errors="coerce") if "n_obs" in frame.columns else pd.Series(1.0, index=frame.index)
     post = pd.to_numeric(frame["post_2024"], errors="coerce")
 
@@ -401,7 +410,8 @@ def _regression_summary_table(results: pd.DataFrame) -> pd.DataFrame:
     summary["r2"] = summary["r2"].map(lambda value: f"{value:.3f}")
     summary["dependent"] = summary["dependent"].map({
         "mean_mma_bp": "MMA",
-        "mean_amu_bp": "AMU",
+        "mean_amu_conditional_bp": "AMU (cond)",
+        "mean_amu_unconditional_bp": "AMU (uncond)",
         "std_mma_bp": "Std MMA",
     }).fillna(summary["dependent"])
     return summary.set_index("specification")

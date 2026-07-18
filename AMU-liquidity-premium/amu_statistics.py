@@ -21,7 +21,12 @@ PROJECT_ROOT = bootstrap_repo_root(Path(__file__).resolve())
 from tardis.utils import debug_runtime
 from tardis.process_pcp import compute_pcp_metrics
 from amu_cache import get_cached_frame_parquet_path, put_cached_frame_parquet_path
-from amu_metrics import amu_ratio_expr, any_positive_count_expr, tickpath_amu_agg_exprs
+from amu_metrics import (
+    amu_conditional_bp_expr,
+    amu_unconditional_bp_expr,
+    any_positive_count_expr,
+    tickpath_amu_agg_exprs,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -344,8 +349,14 @@ def _amu_agg_exprs() -> list[pl.Expr]:
     ]
 
 
-def _add_amu_bps_columns(frame: pl.LazyFrame) -> pl.LazyFrame:
-    return frame.with_columns(amu_ratio_expr("amu_possum", "num_amu").alias("amu_bps"))
+def _add_amu_bp_columns(frame: pl.LazyFrame) -> pl.LazyFrame:
+    """Attach both explicit AMU flavours to an aggregated frame (which must carry
+    amu_possum, num_amu and num_pairs): the conditional size and the unconditional
+    (= frequency x conditional) per-quote wedge. Consumers pick whichever they plot."""
+    return frame.with_columns(
+        amu_conditional_bp_expr("amu_possum", "num_amu").alias("amu_conditional_bp"),
+        amu_unconditional_bp_expr("amu_possum", "num_pairs").alias("amu_unconditional_bp"),
+    )
 
 
 @debug_runtime("inspect_pcpb_input_from_parquet")
@@ -418,12 +429,13 @@ def write_summary_daily_table_from_parquet(parquet_path: str | Path, *, output_d
 @debug_runtime("write_amu_summary_table_from_parquet")
 def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
     filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
-    lf = _add_amu_bps_columns(filtered_lf.group_by(["ref_sym", "exchange"]).agg(_amu_agg_exprs()))
+    lf = _add_amu_bp_columns(filtered_lf.group_by(["ref_sym", "exchange"]).agg(_amu_agg_exprs()))
     table = (
         lf.select(
             pl.col("ref_sym").alias("underlying"),
             "exchange",
-            pl.col("amu_bps").alias("mean AMU(bps)"),
+            pl.col("amu_conditional_bp").alias("mean AMU cond (bps)"),
+            pl.col("amu_unconditional_bp").alias("mean AMU uncond (bps)"),
             pl.col("num_has_amu").alias("positive MMA occurs on any path"),
             pl.col("num_pairs").alias("Num Observations"),
         )
@@ -432,7 +444,8 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
         .to_pandas()
     )
     table = table.set_index(["underlying", "exchange"])
-    table["mean AMU(bps)"] = table["mean AMU(bps)"].map(lambda value: f"{value:.2f}" if pd.notna(value) else "")
+    for amu_column in ["mean AMU cond (bps)", "mean AMU uncond (bps)"]:
+        table[amu_column] = table[amu_column].map(lambda value: f"{value:.2f}" if pd.notna(value) else "")
     for column in ["positive MMA occurs on any path", "Num Observations"]:
         table[column] = table[column].map(lambda value: f"{int(value):,}" if pd.notna(value) else "")
 
@@ -580,12 +593,15 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
 
     overall_clipped_sum = 0.0
     overall_positive_count = 0
+    overall_raw_count = 0
     for exchange, ref_sym in target_markets:
         for column in spread_columns:
             key = (exchange, ref_sym, column)
             overall_clipped_sum += clipped_sums.get(key, 0.0)
             overall_positive_count += positive_counts.get(key, 0)
-    overall_amu_bp = (overall_clipped_sum / overall_positive_count) if overall_positive_count > 0 else np.nan
+            overall_raw_count += raw_counts.get(key, 0)
+    overall_amu_cond_bp = (overall_clipped_sum / overall_positive_count) if overall_positive_count > 0 else np.nan
+    overall_amu_uncond_bp = (overall_clipped_sum / overall_raw_count) if overall_raw_count > 0 else np.nan
 
     ax.axvline(0, color="black", linestyle="-", linewidth=3.0, alpha=0.8)
     ax.axvline(cost_per_notional_bp, color="black", linestyle="--", linewidth=2.0, alpha=0.8)
@@ -608,7 +624,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
     ax.text(
         0.98,
         0.90,
-        f"AMU = {overall_amu_bp:.1f} bp",
+        f"AMU uncond = {overall_amu_uncond_bp:.1f} bp",
         color="#1b9e77",
         transform=ax.transAxes,
         bbox=dict(boxstyle="round", facecolor="white", edgecolor="#1b9e77", alpha=0.85),
@@ -618,6 +634,16 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
     ax.text(
         0.98,
         0.82,
+        f"AMU cond = {overall_amu_cond_bp:.1f} bp",
+        color="#1b9e77",
+        transform=ax.transAxes,
+        bbox=dict(boxstyle="round", facecolor="white", edgecolor="#1b9e77", alpha=0.85),
+        va="top",
+        ha="right",
+    )
+    ax.text(
+        0.98,
+        0.74,
         f"Cost = {cost_per_notional_bp:.1f} bp",
         color="black",
         transform=ax.transAxes,
@@ -712,8 +738,10 @@ def plot_total_mma_hist_pre_post_btc_etp_from_parquet(parquet_path: str | Path, 
     ax.set_title("Total MMA histogram: Pre/Post 2024")
     ax.legend(title="")
 
-    pre_amu_bp = (pre_clipped_sum / pre_positive_count) if pre_positive_count > 0 else np.nan
-    post_amu_bp = (post_clipped_sum / post_positive_count) if post_positive_count > 0 else np.nan
+    pre_amu_cond_bp = (pre_clipped_sum / pre_positive_count) if pre_positive_count > 0 else np.nan
+    post_amu_cond_bp = (post_clipped_sum / post_positive_count) if post_positive_count > 0 else np.nan
+    pre_amu_uncond_bp = (pre_clipped_sum / pre_count) if pre_count > 0 else np.nan
+    post_amu_uncond_bp = (post_clipped_sum / post_count) if post_count > 0 else np.nan
     ax.text(
         0.16,
         0.90,
@@ -724,26 +752,22 @@ def plot_total_mma_hist_pre_post_btc_etp_from_parquet(parquet_path: str | Path, 
         va="top",
         ha="left",
     )
-    ax.text(
-        0.98,
-        0.90,
-        f"Pre AMU = {pre_amu_bp:.1f} bp",
-        color="#1f77b4",
-        transform=ax.transAxes,
-        bbox=dict(boxstyle="round", facecolor="white", edgecolor="#1f77b4", alpha=0.85),
-        va="top",
-        ha="right",
-    )
-    ax.text(
-        0.98,
-        0.80,
-        f"Post AMU = {post_amu_bp:.1f} bp",
-        color="#d62728",
-        transform=ax.transAxes,
-        bbox=dict(boxstyle="round", facecolor="white", edgecolor="#d62728", alpha=0.85),
-        va="top",
-        ha="right",
-    )
+    for y_pos, text, color in [
+        (0.90, f"Pre AMU uncond = {pre_amu_uncond_bp:.1f} bp", "#1f77b4"),
+        (0.82, f"Pre AMU cond = {pre_amu_cond_bp:.1f} bp", "#1f77b4"),
+        (0.72, f"Post AMU uncond = {post_amu_uncond_bp:.1f} bp", "#d62728"),
+        (0.64, f"Post AMU cond = {post_amu_cond_bp:.1f} bp", "#d62728"),
+    ]:
+        ax.text(
+            0.98,
+            y_pos,
+            text,
+            color=color,
+            transform=ax.transAxes,
+            bbox=dict(boxstyle="round", facecolor="white", edgecolor=color, alpha=0.85),
+            va="top",
+            ha="right",
+        )
 
     output_path = output_dir / "total_mma_hist_pre_post_btc_etp.pdf"
     fig.tight_layout()
@@ -764,9 +788,13 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
     lf = filtered_lf.with_columns(
         (pl.col("exchange").cast(pl.Utf8) + pl.lit(" | ") + pl.col("ref_sym").cast(pl.Utf8)).alias("market")
     )
-    daily_amu = _add_amu_bps_columns(
+    # Which AMU flavour this figure plots. Switch to "amu_unconditional_bp" to show
+    # the per-quote (frequency x conditional) wedge instead of the conditional size.
+    amu_col = "amu_conditional_bp"
+    amu_label = "AMU conditional (bp)" if amu_col == "amu_conditional_bp" else "AMU unconditional (bp)"
+    daily_amu = _add_amu_bp_columns(
         lf.group_by(["mdy", "exchange", "ref_sym", "market"]).agg(_amu_agg_exprs())
-    ).select(["mdy", "market", "amu_bps"]).sort(["market", "mdy"]).collect(engine="streaming").to_pandas()
+    ).select(["mdy", "market", amu_col]).sort(["market", "mdy"]).collect(engine="streaming").to_pandas()
 
     btc_index = (
         filtered_lf
@@ -780,7 +808,7 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
 
     sns.set_theme(style="whitegrid", context="talk")
     fig, ax = plt.subplots(figsize=(11, 6))
-    sns.lineplot(data=daily_amu, x="mdy", y="amu_bps", hue="market", linewidth=2.0, marker=None, ax=ax)
+    sns.lineplot(data=daily_amu, x="mdy", y=amu_col, hue="market", linewidth=2.0, marker=None, ax=ax)
     ax2 = ax.twinx()
     sns.lineplot(data=btc_index, x="mdy", y="index", color="black", linewidth=2.6, linestyle="--", ax=ax2, label="BTCUSD index")
     ax2.grid(False)
@@ -800,13 +828,13 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
         ax2.legend_.remove()
 
     ax.set_xlabel("Date")
-    ax.set_ylabel("AMU bps")
-    ax.set_title("AMU by Date with BTCUSD Index")
+    ax.set_ylabel(amu_label)
+    ax.set_title(f"{amu_label} by Date with BTCUSD Index")
     ax.tick_params(axis="x", labelrotation=90)
 
     output_path = output_dir / "multi_exchange_amu_bps_by_date.pdf"
-    amu_min = float(daily_amu["amu_bps"].min()) if not daily_amu.empty else np.nan
-    amu_max = float(daily_amu["amu_bps"].max()) if not daily_amu.empty else np.nan
+    amu_min = float(daily_amu[amu_col].min()) if not daily_amu.empty else np.nan
+    amu_max = float(daily_amu[amu_col].max()) if not daily_amu.empty else np.nan
     btc_min = float(btc_index["index"].min()) if not btc_index.empty else np.nan
     btc_max = float(btc_index["index"].max()) if not btc_index.empty else np.nan
     logger.debug(
@@ -831,9 +859,12 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
     lf = filtered_lf.with_columns(
         (pl.col("exchange").cast(pl.Utf8) + pl.lit(" | ") + pl.col("ref_sym").cast(pl.Utf8)).alias("market")
     )
-    daily_amu = _add_amu_bps_columns(
+    # Switch to "amu_unconditional_bp" for the per-quote (frequency x conditional) wedge.
+    amu_col = "amu_conditional_bp"
+    amu_label = "AMU conditional (bp)" if amu_col == "amu_conditional_bp" else "AMU unconditional (bp)"
+    daily_amu = _add_amu_bp_columns(
         lf.group_by(["mdy", "exchange", "ref_sym", "market"]).agg(_amu_agg_exprs())
-    ).select(["mdy", "exchange", "ref_sym", "market", "amu_bps"]).sort(["market", "mdy"]).collect(engine="streaming").to_pandas()
+    ).select(["mdy", "exchange", "ref_sym", "market", amu_col]).sort(["market", "mdy"]).collect(engine="streaming").to_pandas()
 
     start = pd.Timestamp("2023-01-01")
     end = pd.Timestamp("2024-12-31")
@@ -850,7 +881,7 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
     plot_frame = plot_frame.loc[plot_frame["mdy"].between(start, end)]
 
     avg_daily = (
-        plot_frame.groupby("mdy", as_index=False)["amu_bps"]
+        plot_frame.groupby("mdy", as_index=False)[amu_col]
         .mean()
         .sort_values("mdy")
     )
@@ -868,7 +899,7 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
             wrap=True,
         )
     else:
-        sns.lineplot(data=avg_daily, x="mdy", y="amu_bps", color="#1f77b4", linewidth=2.6, ax=ax)
+        sns.lineplot(data=avg_daily, x="mdy", y=amu_col, color="#1f77b4", linewidth=2.6, ax=ax)
 
     from matplotlib.lines import Line2D
 
@@ -893,13 +924,13 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
         )
 
     ax.set_xlabel("Date")
-    ax.set_ylabel("AMU bps")
-    ax.set_title("AMU by Date (2023-2024) with Main Events")
+    ax.set_ylabel(amu_label)
+    ax.set_title(f"{amu_label} by Date (2023-2024) with Main Events")
     ax.tick_params(axis="x", labelrotation=90)
 
     output_path = output_dir / "multi_exchange_amu_bps_by_date_2023_2024_avg_events.pdf"
-    amu_min = float(avg_daily["amu_bps"].min()) if not avg_daily.empty else np.nan
-    amu_max = float(avg_daily["amu_bps"].max()) if not avg_daily.empty else np.nan
+    amu_min = float(avg_daily[amu_col].min()) if not avg_daily.empty else np.nan
+    amu_max = float(avg_daily[amu_col].max()) if not avg_daily.empty else np.nan
     logger.debug(
         "Date avg-event plot summary: rows=%d amu_bp_range=[%.2f, %.2f] output=%s",
         len(avg_daily),
@@ -926,7 +957,7 @@ def _render_amu_bins_figure(curve_df, x_col: str, x_label: str, title: str):
     fig, (ax_top, ax_bottom) = plt.subplots(2, 1, figsize=(11, 9), sharex=True, gridspec_kw={"height_ratios": [2, 1]})
 
     # Top: AMU conditional size, raw (unsmoothed), y-axis anchored at 0.
-    sns.lineplot(data=curve_df, x=x_col, y="amu_bps", hue="market", linewidth=2.0, palette="deep", ax=ax_top)
+    sns.lineplot(data=curve_df, x=x_col, y="amu_conditional_bp", hue="market", linewidth=2.0, palette="deep", ax=ax_top)
     ax_top.set_ylabel("AMU conditional size (bp)")
     ax_top.set_ylim(bottom=0.0)
     ax_top.set_title(title)
@@ -968,7 +999,7 @@ def _render_amu_bins_figure(curve_df, x_col: str, x_label: str, title: str):
 @debug_runtime("plot_amu_bps_by_rel_strike_from_parquet")
 def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
     filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
-    curve_df = _add_amu_bps_columns(
+    curve_df = _add_amu_bp_columns(
         filtered_lf
         .filter(
             pl.col("exchange").is_not_null()
@@ -982,7 +1013,7 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
         )
         .group_by(["market", "rel_strike_bin"])
         .agg(_amu_agg_exprs())
-    ).select(["market", "rel_strike_bin", "amu_bps", "num_has_amu", "num_pairs"]).sort(["market", "rel_strike_bin"]).collect(engine="streaming").to_pandas()
+    ).select(["market", "rel_strike_bin", "amu_conditional_bp", "amu_unconditional_bp", "num_has_amu", "num_pairs"]).sort(["market", "rel_strike_bin"]).collect(engine="streaming").to_pandas()
 
     fig = _render_amu_bins_figure(
         curve_df, "rel_strike_bin", "Relative strike (1% bins)", "AMU vs Relative Strike (all exchange/ref_sym)"
@@ -1010,7 +1041,7 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
 def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
     bin_width = 0.7 / 100.0
     filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
-    curve_df = _add_amu_bps_columns(
+    curve_df = _add_amu_bp_columns(
         filtered_lf
         .filter(
             pl.col("exchange").is_not_null()
@@ -1032,7 +1063,7 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
         )
         .group_by(["market", "tte_bin_center"])
         .agg(_amu_agg_exprs())
-    ).select(["market", "tte_bin_center", "amu_bps", "num_has_amu", "num_pairs"]).sort(["market", "tte_bin_center"]).collect(engine="streaming").to_pandas()
+    ).select(["market", "tte_bin_center", "amu_conditional_bp", "amu_unconditional_bp", "num_has_amu", "num_pairs"]).sort(["market", "tte_bin_center"]).collect(engine="streaming").to_pandas()
 
     fig = _render_amu_bins_figure(
         curve_df, "tte_bin_center", "Time to Expiration (years, 100 linear bins from 0.0 to 0.7)", "AMU vs TTE (all exchange/ref_sym)"
