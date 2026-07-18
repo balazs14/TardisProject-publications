@@ -13,6 +13,7 @@ import pandas as pd
 import polars as pl
 import pyarrow.parquet as pq
 import seaborn as sns
+from matplotlib.ticker import EngFormatter
 
 from amu_config import CONFIG, bootstrap_repo_root
 
@@ -978,6 +979,9 @@ def _render_amu_bins_figure(curve_df, x_col: str, x_label: str, title: str):
             legend=False, ax=ax_bottom,
         )
         ax_bottom.set_ylabel("Count")
+        # Use unambiguous SI prefixes: M for 10^6 and G for 10^9. In
+        # particular, avoid a lowercase "m", which denotes milli (10^-3).
+        ax_bottom.yaxis.set_major_formatter(EngFormatter(sep=""))
         from matplotlib.lines import Line2D
 
         ax_bottom.legend(
