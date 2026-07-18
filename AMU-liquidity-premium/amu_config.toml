@@ -113,6 +113,12 @@ post_2024_start = "2024-01-10"
 nonatm_distance = 0.05
 short_tte_cutoff = 0.35
 
+[figures]
+# Lower subplot of the AMU-vs-relative-strike and AMU-vs-tte figures:
+#   "frequency" -> fraction of ticks with an executable (AMU>0) path  (decomposition view)
+#   "counts"    -> raw positive-tick and total-tick counts
+amu_lower_panel = "frequency"
+
 [figures.event_dates]
 "BTC ETP approval" = "2024-01-10"
 "ETH ETF approval" = "2024-05-23"

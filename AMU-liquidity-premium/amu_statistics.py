@@ -913,6 +913,58 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
     return output_path
 
 
+def _render_amu_bins_figure(curve_df, x_col: str, x_label: str, title: str):
+    """Two-panel AMU-vs-(strike|tte) figure: conditional size on top (y from 0, no
+    smoothing), and either the AMU>0 frequency or the raw counts on the bottom
+    (controlled by CONFIG["figures"]["amu_lower_panel"])."""
+    figures_cfg = CONFIG.get("figures", {})
+    lower_panel = str(figures_cfg.get("amu_lower_panel", "frequency")).lower()
+    curve_df = curve_df.copy()
+    curve_df["amu_freq"] = curve_df["num_has_amu"] / curve_df["num_pairs"].where(curve_df["num_pairs"] > 0)
+
+    sns.set_theme(style="whitegrid", context="talk")
+    fig, (ax_top, ax_bottom) = plt.subplots(2, 1, figsize=(11, 9), sharex=True, gridspec_kw={"height_ratios": [2, 1]})
+
+    # Top: AMU conditional size, raw (unsmoothed), y-axis anchored at 0.
+    sns.lineplot(data=curve_df, x=x_col, y="amu_bps", hue="market", linewidth=2.0, palette="deep", ax=ax_top)
+    ax_top.set_ylabel("AMU conditional size (bp)")
+    ax_top.set_ylim(bottom=0.0)
+    ax_top.set_title(title)
+    ax_top.legend(title="", loc="best")
+
+    if lower_panel == "counts":
+        counts_long = curve_df[["market", x_col, "num_has_amu", "num_pairs"]].melt(
+            id_vars=["market", x_col], value_vars=["num_has_amu", "num_pairs"],
+            var_name="metric", value_name="count",
+        )
+        counts_long["metric"] = counts_long["metric"].map(
+            {"num_has_amu": "Num positive MMA ticks in bin", "num_pairs": "Num ticks in bin"}
+        )
+        sns.lineplot(
+            data=counts_long, x=x_col, y="count", hue="market", style="metric",
+            linewidth=1.8, palette="deep",
+            dashes={"Num positive MMA ticks in bin": "", "Num ticks in bin": (4, 2)},
+            legend=False, ax=ax_bottom,
+        )
+        ax_bottom.set_ylabel("Count")
+        from matplotlib.lines import Line2D
+
+        ax_bottom.legend(
+            handles=[
+                Line2D([0], [0], color="black", linestyle="-", linewidth=1.8, label="Num positive MMA ticks in bin"),
+                Line2D([0], [0], color="black", linestyle="--", linewidth=1.8, label="Num ticks in bin"),
+            ],
+            title="",
+        )
+    else:  # frequency (default)
+        sns.lineplot(data=curve_df, x=x_col, y="amu_freq", hue="market", linewidth=1.8, palette="deep", legend=False, ax=ax_bottom)
+        ax_bottom.set_ylabel("AMU>0 frequency")
+        ax_bottom.set_ylim(bottom=0.0)
+
+    ax_bottom.set_xlabel(x_label)
+    return fig
+
+
 @debug_runtime("plot_amu_bps_by_rel_strike_from_parquet")
 def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
     filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
@@ -932,56 +984,8 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
         .agg(_amu_agg_exprs())
     ).select(["market", "rel_strike_bin", "amu_bps", "num_has_amu", "num_pairs"]).sort(["market", "rel_strike_bin"]).collect(engine="streaming").to_pandas()
 
-    curve_df["amu_bps_smooth"] = np.nan
-    for market, group in curve_df.groupby("market", sort=False):
-        curve_df.loc[group.index, "amu_bps_smooth"] = _gaussian_kernel_smooth(
-            group["rel_strike_bin"].to_numpy(),
-            group["amu_bps"].to_numpy(),
-        )
-
-    counts_long = curve_df[["market", "rel_strike_bin", "num_has_amu", "num_pairs"]].melt(
-        id_vars=["market", "rel_strike_bin"],
-        value_vars=["num_has_amu", "num_pairs"],
-        var_name="metric",
-        value_name="count",
-    )
-    counts_long["metric"] = counts_long["metric"].map({"num_has_amu": "Num positive MMA ticks in bin", "num_pairs": "Num ticks in bin"})
-    counts_long["count_smooth"] = np.nan
-    for (market, metric), group in counts_long.groupby(["market", "metric"], sort=False):
-        counts_long.loc[group.index, "count_smooth"] = _gaussian_kernel_smooth(
-            group["rel_strike_bin"].to_numpy(),
-            group["count"].to_numpy(),
-        )
-
-    sns.set_theme(style="whitegrid", context="talk")
-    fig, (ax_top, ax_bottom) = plt.subplots(2, 1, figsize=(11, 9), sharex=True, gridspec_kw={"height_ratios": [2, 1]})
-    sns.lineplot(data=curve_df, x="rel_strike_bin", y="amu_bps_smooth", hue="market", linewidth=2.0, palette="deep", ax=ax_top)
-    ax_top.set_ylabel("AMU bps (smoothed)")
-    ax_top.set_title("AMU vs Relative Strike (all exchange/ref_sym)")
-    ax_top.legend(title="", loc="best")
-    sns.lineplot(
-        data=counts_long,
-        x="rel_strike_bin",
-        y="count_smooth",
-        hue="market",
-        style="metric",
-        linewidth=1.8,
-        palette="deep",
-        dashes={"Num positive MMA ticks in bin": "", "Num ticks in bin": (4, 2)},
-        legend=False,
-        ax=ax_bottom,
-    )
-    ax_bottom.set_xlabel("Relative strike (1% bins)")
-    ax_bottom.set_ylabel("Count")
-
-    from matplotlib.lines import Line2D
-
-    ax_bottom.legend(
-        handles=[
-            Line2D([0], [0], color="black", linestyle="-", linewidth=1.8, label="Num positive MMA ticks in bin"),
-            Line2D([0], [0], color="black", linestyle="--", linewidth=1.8, label="Num ticks in bin"),
-        ],
-        title="",
+    fig = _render_amu_bins_figure(
+        curve_df, "rel_strike_bin", "Relative strike (1% bins)", "AMU vs Relative Strike (all exchange/ref_sym)"
     )
 
     output_path = output_dir / "multi_exchange_amu_bps_by_rel_strike.pdf"
@@ -1030,56 +1034,8 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
         .agg(_amu_agg_exprs())
     ).select(["market", "tte_bin_center", "amu_bps", "num_has_amu", "num_pairs"]).sort(["market", "tte_bin_center"]).collect(engine="streaming").to_pandas()
 
-    curve_df["amu_bps_smooth"] = np.nan
-    for market, group in curve_df.groupby("market", sort=False):
-        curve_df.loc[group.index, "amu_bps_smooth"] = _gaussian_kernel_smooth(
-            group["tte_bin_center"].to_numpy(),
-            group["amu_bps"].to_numpy(),
-        )
-
-    counts_long = curve_df[["market", "tte_bin_center", "num_has_amu", "num_pairs"]].melt(
-        id_vars=["market", "tte_bin_center"],
-        value_vars=["num_has_amu", "num_pairs"],
-        var_name="metric",
-        value_name="count",
-    )
-    counts_long["metric"] = counts_long["metric"].map({"num_has_amu": "Num positive MMA ticks in bin", "num_pairs": "Num ticks in bin"})
-    counts_long["count_smooth"] = np.nan
-    for (market, metric), group in counts_long.groupby(["market", "metric"], sort=False):
-        counts_long.loc[group.index, "count_smooth"] = _gaussian_kernel_smooth(
-            group["tte_bin_center"].to_numpy(),
-            group["count"].to_numpy(),
-        )
-
-    sns.set_theme(style="whitegrid", context="talk")
-    fig, (ax_top, ax_bottom) = plt.subplots(2, 1, figsize=(11, 9), sharex=True, gridspec_kw={"height_ratios": [2, 1]})
-    sns.lineplot(data=curve_df, x="tte_bin_center", y="amu_bps_smooth", hue="market", linewidth=2.0, palette="deep", ax=ax_top)
-    ax_top.set_ylabel("AMU bps (smoothed)")
-    ax_top.set_title("AMU vs TTE (all exchange/ref_sym)")
-    ax_top.legend(title="", loc="best")
-    sns.lineplot(
-        data=counts_long,
-        x="tte_bin_center",
-        y="count_smooth",
-        hue="market",
-        style="metric",
-        linewidth=1.8,
-        palette="deep",
-        dashes={"Num positive MMA ticks in bin": "", "Num ticks in bin": (4, 2)},
-        legend=False,
-        ax=ax_bottom,
-    )
-    ax_bottom.set_xlabel("Time to Expiration (years, 100 linear bins from 0.0 to 0.7)")
-    ax_bottom.set_ylabel("Count")
-
-    from matplotlib.lines import Line2D
-
-    ax_bottom.legend(
-        handles=[
-            Line2D([0], [0], color="black", linestyle="-", linewidth=1.8, label="Num positive MMA ticks in bin"),
-            Line2D([0], [0], color="black", linestyle="--", linewidth=1.8, label="Num ticks in bin"),
-        ],
-        title="",
+    fig = _render_amu_bins_figure(
+        curve_df, "tte_bin_center", "Time to Expiration (years, 100 linear bins from 0.0 to 0.7)", "AMU vs TTE (all exchange/ref_sym)"
     )
 
     output_path = output_dir / "multi_exchange_amu_bps_by_tte.pdf"
