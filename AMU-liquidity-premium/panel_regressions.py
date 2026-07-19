@@ -27,13 +27,14 @@ ENABLE_FIXED_EFFECTS = True
 
 SPEC_DISPLAY_NAMES = {
     "amu_spec1": "(1)",
-    "amu_spec2": "(2)",
-    "amu_spec3": "(3)",
-    "amu_spec1fe": "(4)",
+    "amu_spec1fe": "(2)",
+    "amu_spec2": "(3)",
+    "amu_spec3": "(4)",
 }
 
-# The nested AMU specifications reported in the combined coefficient table.
-MAIN_SPEC_ORDER = ("amu_spec1", "amu_spec2", "amu_spec3", "amu_spec1fe")
+# Column order in the combined coefficient table: (1) Post, (2) Post+cell FE,
+# (3) Post+segment dummies (pooled OLS), (4) Post+frictions+cell FE.
+MAIN_SPEC_ORDER = ("amu_spec1", "amu_spec1fe", "amu_spec2", "amu_spec3")
 
 TERM_DISPLAY_NAMES = {
     "post_2024": "$\\mathrm{Post}_t$",
@@ -274,9 +275,9 @@ def write_regression_tables(output_dir: str | Path, **build_kwargs) -> dict[str,
     )
     for runner in (
         run_amu_spec1_regression,
+        run_amu_spec1fe_regression,
         run_amu_spec2_regression,
         run_amu_spec3_regression,
-        run_amu_spec1fe_regression,
     ):
         result = runner(panel=panel)
         combined_results.append(result)

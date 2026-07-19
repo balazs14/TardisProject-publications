@@ -148,7 +148,6 @@ $(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \toprule
 Component & Assumption \\
 \midrule
-Trading-cost parameter & \texttt{cost\_per\_notional} = \CostPerNotional. The cost term is \texttt{cost\_per\_notional} multiplied by index level. \\
 AMU clipping rule & MMA series are clipped to $[0,\MaxAmuBps]$ basis points before positive-part averaging. \\
 MMA clipping rule & MMA series are clipped to $[-\MaxMmaBps,+\MaxMmaBps]$ basis points. \\
 Spread filter & Call and put spreads are capped at $\SpreadBpMax$ basis points. \\
@@ -169,13 +168,18 @@ Stale-quote filter & \FilterStale{}: when enabled, ticks with a stale call, put,
 Abbreviation & Definition \\
 \midrule
 $\mathrm{Post}_t$ & Post-2024 regime indicator (1 for dates on/after 2024-01-10, 0 otherwise). \\
+\midrule
+\multicolumn{2}{@{}l}{\textit{Liquidity-friction variables}} \\
 $\mathrm{Spr}_{g,t}$ & Average put--call spread in basis points, $0.5\times(\texttt{mean\_call\_spread\_bp}+\texttt{mean\_put\_spread\_bp})$. \\
 $\mathrm{Depth}_{g,t}$ & Log quote-depth proxy, $\log(\texttt{mean\_min\_quote\_size\_dollar})$, min taken over put/call bid/ask quote sizes. \\
 $\mathrm{Stale}_{g,t}$ & Mean stale-quote fraction across call, put, and spot legs. \\
+\midrule
+\multicolumn{2}{@{}l}{\textit{Segment dummies (components of the cell fixed effect $\gamma_g$)}} \\
 $\mathrm{OKX}_g$ & OKX indicator (1 for OKX, 0 for Deribit). \\
 $\mathrm{ETH}_g$ & ETH-underlying segment indicator. \\
 $\mathrm{ATM}_g$ & At-the-money indicator, $|\texttt{rel\_strike\_bucket}-1|\le\RegNonAtmCutoff$. \\
 $\mathrm{NearExp}_g$ & Near-expiry indicator, $\texttt{tte\_bucket}\le\RegShortTteCutoff$ years. \\
+\midrule
 $\gamma_g$ & Cell fixed effect for the tuple (\texttt{exchange}, \texttt{ref\_sym}, \texttt{rel\_strike\_bucket}, \texttt{tte\_bucket}). \\
 $\varepsilon_{g,t}$ & Idiosyncratic error. \\
 \bottomrule
@@ -262,7 +266,7 @@ $\varepsilon_{g,t}$ & Idiosyncratic error. \\
 \begin{table}[htbp]
 \centering
 {\renewcommand{\arraystretch}{1.2}\normalfont\small\input{artifacts/regression_coefficients_table.tex}}
-\caption{Nested AMU regressions; the dependent variable is the unconditional AMU. Column (1) regresses AMU on the post-2024 indicator; (2) adds the exchange, underlying, moneyness, and maturity dummies (pooled OLS); (3) adds the depth, spread, and staleness controls and replaces the segment dummies with cell fixed effects; (4) is specification (1) with cell fixed effects added---the post-2024 indicator plus cell fixed effects and no other controls---isolating the within-cell regime effect. HC1 standard errors in parentheses; stars denote $p$-value bands from the $t$-statistic. The columns headed \emph{Eff} report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$: the change in AMU, in standard deviations of AMU, per one-standard-deviation increase in the regressor.}
+\caption{Nested AMU regressions; the dependent variable is the unconditional AMU. Column (1) regresses AMU on the post-2024 indicator; (2) adds cell fixed effects to (1), isolating the within-cell regime effect; (3) instead adds the exchange, underlying, moneyness, and maturity dummies (pooled OLS); (4) adds the depth, spread, and staleness controls with cell fixed effects. HC1 standard errors in parentheses; stars denote $p$-value bands from the $t$-statistic. The columns headed \emph{Eff} report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$: the change in AMU, in standard deviations of AMU, per one-standard-deviation increase in the regressor.}
 \label{tab:regression_coefficients}
 \end{table}
 
