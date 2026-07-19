@@ -130,4 +130,14 @@ if [[ "$BUILD_PDF" == "1" ]]; then
 	  liquidity-premium.tex
 	cp build/liquidity-premium.pdf liquidity-premium.pdf
 	cp build/liquidity-premium.synctex.gz liquidity-premium.synctex.gz
+
+	# Figures/tables-only overview (same artifacts, packed several per page).
+	latexmk \
+	  -pdf \
+	  -synctex=1 \
+	  -interaction=nonstopmode \
+	  -file-line-error \
+	  -outdir=build/ \
+	  figures-tables-overview.tex
+	cp build/figures-tables-overview.pdf figures-tables-overview.pdf
 fi

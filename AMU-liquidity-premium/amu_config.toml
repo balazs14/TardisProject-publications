@@ -15,6 +15,7 @@ filter_stale = false
 
 [pcp]
 cost_per_notional = 0.003
+#cost_per_notional = 0.0005
 fut_mgn_rate = 0.2
 short_put_mgn_rate = 0.5
 short_call_mgn_rate = 0.5

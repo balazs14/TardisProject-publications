@@ -106,11 +106,12 @@ def plot_pre_post_heatmaps(frame: pd.DataFrame, output_path: str | Path | None =
             vmin=shared_vmin,
             vmax=shared_vmax,
             ax=ax,
+            cbar_kws={"label": "conditional AMU (bp)"},
         )
         ax.set_title(title)
         ax.set_xlabel("Relative strike bucket")
     axes[0].set_ylabel("TTE bucket")
-    fig.suptitle("Mean AMU across strike and maturity buckets")
+    fig.suptitle("Mean conditional AMU across strike and maturity buckets")
     return _finalize_figure(fig, output_path)
 
 
@@ -125,7 +126,8 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
         event_rows.append(tmp.loc[tmp["rel_day"].between(-window, window)])
     plot_frame = pd.concat(event_rows, ignore_index=True)
     # Aggregate across all markets (no exchange separation)
-    plot_frame = plot_frame.groupby(["event", "event_date", "rel_day"], as_index=False)[PANEL_AMU_COLUMN].mean()
+    event_amu_col = "mean_amu_unconditional_bp"  # fig 9 plots unconditional AMU
+    plot_frame = plot_frame.groupby(["event", "event_date", "rel_day"], as_index=False)[event_amu_col].mean()
     fig, ax = plt.subplots(figsize=(11, 6))
     
     if plot_frame.empty:
@@ -134,9 +136,9 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
         fig.suptitle("Event-study windows around 2024 regime markers")
         return _finalize_figure(fig, output_path)
     
-    sns.lineplot(data=plot_frame, x="rel_day", y=PANEL_AMU_COLUMN, hue="event", ax=ax, linewidth=2.0, marker=None)
+    sns.lineplot(data=plot_frame, x="rel_day", y=event_amu_col, hue="event", ax=ax, linewidth=2.0, marker=None)
     ax.axvline(0, color="black", linestyle="--", linewidth=1)
-    ax.set_ylabel("Mean AMU (bp)")
+    ax.set_ylabel("Mean unconditional AMU (bp)")
     ax.set_xlabel("Days relative to event")
     
     # Add event dates to legend labels
@@ -242,10 +244,10 @@ def plot_compression_decomposition(frame: pd.DataFrame, output_path: str | Path 
         ax.set_xlabel("")
         ax.tick_params(axis="x", rotation=0)
 
-    axes_flat[0].set_ylabel("Post-Pre 2024 AMU (bps)")
+    axes_flat[0].set_ylabel("Post-Pre 2024 conditional AMU (bps)")
     for ax in axes_flat[1:]:
         ax.set_ylabel("")
-    fig.suptitle("AMU compression by segment")
+    fig.suptitle("Conditional AMU compression by segment")
     return _finalize_figure(fig, output_path)
 
 

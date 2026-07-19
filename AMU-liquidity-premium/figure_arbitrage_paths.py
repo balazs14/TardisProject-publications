@@ -184,7 +184,7 @@ def _schematic_mma_distribution_figure(art: Path) -> Path:
     ax.plot([-cost, -cost], [0.0, peak * 1.04], color="#333", ls="--", lw=1.1, zorder=3)
     ax.text(-cost, peak * 1.07, r"$-\,$cost", ha="center", va="bottom", fontsize=9)
     ax.text(0.0, peak * 1.07, "0", ha="center", va="bottom", fontsize=9)
-    ax.annotate("no maker arbitrage", xy=(-cost, peak * 0.55), xytext=(-92, peak * 0.86),
+    ax.annotate("no maker arbitrage", xy=(-58, peak * 0.42), xytext=(-92, peak * 0.86),
                 fontsize=8.5, color="#333", arrowprops=dict(arrowstyle="->", color="#333", lw=0.8))
     ax.text(26, peak * 0.30, "AMU\n(executable)", ha="center", va="center", color=C_POT, fontsize=9, fontweight="bold")
 

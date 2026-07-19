@@ -435,19 +435,19 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
         lf.select(
             pl.col("ref_sym").alias("underlying"),
             "exchange",
-            pl.col("amu_conditional_bp").alias("mean AMU cond (bps)"),
-            pl.col("amu_unconditional_bp").alias("mean AMU uncond (bps)"),
-            pl.col("num_has_amu").alias("positive MMA occurs on any path"),
-            pl.col("num_pairs").alias("Num Observations"),
+            pl.col("amu_conditional_bp").alias("cond"),
+            pl.col("amu_unconditional_bp").alias("uncond"),
+            pl.col("num_has_amu").alias("positive MMA"),
+            pl.col("num_pairs").alias("num pairs"),
         )
         .sort(["underlying", "exchange"])
         .collect(engine="streaming")
         .to_pandas()
     )
     table = table.set_index(["underlying", "exchange"])
-    for amu_column in ["mean AMU cond (bps)", "mean AMU uncond (bps)"]:
+    for amu_column in ["cond", "uncond"]:
         table[amu_column] = table[amu_column].map(lambda value: f"{value:.2f}" if pd.notna(value) else "")
-    for column in ["positive MMA occurs on any path", "Num Observations"]:
+    for column in ["positive MMA", "num pairs"]:
         table[column] = table[column].map(lambda value: f"{int(value):,}" if pd.notna(value) else "")
 
     output_path = output_dir / "amu_summary_table.tex"
@@ -791,7 +791,7 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
     )
     # Which AMU flavour this figure plots. Switch to "amu_unconditional_bp" to show
     # the per-quote (frequency x conditional) wedge instead of the conditional size.
-    amu_col = "amu_conditional_bp"
+    amu_col = "amu_unconditional_bp"
     amu_label = "AMU conditional (bp)" if amu_col == "amu_conditional_bp" else "AMU unconditional (bp)"
     daily_amu = _add_amu_bp_columns(
         lf.group_by(["mdy", "exchange", "ref_sym", "market"]).agg(_amu_agg_exprs())
@@ -861,7 +861,7 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
         (pl.col("exchange").cast(pl.Utf8) + pl.lit(" | ") + pl.col("ref_sym").cast(pl.Utf8)).alias("market")
     )
     # Switch to "amu_unconditional_bp" for the per-quote (frequency x conditional) wedge.
-    amu_col = "amu_conditional_bp"
+    amu_col = "amu_unconditional_bp"
     amu_label = "AMU conditional (bp)" if amu_col == "amu_conditional_bp" else "AMU unconditional (bp)"
     daily_amu = _add_amu_bp_columns(
         lf.group_by(["mdy", "exchange", "ref_sym", "market"]).agg(_amu_agg_exprs())
