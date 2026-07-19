@@ -1,4 +1,4 @@
-"""Shared tickpath AMU/MMA definitions.
+"""Shared tickpath ARP/MMA definitions.
 
 Single source of truth so the panel (`amu_panel.py`) and the statistics-frame
 aggregations (`amu_statistics.py`) can never drift apart.
@@ -10,18 +10,18 @@ matched put--call pair contributes four tickpaths, one per join path
 For any bucket:
 
 * MMA is the mean of the path payoff over *all* tickpaths.
-* AMU comes in two explicit flavours built from the same positive-part sum:
+* ARP comes in two explicit flavours built from the same positive-part sum:
 
   - conditional (`amu_conditional_bp_expr`): sum over positive tickpaths of
     clip(mma, 0, max_amu_bp) / number of positive tickpaths -- the mean
     executable size *given* an executable path exists.
   - unconditional (`amu_unconditional_bp_expr`): the same positive-part sum
-    divided by *all* tickpaths -- i.e. (AMU>0 frequency) x (conditional size),
+    divided by *all* tickpaths -- i.e. (ARP>0 frequency) x (conditional size),
     the expected executable wedge per quote.
 
 The aggregation is expressed as additive accumulators -- a positive-part sum, a
 positive tickpath count, and the tick count -- so it composes correctly across
-files/blocks; each AMU flavour is a ratio of accumulated totals.
+files/blocks; each ARP flavour is a ratio of accumulated totals.
 """
 from __future__ import annotations
 
@@ -71,7 +71,7 @@ def any_positive_count_expr() -> pl.Expr:
 
 
 def tickpath_amu_agg_exprs(max_amu_bp: float, *, sum_alias: str, count_alias: str) -> list[pl.Expr]:
-    """Group-by aggregation exprs for the AMU numerator and denominator."""
+    """Group-by aggregation exprs for the ARP numerator and denominator."""
     return [
         positive_part_sum_expr(max_amu_bp).alias(sum_alias),
         positive_count_expr().cast(pl.Float64).alias(count_alias),
@@ -79,7 +79,7 @@ def tickpath_amu_agg_exprs(max_amu_bp: float, *, sum_alias: str, count_alias: st
 
 
 def amu_ratio_expr(sum_col: str, count_col: str) -> pl.Expr:
-    """AMU = accumulated positive-part sum / accumulated positive tickpath count."""
+    """ARP = accumulated positive-part sum / accumulated positive tickpath count."""
     return (
         pl.when(pl.col(count_col) > 0)
         .then(pl.col(sum_col) / pl.col(count_col))
@@ -93,7 +93,7 @@ PATHS_PER_TICK: int = len(JOIN_PATH_COLUMNS)
 
 
 def amu_conditional_bp_expr(sum_col: str, positive_count_col: str) -> pl.Expr:
-    """Conditional AMU (bp): positive-part sum / number of positive-MMA tickpaths.
+    """Conditional ARP (bp): positive-part sum / number of positive-MMA tickpaths.
 
     The mean executable-arbitrage *size* conditional on an executable path existing.
     """
@@ -101,9 +101,9 @@ def amu_conditional_bp_expr(sum_col: str, positive_count_col: str) -> pl.Expr:
 
 
 def amu_unconditional_bp_expr(sum_col: str, num_ticks_col: str, paths_per_tick: int = PATHS_PER_TICK) -> pl.Expr:
-    """Unconditional AMU (bp): positive-part sum / total tickpaths.
+    """Unconditional ARP (bp): positive-part sum / total tickpaths.
 
-    Equals (AMU>0 frequency) x (conditional size): the expected executable wedge
+    Equals (ARP>0 frequency) x (conditional size): the expected executable wedge
     per quote, averaging in the zero (non-executable) tickpaths. ``num_ticks_col``
     holds the tick count; total tickpaths = ``paths_per_tick * num_ticks``.
     """

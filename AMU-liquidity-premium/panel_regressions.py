@@ -175,12 +175,12 @@ def filter_analysis_panel(
     return filtered
 
 
-# AMU dependent variable for every spec below. The panel carries both explicit
+# ARP dependent variable for every spec below. The panel carries both explicit
 # flavours; the regressions use the UNCONDITIONAL (per-quote = frequency x
-# conditional) AMU. Switch to "mean_amu_conditional_bp" for the conditional size.
+# conditional) ARP. Switch to "mean_amu_conditional_bp" for the conditional size.
 AMU_DEPENDENT = "mean_amu_uncond_bp_c20"
 
-# Nested AMU specifications (HC1 SEs):
+# Nested ARP specifications (HC1 SEs):
 #   (1) Post                          -> RQ2 (regime effect)
 #   (2) + OKX/ETH/ATM/NearExp         -> RQ1 (cross-sectional segments, linear dummies)
 #   (3) Post + Depth/Spread/Stale, cell fixed effects -> RQ3. The segment/bucket
@@ -422,8 +422,8 @@ def _regression_summary_table(results: pd.DataFrame) -> pd.DataFrame:
     summary["r2"] = summary["r2"].map(lambda value: f"{value:.3f}")
     summary["dependent"] = summary["dependent"].map({
         "mean_mma_bp": "MMA",
-        "mean_amu_conditional_bp": "AMU (cond)",
-        "mean_amu_unconditional_bp": "AMU (uncond)",
+        "mean_amu_conditional_bp": "ARP (cond)",
+        "mean_amu_unconditional_bp": "ARP (uncond)",
         "std_mma_bp": "Std MMA",
     }).fillna(summary["dependent"])
     return summary.set_index("specification")

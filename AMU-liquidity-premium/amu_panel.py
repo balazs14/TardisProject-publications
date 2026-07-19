@@ -44,12 +44,12 @@ rel_strike_min = float(filters_cfg["rel_strike_min"])
 rel_strike_max = float(filters_cfg["rel_strike_max"])
 max_amu_bp = float(filters_cfg["max_amu_bp"])
 filter_stale = bool(filters_cfg.get("filter_stale", False))
-# Absolute AMU cost grid (basis points): conditional/unconditional AMU precomputed
+# Absolute ARP cost grid (basis points): conditional/unconditional ARP precomputed
 # per cell at each grid cost, so calculations can be redone at any cost without
 # rebuilding from the tick frame. Grid costs are ABSOLUTE and independent of
-# cost_per_notional. Because MMA = gross_wedge - c0_bp, evaluating AMU at cost c uses
+# cost_per_notional. Because MMA = gross_wedge - c0_bp, evaluating ARP at cost c uses
 # the offset delta = c - c0_bp, and (MMA - delta) = gross_wedge - c cancels c0_bp
-# exactly -- so a grid cost of 20 always means AMU at 20 bp of the gross wedge,
+# exactly -- so a grid cost of 20 always means ARP at 20 bp of the gross wedge,
 # regardless of cost_per_notional. Grid is [start, end, step], end inclusive.
 c0_bp = float(pcp_cfg["cost_per_notional"]) * 1.0e4
 # cost_grid is in fractions of notional (like cost_per_notional); convert to integer
@@ -186,7 +186,7 @@ def _panel_metrics() -> list[pl.Expr]:
         pl.mean(column).alias(mean_output_names.get(column, f"mean_{column}"))
         for column in mean_panel_columns
     )
-    # AMU accumulators (shared definition in amu_metrics): the positive-part sum and
+    # ARP accumulators (shared definition in amu_metrics): the positive-part sum and
     # the count of positive tickpaths across the four paths. n_obs (the tick count)
     # is the denominator for the unconditional flavour; both mean_amu_conditional_bp
     # and mean_amu_unconditional_bp are formed as ratios after aggregation below.
@@ -195,7 +195,7 @@ def _panel_metrics() -> list[pl.Expr]:
             max_amu_bp, sum_alias="sum_amu_tickpath_bp", count_alias="num_amu_tickpath"
         )
     )
-    # Cost-grid AMU accumulators: for each grid cost c, the positive-part sum and the
+    # Cost-grid ARP accumulators: for each grid cost c, the positive-part sum and the
     # executable-path count at offset delta = c - c0_bp. The conditional/unconditional
     # ratios are formed from these (and n_obs) after aggregation.
     for c in COST_GRID_BP:
@@ -232,7 +232,7 @@ def _panel_block_from_file(file_path: Path) -> pl.DataFrame:
 
     group_keys = ["day", "exchange", "ref_sym", "rel_strike_bucket", "tte_bucket"]
     block = panel_ready.group_by(group_keys, maintain_order=True).agg(_panel_metrics())
-    # Both explicit AMU flavours per cell at the baseline cost: conditional (over
+    # Both explicit ARP flavours per cell at the baseline cost: conditional (over
     # positive tickpaths) and unconditional (over all tickpaths = frequency x size).
     ratio_columns = [
         amu_conditional_bp_expr("sum_amu_tickpath_bp", "num_amu_tickpath").alias("mean_amu_conditional_bp"),

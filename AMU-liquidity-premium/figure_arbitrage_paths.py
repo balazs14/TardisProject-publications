@@ -1,4 +1,4 @@
-"""Schematic figure of the MMA/AMU arbitrage configurations.
+"""Schematic figure of the MMA/ARP arbitrage configurations.
 
 Real quoted vs parity-implied (synthetic) option market, three configurations:
 
@@ -161,13 +161,13 @@ def _synthetic_tracking_figure(art: Path) -> Path:
 def _schematic_mma_distribution_figure(art: Path) -> Path:
     """Schematic MMA distribution: competitive quoting concentrates the mode at
     -cost, well inside the uniform benchmark band (-2 cost, 0); the mass that
-    crosses zero is the executable AMU."""
+    crosses zero is the executable ARP."""
     cost = 30.0
     edges = np.arange(-100.0, 62.0, 4.0)
     centers = 0.5 * (edges[:-1] + edges[1:])
     scale = 9.0
     dens = np.exp(-np.abs(centers + cost) / scale)
-    dens *= 1.0 + 0.18 * np.clip((centers + cost) / cost, 0.0, None)  # mild right skew (AMU tail)
+    dens *= 1.0 + 0.18 * np.clip((centers + cost) / cost, 0.0, None)  # mild right skew (ARP tail)
     dens /= dens.sum() * 4.0  # normalise to unit area
     peak = dens.max()
 
@@ -186,7 +186,7 @@ def _schematic_mma_distribution_figure(art: Path) -> Path:
     ax.text(0.0, peak * 1.07, "0", ha="center", va="bottom", fontsize=9)
     ax.annotate("no maker arbitrage", xy=(-58, peak * 0.42), xytext=(-92, peak * 0.86),
                 fontsize=8.5, color="#333", arrowprops=dict(arrowstyle="->", color="#333", lw=0.8))
-    ax.text(26, peak * 0.30, "AMU\n(executable)", ha="center", va="center", color=C_POT, fontsize=9, fontweight="bold")
+    ax.text(26, peak * 0.30, "ARP\n(executable)", ha="center", va="center", color=C_POT, fontsize=9, fontweight="bold")
 
     ax.set_xlim(-100, 60)
     ax.set_ylim(0, peak * 1.22)
@@ -240,7 +240,7 @@ def write_arbitrage_paths_figures(artifacts_dir: str | Path) -> list[Path]:
         plt.close(figC)
         outputs.append(path_c)
 
-    # No-AMU schematics: fair quotes track the synthetic market within +/- cost,
+    # No-ARP schematics: fair quotes track the synthetic market within +/- cost,
     # and the competitive equilibrium concentrates the MMA distribution at -cost.
     outputs.append(_synthetic_tracking_figure(art))
     outputs.append(_schematic_mma_distribution_figure(art))
