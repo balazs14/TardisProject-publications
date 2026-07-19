@@ -29,10 +29,11 @@ SPEC_DISPLAY_NAMES = {
     "amu_spec1": "(1)",
     "amu_spec2": "(2)",
     "amu_spec3": "(3)",
+    "amu_spec1fe": "(4)",
 }
 
 # The nested AMU specifications reported in the combined coefficient table.
-MAIN_SPEC_ORDER = ("amu_spec1", "amu_spec2", "amu_spec3")
+MAIN_SPEC_ORDER = ("amu_spec1", "amu_spec2", "amu_spec3", "amu_spec1fe")
 
 TERM_DISPLAY_NAMES = {
     "post_2024": "$\\mathrm{Post}_t$",
@@ -174,10 +175,9 @@ def filter_analysis_panel(
 
 
 # AMU dependent variable for every spec below. The panel carries both explicit
-# flavours (mean_amu_conditional_bp, mean_amu_unconditional_bp); switch this one
-# constant to "mean_amu_unconditional_bp" to regress the per-quote (frequency x
-# conditional) wedge instead of the conditional size.
-AMU_DEPENDENT = "mean_amu_conditional_bp"
+# flavours; the regressions use the UNCONDITIONAL (per-quote = frequency x
+# conditional) AMU. Switch to "mean_amu_conditional_bp" for the conditional size.
+AMU_DEPENDENT = "mean_amu_unconditional_bp"
 
 # Nested AMU specifications (HC1 SEs):
 #   (1) Post                          -> RQ2 (regime effect)
@@ -206,6 +206,16 @@ def amu_spec2_regression_spec() -> RegressionSpec:
 
 def amu_spec3_regression_spec() -> RegressionSpec:
     return RegressionSpec(name="amu_spec3", dependent=AMU_DEPENDENT, regressors=_SPEC3_REGRESSORS, fixed_effects=("cell_id",))
+
+
+def amu_spec1fe_regression_spec() -> RegressionSpec:
+    # Column (4): specification (1) with cell fixed effects added -- the post-2024
+    # indicator plus cell FE and no other controls (the within-cell regime effect).
+    return RegressionSpec(name="amu_spec1fe", dependent=AMU_DEPENDENT, regressors=_SPEC1_REGRESSORS, fixed_effects=("cell_id",))
+
+
+def run_amu_spec1fe_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
+    return _run_regression(amu_spec1fe_regression_spec(), panel=panel, **build_kwargs)
 
 
 def run_amu_spec1_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
@@ -266,6 +276,7 @@ def write_regression_tables(output_dir: str | Path, **build_kwargs) -> dict[str,
         run_amu_spec1_regression,
         run_amu_spec2_regression,
         run_amu_spec3_regression,
+        run_amu_spec1fe_regression,
     ):
         result = runner(panel=panel)
         combined_results.append(result)
@@ -433,7 +444,7 @@ def _regression_coefficient_table(results: pd.DataFrame) -> pd.DataFrame:
 
     columns = pd.MultiIndex.from_tuples(
         [(SPEC_DISPLAY_NAMES.get(spec, spec), "Coef") for spec in spec_order]
-        + [(SPEC_DISPLAY_NAMES.get(spec, spec), r"$\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$") for spec in spec_order]
+        + [(SPEC_DISPLAY_NAMES.get(spec, spec), r"Eff") for spec in spec_order]
     )
     output_rows: list[dict[tuple[str, str], str]] = []
     output_index: list[str] = []
@@ -453,7 +464,7 @@ def _regression_coefficient_table(results: pd.DataFrame) -> pd.DataFrame:
                 f"{_format_signed_decimal(float(row['coefficient']), decimals=3)}{_significance_stars(float(row['t_stat']))}"
             )
             se_row[(spec_label, "Coef")] = f"({float(row['std_error']):.3f})"
-            coef_row[(spec_label, r"$\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$")] = (
+            coef_row[(spec_label, r"Eff")] = (
                 "" if pd.isna(row["economic_significance"]) else _format_signed_percent(float(row["economic_significance"]))
             )
         output_rows.append(coef_row)
@@ -497,7 +508,7 @@ def _write_single_spec_coefficient_table(
     lines = [
         r"\begin{tabular}{lll}",
         r"\toprule",
-        r" & Coef & $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$ \\",
+        r" & Coef & Eff \\",
         r"Term &  &  \\",
         r"\midrule",
     ]

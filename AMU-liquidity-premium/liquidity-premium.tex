@@ -98,7 +98,7 @@ Put--call parity (PCP) is one of the most basic no-arbitrage restrictions in opt
 
 This paper studies that wedge in cryptocurrency option markets through a measure we call \textit{Absolute Market Unfairness} (AMU). AMU is a model-free summary of the arbitrage profit implied by quoted option and futures prices after contract-specific conversion and explicit trading-cost adjustments. It is built for crypto derivatives, where inverse settlement, non-standard collateral conventions, and fragmented exchange design make textbook parity relations insufficient on their own. By expressing the executable wedge in basis points of comparable notional, AMU turns heterogeneous option quotes into a common market-quality measure and makes cross-exchange, cross-underlying, and cross-maturity comparisons meaningful.
 
-The interpretation of AMU is deliberately narrow, and it is worth stating precisely what AMU is not. It is tempting to file crypto parity wedges alongside familiar mature-market anomalies such as ADR discounts, ETF premia, or on/off-the-run Treasury spreads. Those examples are not analogues of AMU. In each of them, one observes \emph{realized trade prices} that fail to conform to a theoretical arbitrage-free relation: the same claim trades at two different prices. AMU makes no such claim about option trade prices. It says something about \emph{quotes}: a market can be internally ``fair'' for a retail liquidity taker only if no executable combination of standing quotes leaves a riskless profit after costs. Whenever, for some amount of investable capital, a market can be made which---if hit---yields a riskless profit, the quoted market is transferring too much potential profit to the market maker at the expense of the retail investor. AMU measures the size of that positive tail. It is a statement about the quality and competitiveness of quoting, not about whether option prices are fundamentally mispriced.
+The interpretation of AMU is deliberately narrow, and it is worth stating precisely what AMU is not. It is tempting to file crypto parity wedges alongside familiar mature-market anomalies such as ADR discounts, ETF premia, or on/off-the-run Treasury spreads. Those examples are not analogues of AMU. In each of them, one observes \emph{realized trade prices} that fail to conform to a theoretical arbitrage-free relation: the same claim trades at two different prices. AMU makes no such claim about option trade prices. It says something about \emph{quotes}: a market can be internally ``fair'' for a retail liquidity taker only if no executable combination of standing quotes leaves a riskless profit after costs. Whenever, for some amount of investable capital, a market can be made which---if hit---yields a riskless profit, the quoted market is transferring too much potential profit to the market maker at the expense of the retail investor. AMU measures that positive tail---both how large the executable wedge is (its conditional size) and how often it appears (its frequency), whose product is the per-quote unconditional AMU. It is a statement about the quality and competitiveness of quoting, not about whether option prices are fundamentally mispriced.
 
 The time-series motivation is the institutionalization of crypto markets around 2024. The approval of U.S. spot Bitcoin exchange-traded products in January 2024, the later Ether ETF milestones, and the staged implementation of MiCA plausibly expanded the set of investors able to deploy arbitrage capital in a legally and operationally robust way \citep{sec_spot_bitcoin_etp_2024, sec_spot_ether_etp_2024, esma_mica_2024}. Our working hypothesis is not that traders suddenly discovered parity, but that the no-arbitrage band narrowed as custody, regulation, execution, and competition improved. The cross-sectional evidence points the same way: AMU is largest exactly in the segments where arbitrage is hardest to implement, which is what one expects of a measure of mispricing \emph{over} the cost of liquidity provision---the residual is largest where supplying liquidity and competing the wedge away is hardest.
 
@@ -143,12 +143,23 @@ Let $m_{i,p,t}$ denote the signed basis-point payoff of path $p$---one of the fo
 \end{equation}
 where $n_{g,t}$ is the number of matched pairs in the cell. Because the average includes the many paths that do not allow positive arbitrage profit to the maker after costs (but will still represent compensation for liquidity provision!), \emph{mean MMA is negative}: it sits close to minus the round-trip cost. MMA is the average round-trip outcome of a maker who indiscriminately joins every quote and then attempts the arbitrage.
 
-\textbf{Absolute market unfairness (AMU)} is the mean of $m_{i,p,t}$ taken over only the \emph{positive-MMA tickpaths}---those with $m_{i,p,t}>0$:
+\textbf{Absolute market unfairness (AMU)} comes in two complementary forms, both built from the positive part of $m$. The \emph{conditional} AMU averages $m$ over only the \emph{positive-MMA tickpaths}---those with $m_{i,p,t}>0$:
 \begin{equation}
-\mathrm{AMU}_{g,t}=\frac{\sum_{i\in g,t}\sum_{p=1}^{4}\max\!\left(0,\,m_{i,p,t}\right)}
-{\sum_{i\in g,t}\sum_{p=1}^{4}\mathbf{1}\{m_{i,p,t}>0\}}.
+\mathrm{AMU}^{\mathrm{c}}_{g,t}=\frac{\sum_{i\in g,t}\sum_{p=1}^{4}\max\!\left(0,\,m_{i,p,t}\right)}
+{\sum_{i\in g,t}\sum_{p=1}^{4}\mathbf{1}\{m_{i,p,t}>0\}},
 \end{equation}
-AMU is the profit of a market maker who selectively joins the market only when the executable path is favorable, and is then hit. It is important to be precise about what this does and does not guarantee. AMU is \emph{not} a promise of a given dollar profit. The realized dollar amount depends on the liquidity available along the arbitrage path and is conditional on a taker actually crossing the market. What AMU provides is information about how bad the quoted prices are: it is the average size of the exploitable, positive tail of executable payoffs left standing in the quotes. Equivalently, MMA and AMU are two moments of the same tickpath-level distribution of $m$: MMA is its mean over all tickpaths, AMU its mean over the positive tickpaths only.
+the average \emph{size} of the executable wedge conditional on one existing. Let the \emph{executable frequency} $\phi_{g,t}$ be the share of the $4\,n_{g,t}$ tickpaths that are executable,
+\begin{equation}
+\phi_{g,t}=\frac{1}{4\,n_{g,t}}\sum_{i\in g,t}\sum_{p=1}^{4}\mathbf{1}\{m_{i,p,t}>0\},
+\end{equation}
+and let the \emph{unconditional} AMU average the same positive part over \emph{all} tickpaths:
+\begin{equation}
+\mathrm{AMU}^{\mathrm{u}}_{g,t}=\frac{1}{4\,n_{g,t}}\sum_{i\in g,t}\sum_{p=1}^{4}\max\!\left(0,\,m_{i,p,t}\right)=\phi_{g,t}\,\mathrm{AMU}^{\mathrm{c}}_{g,t}.
+\label{eq:amu-decomposition}
+\end{equation}
+This identity, $\mathrm{AMU}^{\mathrm{u}}=\phi\,\mathrm{AMU}^{\mathrm{c}}$, is the organizing decomposition of the paper: the expected executable wedge \emph{per quote} (unconditional) factors into how \emph{often} an executable wedge appears (the extensive margin $\phi$) times how \emph{large} it is when it does (the intensive margin, conditional AMU). The two answer different questions---conditional AMU says how bad a quote is when it is bad, unconditional AMU folds in how often that happens---and we use them accordingly: the cross-sectional shape over the surface is read through the size/frequency split (Figures~\ref{fig:multi_exchange_amu_by_strike}--\ref{fig:multi_exchange_amu_by_tte}), while the time series and the regressions use the unconditional AMU, the single per-quote object that aggregates both margins. Both are reported in basis points of notional.
+
+AMU is the profit of a market maker who selectively joins the market only when the executable path is favorable, and is then hit. It is \emph{not} a promise of a given dollar profit: the realized amount depends on the liquidity available along the arbitrage path and is conditional on a taker actually crossing the market. What it provides is information about how bad the quoted prices are---the size (conditional) and the per-quote incidence (unconditional) of the exploitable, taker-adverse tail left standing in the quotes. MMA, conditional AMU, and unconditional AMU are three summaries of the same tickpath-level distribution of $m$: MMA is its mean over all tickpaths, conditional AMU its mean over the positive tickpaths, and unconditional AMU the mean of its positive part over all tickpaths.
 
 \begin{table}[htbp]
 \centering
@@ -269,7 +280,7 @@ Stale-quote filter & \FilterStale{}: when enabled, ticks with a stale call, put,
 \subsection{Empirical design}
 \label{sec:design}
 
-The dependent variable in all three regressions is the cell-level positive-part mean AMU, $\mathrm{AMU}_{g,t}$---a quote-level, panel-observable object rather than a latent dealer-balance-sheet quantity. The regressors enter in three blocks: the post-2024 regime indicator $\mathrm{Post}_t$; a set of segment dummies (exchange, underlying, moneyness, maturity); and three liquidity-friction controls,
+The dependent variable in all four regressions is the cell-level \emph{unconditional} AMU, $\mathrm{AMU}^{\mathrm{u}}_{g,t}=\phi_{g,t}\,\mathrm{AMU}^{\mathrm{c}}_{g,t}$ (the per-quote expected executable wedge of Eq.~\ref{eq:amu-decomposition})---a quote-level, panel-observable object rather than a latent dealer-balance-sheet quantity. The regressors enter in three blocks: the post-2024 regime indicator $\mathrm{Post}_t$; a set of segment dummies (exchange, underlying, moneyness, maturity); and three liquidity-friction controls,
 \begin{align}
 \mathrm{Spr}_{g,t}&=\tfrac{1}{2}\!\left(\texttt{mean\_call\_spread\_bp}_{g,t}+\texttt{mean\_put\_spread\_bp}_{g,t}\right),\\
 \mathrm{Depth}_{g,t}&=\log\!\left(\texttt{mean\_min\_quote\_size\_dollar}_{g,t}\right),\\
@@ -281,9 +292,9 @@ The post-2024 indicator $\mathrm{Post}_t$ equals one on and after January 10, 20
 
 We estimate three nested specifications, adding one block of regressors at a time. Writing $\mathrm{S}^{(k)}$ for the linear predictor of specification $k$,
 \begin{align}
-\mathrm{AMU}_{g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\varepsilon_{g,t}\;\equiv\;\mathrm{S}^{(1)}_{t}+\varepsilon_{g,t},\\
-\mathrm{AMU}_{g,t}&=\mathrm{S}^{(1)}_{t}+\beta_{\mathrm{OKX}}\mathrm{OKX}_g+\beta_{\mathrm{ETH}}\mathrm{ETH}_g+\beta_{\mathrm{ATM}}\mathrm{ATM}_g+\beta_{\mathrm{NE}}\mathrm{NearExp}_g+\varepsilon_{g,t}\;\equiv\;\mathrm{S}^{(2)}_{g,t}+\varepsilon_{g,t},\\
-\mathrm{AMU}_{g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\beta_{\mathrm{Depth}}\mathrm{Depth}_{g,t}+\beta_{\mathrm{Spr}}\mathrm{Spr}_{g,t}+\beta_{\mathrm{Stale}}\mathrm{Stale}_{g,t}+\gamma_g+\varepsilon_{g,t},
+\mathrm{AMU}^{\mathrm{u}}_{g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\varepsilon_{g,t}\;\equiv\;\mathrm{S}^{(1)}_{t}+\varepsilon_{g,t},\\
+\mathrm{AMU}^{\mathrm{u}}_{g,t}&=\mathrm{S}^{(1)}_{t}+\beta_{\mathrm{OKX}}\mathrm{OKX}_g+\beta_{\mathrm{ETH}}\mathrm{ETH}_g+\beta_{\mathrm{ATM}}\mathrm{ATM}_g+\beta_{\mathrm{NE}}\mathrm{NearExp}_g+\varepsilon_{g,t}\;\equiv\;\mathrm{S}^{(2)}_{g,t}+\varepsilon_{g,t},\\
+\mathrm{AMU}^{\mathrm{u}}_{g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\beta_{\mathrm{Depth}}\mathrm{Depth}_{g,t}+\beta_{\mathrm{Spr}}\mathrm{Spr}_{g,t}+\beta_{\mathrm{Stale}}\mathrm{Stale}_{g,t}+\gamma_g+\varepsilon_{g,t},
 \end{align}
 all with a constant and HC1 standard errors. The choice of regressors is deliberate and differs by specification. Specifications (1) and (2) are pooled OLS: in (2) the segment dummies are themselves the objects of interest---they are how we test whether AMU differs by exchange, underlying, moneyness, and maturity (RQ1)---so we estimate them directly rather than absorb them. Specification (3) instead \emph{replaces} the segment dummies with cell fixed effects $\gamma_g$. This is the right control there, not a cosmetic change: AMU depends on moneyness and maturity in a strongly nonlinear, U- and V-shaped way (Figures~\ref{fig:multi_exchange_amu_by_strike}--\ref{fig:multi_exchange_amu_by_tte}) that a few linear indicators cannot represent, so a linear-dummy control would leave much of the segment structure in the residual and contaminate $\beta_{\mathrm{Post}}$. The fixed effects absorb that dependence nonparametrically, cell by cell, so that $\beta_{\mathrm{Post}}$ in (3) measures the regime shift net of \emph{both} the observable frictions and the full segment structure. Table~\ref{tab:regressor_abbreviations} defines the abbreviations.
 
@@ -324,12 +335,12 @@ The single most informative object in the data is the shape of the MMA distribut
 \label{fig:all_markets_avg_4_spreads}
 \end{figure}
 
-This shape has a clean economic reading, and it is central to the whole paper. Market makers improve their quotes only as much as they need to, given costs. Competition in speed and inventory management pushes quotes toward the point where the expected marginal profit of quoting more tightly just meets the implementation-cost floor. That is why the mass concentrates at $-\text{cost}$: in the modal state the maker has competed the wedge down to roughly the cost of doing the trade, and no more. The distribution is not a point mass, however, because quoting is noisy. Occasionally a maker quotes a price that is \emph{too good} for the buy side---these observations populate the left tail, below the cost floor---and occasionally a maker quotes a price that is \emph{too bad} for the buy side, leaving an executable wedge. Those ``too bad'' quotes are the right tail, and their conditional average size is AMU. The reason AMU is not zero is simply that repricing is not instantaneous: for a short interval after a shock, some quotes are stale or mispriced relative to the synthetic market. It follows that the quicker and denser the competition among makers, the faster both tails are erased, and in particular the smaller the ``too bad'' tail becomes. AMU is therefore a direct, sign-restricted read on how much of that transient, taker-adverse mispricing survives in a given segment or period. Everything that follows is an application of this one idea: measuring the right tail across exchanges, across the surface, and across time.
+This shape has a clean economic reading, and it is central to the whole paper. Market makers improve their quotes only as much as they need to, given costs. Competition in speed and inventory management pushes quotes toward the point where the expected marginal profit of quoting more tightly just meets the implementation-cost floor. That is why the mass concentrates at $-\text{cost}$: in the modal state the maker has competed the wedge down to roughly the cost of doing the trade, and no more. The distribution is not a point mass, however, because quoting is noisy. Occasionally a maker quotes a price that is \emph{too good} for the buy side---these observations populate the left tail, below the cost floor---and occasionally a maker quotes a price that is \emph{too bad} for the buy side, leaving an executable wedge. Those ``too bad'' quotes are the right tail: their conditional average size is the conditional AMU, and the share of quotes that land there is the executable frequency $\phi$, so their product---the unconditional AMU---is the per-quote wedge. The reason AMU is not zero is simply that repricing is not instantaneous: for a short interval after a shock, some quotes are stale or mispriced relative to the synthetic market. It follows that the quicker and denser the competition among makers, the faster both tails are erased, and in particular the smaller the ``too bad'' tail becomes. AMU is therefore a direct, sign-restricted read on how much of that transient, taker-adverse mispricing survives in a given segment or period. Everything that follows is an application of this one idea: measuring the right tail across exchanges, across the surface, and across time.
 
 \subsection{RQ1: AMU across exchanges, moneyness, and maturity}
 \label{sec:rq1}
 
-The global averages in Table~\ref{tab:amu_summary} establish that exchanges differ, though the differences are moderate and not a simple BTC-versus-ETH split. The standout segment is ETH on OKX, the thinnest of the four books (Table~\ref{tab:summary_daily_option_coverage}), which is what one expects if AMU is mispricing over the liquidity-provision cost: the least deep venue--underlying combination leaves the largest executable wedge above that cost. Positive MMA is far from rare: as the ``positive MMA'' column of Table~\ref{tab:amu_summary} shows, a large fraction of synchronized path observations are executable before conditioning, which is why the positive-part average is an economically meaningful object rather than a measure of isolated glitches.
+The global averages in Table~\ref{tab:amu_summary} establish that exchanges differ, though the differences are moderate and not a simple BTC-versus-ETH split. The standout segment is ETH on OKX, the thinnest of the four books (Table~\ref{tab:summary_daily_option_coverage}), which is what one expects if AMU is mispricing over the liquidity-provision cost: the least deep venue--underlying combination leaves the largest executable wedge above that cost. Positive MMA is far from rare: as the ``positive MMA'' column of Table~\ref{tab:amu_summary} shows, a large fraction of synchronized path observations are executable before conditioning, which is why the positive-part average is an economically meaningful object rather than a measure of isolated glitches. The table lists both AMU flavours; the ratio of the unconditional to the conditional column recovers the executable frequency $\phi$ of Eq.~\ref{eq:amu-decomposition}.
 
 \begin{table}[htbp]
 \centering
@@ -338,19 +349,19 @@ The global averages in Table~\ref{tab:amu_summary} establish that exchanges diff
 \label{tab:amu_summary}
 \end{table}
 
-The cross-sectional shape of AMU over the option surface is even sharper than the venue averages, and it is highly regular across all four exchange--underlying combinations. Figure~\ref{fig:multi_exchange_amu_by_strike} shows a pronounced V-shape in relative strike: AMU is minimized at the money and rises steeply---several-fold---into the wings. Figure~\ref{fig:multi_exchange_amu_by_tte} shows that AMU is U-shaped in time to expiry: it is elevated at the very shortest maturities, falls to a minimum around one month, and then rises again for longer-dated contracts. This maturity pattern is worth flagging because it corrects a natural but wrong intuition: AMU is \emph{not} monotonically lower for longer-dated options. It is smallest for near-dated, near-the-money contracts---the deepest and most actively arbitraged part of the surface---and largest in the two illiquid corners, the shortest and the longest expiries, and the deep wings.
+The cross-sectional shape over the option surface is even sharper than the venue averages, and it is highly regular across all four exchange--underlying combinations. Each figure separates the two margins of the decomposition (Eq.~\ref{eq:amu-decomposition}). In Figure~\ref{fig:multi_exchange_amu_by_strike} (relative strike), the executable \emph{frequency} $\phi$ (lower panel) traces a pronounced V---near one in the wings, collapsing to a few percent at the money---while the conditional \emph{size} (upper panel) is comparatively flat across moneyness. The unconditional AMU, their product, therefore inherits the V: it is minimized at the money and rises steeply---several-fold---into the wings. Figure~\ref{fig:multi_exchange_amu_by_tte} (time to expiry) is the same story with a U-shaped frequency: $\phi$ is elevated at the very shortest maturities, falls to a minimum around one month, and rises again for longer-dated contracts, so the unconditional AMU is U-shaped in maturity while the conditional size stays roughly level. This corrects a natural but wrong intuition: unconditional AMU is \emph{not} monotonically lower for longer-dated options. It is smallest for near-dated, near-the-money contracts---the deepest and most actively arbitraged part of the surface, where an executable wedge rarely opens---and largest in the two illiquid corners, the shortest and the longest expiries, and the deep wings, where it opens often. Economically, it is the \emph{incidence} of executable mispricing, not its size, that varies over the surface.
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_rel_strike.pdf}
-\caption{AMU by relative strike across exchanges and underlyings. AMU is minimized at the money and rises sharply into the wings.}
+\caption{AMU by relative strike across exchanges and underlyings, decomposed into its two margins: the conditional size (upper panel, comparatively flat) and the executable frequency $\phi$ (lower panel, a deep V minimized at the money). Their product, the unconditional AMU, is minimized at the money and rises sharply into the wings.}
 \label{fig:multi_exchange_amu_by_strike}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_tte.pdf}
-\caption{AMU by time to expiry across exchanges and underlyings. AMU is U-shaped: elevated at the shortest and longest maturities, lowest around one month.}
+\caption{AMU by time to expiry across exchanges and underlyings: the conditional size (upper panel, comparatively flat) and the executable frequency $\phi$ (lower panel). The frequency---and hence the unconditional AMU---is U-shaped: elevated at the shortest and longest maturities, lowest around one month.}
 \label{fig:multi_exchange_amu_by_tte}
 \end{figure}
 
@@ -366,7 +377,7 @@ The time-series evidence for compression is direct. Figure~\ref{fig:multi_exchan
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_date.pdf}
-\caption{Daily AMU by exchange and underlying, 2020--2026, with the BTCUSD index overlaid. AMU is high and volatile before 2024 and compresses to a lower, tighter band afterward.}
+\caption{Daily unconditional AMU by exchange and underlying, 2020--2026, with the BTCUSD index overlaid. It is high and volatile before 2024 and compresses to a lower, tighter band afterward.}
 \label{fig:multi_exchange_amu_by_date}
 \end{figure}
 
@@ -375,44 +386,44 @@ Zooming in on the transition, Figure~\ref{fig:multi_exchange_amu_by_date_2023_20
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_date_2023_2024_avg_events.pdf}
-\caption{All-market average AMU, 2023--2024, with the main institutional event dates marked by vertical lines.}
+\caption{All-market average unconditional AMU, 2023--2024, with the main institutional event dates marked by vertical lines.}
 \label{fig:multi_exchange_amu_by_date_2023_2024_avg_events}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/liquidity_event_study.png}
-\caption{Event-study windows for AMU around the main 2024 institutional event dates, shown separately by event.}
+\caption{Event-study windows for the unconditional AMU around the main 2024 institutional event dates, shown separately by event.}
 \label{fig:liquidity_event_study}
 \end{figure}
 
-Two further figures show \emph{how} the compression happened, distributionally and across the surface. Figure~\ref{fig:total_mma_hist_pre_post_btc_etp} overlays the pre- and post-2024 MMA histograms. The post-2024 density is markedly more concentrated at the cost floor, with thinner tails on both sides; the sample-average AMU falls from \AmuPreBp~bp before 2024 to \AmuPostBp~bp after (the figure also annotates the positive-tail average). This is precisely the signature predicted by the mechanism of Section~\ref{sec:peak}: faster, denser competition among makers erases more of the transient ``too good'' and ``too bad'' quotes, pulling the whole distribution toward the no-arbitrage floor. Figure~\ref{fig:liquidity_pre_post_heatmap} shows the same compression over the strike--maturity grid. Before 2024 a hot band of high AMU sits at longer maturities and away-from-money strikes; after 2024 the interior of the grid cools sharply, and only the extreme deep-out-of-the-money, long-dated corner remains elevated. The decomposition in Figure~\ref{fig:liquidity_compression_decomposition} confirms that the change is broad but uneven: AMU fell in every segment, with the largest decline in the far-expiry bucket and the smallest on Deribit, and somewhat larger declines for ETH than BTC and for non-ATM than ATM strikes---again, compression is largest where the pre-2024 wedge was largest.
+Two further figures show \emph{how} the compression happened, distributionally and across the surface. Figure~\ref{fig:total_mma_hist_pre_post_btc_etp} overlays the pre- and post-2024 MMA histograms. The post-2024 density is markedly more concentrated at the cost floor, with thinner tails on both sides; the sample-average unconditional AMU falls from \AmuPreBp~bp before 2024 to \AmuPostBp~bp after (the figure annotates both the conditional and the unconditional positive-tail averages). This is precisely the signature predicted by the mechanism of Section~\ref{sec:peak}: faster, denser competition among makers erases more of the transient ``too good'' and ``too bad'' quotes, pulling the whole distribution toward the no-arbitrage floor. Figure~\ref{fig:liquidity_pre_post_heatmap} shows the same compression over the strike--maturity grid. Before 2024 a hot band of high AMU sits at longer maturities and away-from-money strikes; after 2024 the interior of the grid cools sharply, and only the extreme deep-out-of-the-money, long-dated corner remains elevated. The decomposition in Figure~\ref{fig:liquidity_compression_decomposition} confirms that the change is broad but uneven: conditional AMU fell in every segment, with the largest decline in the far-expiry bucket and the smallest on Deribit, and somewhat larger declines for ETH than BTC and for non-ATM than ATM strikes---again, compression is largest where the pre-2024 wedge was largest.
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.85\textwidth]{artifacts/total_mma_hist_pre_post_btc_etp.pdf}
-\caption{Total MMA histogram across all four paths, split into pre- and post-2024 periods. The post-2024 distribution is more concentrated at the cost floor, and the positive-tail average (AMU), annotated on the figure, falls markedly after 2024.}
+\caption{Total MMA histogram across all four paths, split into pre- and post-2024 periods. The post-2024 distribution is more concentrated at the cost floor, and the positive-tail averages---both the conditional and the unconditional AMU, annotated on the figure---fall markedly after 2024.}
 \label{fig:total_mma_hist_pre_post_btc_etp}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_pre_post_heatmap.png}
-\caption{Mean AMU across relative-strike and maturity buckets, pre- versus post-2024. The high-AMU interior of the surface cools after 2024; only the deep-OTM, long-dated corner stays elevated.}
+\caption{Mean \emph{conditional} AMU across relative-strike and maturity buckets, pre- versus post-2024. The high-AMU interior of the surface cools after 2024; only the deep-OTM, long-dated corner stays elevated.}
 \label{fig:liquidity_pre_post_heatmap}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_compression_decomposition.png}
-\caption{Pre- to post-2024 change in AMU by segment (BTC/ETH, Deribit/OKX, ATM/Non-ATM, NearExp/FarExp). Every segment compresses; the far-expiry bucket compresses most.}
+\caption{Pre- to post-2024 change in \emph{conditional} AMU by segment (BTC/ETH, Deribit/OKX, ATM/Non-ATM, NearExp/FarExp). Every segment compresses; the far-expiry bucket compresses most.}
 \label{fig:liquidity_compression_decomposition}
 \end{figure}
 
 \section{Regression results}
 \label{sec:regressions}
 
-The descriptive patterns---segment differences (Section~\ref{sec:rq1}) and the 2024 compression (Section~\ref{sec:rq2})---are made precise by three nested regressions of cell-level AMU, reported together in Table~\ref{tab:regression_coefficients}. Each column adds one block of regressors to the previous, and each answers one research question. Standard errors are HC1; the right-hand columns report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$.
+The descriptive patterns---segment differences (Section~\ref{sec:rq1}) and the 2024 compression (Section~\ref{sec:rq2})---are made precise by three nested regressions of the cell-level unconditional AMU, plus a within-cell variant, reported together in Table~\ref{tab:regression_coefficients}. Columns (1)--(3) each add one block of regressors to the previous, and each answers one research question; column (4) is specification (1) with cell fixed effects. Standard errors are HC1; the columns headed \emph{Eff} report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$.
 
 \emph{Specification (1): the regime effect (RQ2).} Regressing AMU on the post-2024 indicator alone yields a negative, strongly significant coefficient: AMU is materially lower after the 2024 institutionalization window. The compression visible in the time series (Section~\ref{sec:rq2}) is a genuine level shift, not an artifact of which contracts happen to trade. This settles RQ2.
 
@@ -420,10 +431,12 @@ The descriptive patterns---segment differences (Section~\ref{sec:rq1}) and the 2
 
 \emph{Specification (3): frictions and the residual regime effect (RQ3).} Here the linear segment dummies are replaced by cell fixed effects, which absorb the nonlinear surface dependence, and the three liquidity frictions are added. The frictions enter as the limits-to-arbitrage view predicts, with staleness the strongest: the executable tail is made of transiently mispriced, slow-to-update quotes. Much of the raw regime effect runs through these channels---the $\mathrm{Post}_t$ coefficient shrinks substantially from (1) to (3)---but a significant negative residual survives. Were the post-2024 change merely more of the same passive liquidity, it would operate entirely through depth, spread, and staleness and the residual $\mathrm{Post}_t$ would be indistinguishable from zero. That it is not is the signature of a structural change in \emph{who} enforces parity---the entry of a different class of arbitrage-active participant. This settles RQ3.
 
+\emph{Column (4): the within-cell regime effect.} Adding cell fixed effects to specification (1)---the post-2024 indicator with no other controls---isolates the compression that occurs \emph{within} a given cell over time, before the friction controls of (3) are introduced. Comparing (4) with (1) shows how much of the raw regime drop is a within-cell phenomenon rather than a change in which cells are populated; comparing (4) with (3) shows how much of that within-cell drop the depth, spread, and staleness controls absorb.
+
 \begin{table}[htbp]
 \centering
 {\renewcommand{\arraystretch}{1.2}\normalfont\small\input{artifacts/regression_coefficients_table.tex}}
-\caption{Nested AMU regressions. Column (1) regresses AMU on the post-2024 indicator; (2) adds the exchange, underlying, moneyness, and maturity dummies (pooled OLS); (3) adds the depth, spread, and staleness controls and replaces the segment dummies with cell fixed effects. HC1 standard errors in parentheses; stars denote $p$-value bands from the $t$-statistic; the right-hand columns report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$.}
+\caption{Nested AMU regressions; the dependent variable is the unconditional AMU. Column (1) regresses AMU on the post-2024 indicator; (2) adds the exchange, underlying, moneyness, and maturity dummies (pooled OLS); (3) adds the depth, spread, and staleness controls and replaces the segment dummies with cell fixed effects; (4) is specification (1) with cell fixed effects added---the post-2024 indicator plus cell fixed effects and no other controls---isolating the within-cell regime effect. HC1 standard errors in parentheses; stars denote $p$-value bands from the $t$-statistic. The columns headed \emph{Eff} report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$: the change in AMU, in standard deviations of AMU, per one-standard-deviation increase in the regressor.}
 \label{tab:regression_coefficients}
 \end{table}
 

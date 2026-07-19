@@ -199,63 +199,63 @@ $\varepsilon_{g,t}$ & Idiosyncratic error. \\
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_rel_strike.pdf}
-\caption{AMU by relative strike across exchanges and underlyings. AMU is minimized at the money and rises sharply into the wings.}
+\caption{AMU by relative strike across exchanges and underlyings, decomposed into its two margins: the conditional size (upper panel, comparatively flat) and the executable frequency $\phi$ (lower panel, a deep V minimized at the money). Their product, the unconditional AMU, is minimized at the money and rises sharply into the wings.}
 \label{fig:multi_exchange_amu_by_strike}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_tte.pdf}
-\caption{AMU by time to expiry across exchanges and underlyings. AMU is U-shaped: elevated at the shortest and longest maturities, lowest around one month.}
+\caption{AMU by time to expiry across exchanges and underlyings: the conditional size (upper panel, comparatively flat) and the executable frequency $\phi$ (lower panel). The frequency---and hence the unconditional AMU---is U-shaped: elevated at the shortest and longest maturities, lowest around one month.}
 \label{fig:multi_exchange_amu_by_tte}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_date.pdf}
-\caption{Daily AMU by exchange and underlying, 2020--2026, with the BTCUSD index overlaid. AMU is high and volatile before 2024 and compresses to a lower, tighter band afterward.}
+\caption{Daily unconditional AMU by exchange and underlying, 2020--2026, with the BTCUSD index overlaid. It is high and volatile before 2024 and compresses to a lower, tighter band afterward.}
 \label{fig:multi_exchange_amu_by_date}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_date_2023_2024_avg_events.pdf}
-\caption{All-market average AMU, 2023--2024, with the main institutional event dates marked by vertical lines.}
+\caption{All-market average unconditional AMU, 2023--2024, with the main institutional event dates marked by vertical lines.}
 \label{fig:multi_exchange_amu_by_date_2023_2024_avg_events}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/liquidity_event_study.png}
-\caption{Event-study windows for AMU around the main 2024 institutional event dates, shown separately by event.}
+\caption{Event-study windows for the unconditional AMU around the main 2024 institutional event dates, shown separately by event.}
 \label{fig:liquidity_event_study}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.85\textwidth]{artifacts/total_mma_hist_pre_post_btc_etp.pdf}
-\caption{Total MMA histogram across all four paths, split into pre- and post-2024 periods. The post-2024 distribution is more concentrated at the cost floor, and the positive-tail average (AMU), annotated on the figure, falls markedly after 2024.}
+\caption{Total MMA histogram across all four paths, split into pre- and post-2024 periods. The post-2024 distribution is more concentrated at the cost floor, and the positive-tail averages---both the conditional and the unconditional AMU, annotated on the figure---fall markedly after 2024.}
 \label{fig:total_mma_hist_pre_post_btc_etp}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_pre_post_heatmap.png}
-\caption{Mean AMU across relative-strike and maturity buckets, pre- versus post-2024. The high-AMU interior of the surface cools after 2024; only the deep-OTM, long-dated corner stays elevated.}
+\caption{Mean \emph{conditional} AMU across relative-strike and maturity buckets, pre- versus post-2024. The high-AMU interior of the surface cools after 2024; only the deep-OTM, long-dated corner stays elevated.}
 \label{fig:liquidity_pre_post_heatmap}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_compression_decomposition.png}
-\caption{Pre- to post-2024 change in AMU by segment (BTC/ETH, Deribit/OKX, ATM/Non-ATM, NearExp/FarExp). Every segment compresses; the far-expiry bucket compresses most.}
+\caption{Pre- to post-2024 change in \emph{conditional} AMU by segment (BTC/ETH, Deribit/OKX, ATM/Non-ATM, NearExp/FarExp). Every segment compresses; the far-expiry bucket compresses most.}
 \label{fig:liquidity_compression_decomposition}
 \end{figure}
 
 \begin{table}[htbp]
 \centering
 {\renewcommand{\arraystretch}{1.2}\normalfont\small\input{artifacts/regression_coefficients_table.tex}}
-\caption{Nested AMU regressions. Column (1) regresses AMU on the post-2024 indicator; (2) adds the exchange, underlying, moneyness, and maturity dummies (pooled OLS); (3) adds the depth, spread, and staleness controls and replaces the segment dummies with cell fixed effects. HC1 standard errors in parentheses; stars denote $p$-value bands from the $t$-statistic; the right-hand columns report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$.}
+\caption{Nested AMU regressions; the dependent variable is the unconditional AMU. Column (1) regresses AMU on the post-2024 indicator; (2) adds the exchange, underlying, moneyness, and maturity dummies (pooled OLS); (3) adds the depth, spread, and staleness controls and replaces the segment dummies with cell fixed effects; (4) is specification (1) with cell fixed effects added---the post-2024 indicator plus cell fixed effects and no other controls---isolating the within-cell regime effect. HC1 standard errors in parentheses; stars denote $p$-value bands from the $t$-statistic. The columns headed \emph{Eff} report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$: the change in AMU, in standard deviations of AMU, per one-standard-deviation increase in the regressor.}
 \label{tab:regression_coefficients}
 \end{table}
 
