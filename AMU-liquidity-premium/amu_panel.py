@@ -10,7 +10,13 @@ import polars as pl
 
 from amu_config import CONFIG, bootstrap_repo_root
 from amu_cache import get_cached_frame, put_cached_frame
-from amu_metrics import amu_conditional_bp_expr, amu_unconditional_bp_expr, tickpath_amu_agg_exprs
+from amu_metrics import (
+    amu_conditional_bp_expr,
+    amu_unconditional_bp_expr,
+    positive_count_expr,
+    positive_part_sum_expr,
+    tickpath_amu_agg_exprs,
+)
 from tardis import package_set_log_level
 from tardis.process_pcp import compute_pcp_metrics
 from tardis.utils import debug_runtime
@@ -38,6 +44,14 @@ rel_strike_min = float(filters_cfg["rel_strike_min"])
 rel_strike_max = float(filters_cfg["rel_strike_max"])
 max_amu_bp = float(filters_cfg["max_amu_bp"])
 filter_stale = bool(filters_cfg.get("filter_stale", False))
+# Cost grid (basis points) for which conditional/unconditional AMU are precomputed
+# per cell, so regressions/figures can be redone at any of these costs without
+# rebuilding from the tick frame. c0_bp is the primary cost (cost_per_notional)
+# already netted into the join-path MMA columns; a grid cost c enters as the offset
+# delta = c - c0_bp. The grid is [start, end, step] (end inclusive) from config.
+c0_bp = float(pcp_cfg["cost_per_notional"]) * 1.0e4
+_cost_grid = list(pcp_cfg.get("cost_grid", [5, 50, 5]))
+COST_GRID_BP = list(range(int(_cost_grid[0]), int(_cost_grid[1]) + 1, int(_cost_grid[2])))
 pcp_metric_kwargs = {
     "cost_per_notional": float(pcp_cfg["cost_per_notional"]),
     "fut_mgn_rate": float(pcp_cfg["fut_mgn_rate"]),
@@ -176,6 +190,13 @@ def _panel_metrics() -> list[pl.Expr]:
             max_amu_bp, sum_alias="sum_amu_tickpath_bp", count_alias="num_amu_tickpath"
         )
     )
+    # Cost-grid AMU accumulators: for each grid cost c, the positive-part sum and the
+    # executable-path count at offset delta = c - c0_bp. The conditional/unconditional
+    # ratios are formed from these (and n_obs) after aggregation.
+    for c in COST_GRID_BP:
+        delta = float(c) - c0_bp
+        metrics.append(positive_part_sum_expr(max_amu_bp, delta).alias(f"amu_possum_bp_c{c:02d}"))
+        metrics.append(positive_count_expr(delta).cast(pl.Float64).alias(f"amu_poscount_c{c:02d}"))
     metrics.extend(pl.sum(column).alias(f"sum_{column}") for column in sum_panel_columns)
     metrics.extend(
         (pl.col(column).cast(pl.Float64, strict=False).mean() * 1.0).alias(f"frac_{column}")
@@ -206,12 +227,18 @@ def _panel_block_from_file(file_path: Path) -> pl.DataFrame:
 
     group_keys = ["day", "exchange", "ref_sym", "rel_strike_bucket", "tte_bucket"]
     block = panel_ready.group_by(group_keys, maintain_order=True).agg(_panel_metrics())
-    # Both explicit AMU flavours per cell: conditional (over positive tickpaths) and
-    # unconditional (over all tickpaths = frequency x conditional size).
-    return block.with_columns(
+    # Both explicit AMU flavours per cell at the baseline cost: conditional (over
+    # positive tickpaths) and unconditional (over all tickpaths = frequency x size).
+    ratio_columns = [
         amu_conditional_bp_expr("sum_amu_tickpath_bp", "num_amu_tickpath").alias("mean_amu_conditional_bp"),
         amu_unconditional_bp_expr("sum_amu_tickpath_bp", "n_obs").alias("mean_amu_unconditional_bp"),
-    )
+    ]
+    # Same two flavours at each grid cost, derived from the per-cost accumulators.
+    for c in COST_GRID_BP:
+        possum, poscount = f"amu_possum_bp_c{c:02d}", f"amu_poscount_c{c:02d}"
+        ratio_columns.append(amu_conditional_bp_expr(possum, poscount).alias(f"mean_amu_cond_bp_c{c:02d}"))
+        ratio_columns.append(amu_unconditional_bp_expr(possum, "n_obs").alias(f"mean_amu_uncond_bp_c{c:02d}"))
+    return block.with_columns(ratio_columns)
 
 
 def _append_block(panel: pl.DataFrame, block: pl.DataFrame) -> pl.DataFrame:

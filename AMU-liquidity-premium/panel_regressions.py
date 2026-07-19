@@ -177,7 +177,7 @@ def filter_analysis_panel(
 # AMU dependent variable for every spec below. The panel carries both explicit
 # flavours; the regressions use the UNCONDITIONAL (per-quote = frequency x
 # conditional) AMU. Switch to "mean_amu_conditional_bp" for the conditional size.
-AMU_DEPENDENT = "mean_amu_unconditional_bp"
+AMU_DEPENDENT = "mean_amu_unconditional_bp_c20"
 
 # Nested AMU specifications (HC1 SEs):
 #   (1) Post                          -> RQ2 (regime effect)

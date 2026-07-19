@@ -42,20 +42,24 @@ def _add(exprs: list[pl.Expr]) -> pl.Expr:
     return functools.reduce(operator.add, exprs)
 
 
-def positive_part_sum_expr(max_amu_bp: float) -> pl.Expr:
-    """Sum over the four tickpaths of the positive-part (clipped) MMA.
+def positive_part_sum_expr(max_amu_bp: float, delta: float = 0.0) -> pl.Expr:
+    """Sum over the four tickpaths of the positive part of ``m - delta``, clipped to
+    ``[0, max_amu_bp]``.
 
-    Clipping to ``[0, max_amu_bp]`` zeroes the non-positive tickpaths, so this is
-    exactly the sum of MMA over the positive tickpaths.
+    ``delta = c - c0`` shifts the executability threshold from the cost ``c0`` already
+    netted into ``m`` to an arbitrary cost ``c``: a tickpath contributes ``(m-delta)``
+    exactly when ``m > delta`` (i.e. the gross wedge exceeds ``c``). ``delta = 0``
+    recovers the sum of MMA over the positive tickpaths at the baseline cost.
     """
     return _add(
-        [pl.col(column).clip(lower_bound=0.0, upper_bound=max_amu_bp).sum() for column in JOIN_PATH_COLUMNS]
+        [(pl.col(column) - delta).clip(lower_bound=0.0, upper_bound=max_amu_bp).sum() for column in JOIN_PATH_COLUMNS]
     )
 
 
-def positive_count_expr() -> pl.Expr:
-    """Number of positive-MMA tickpaths across the four paths."""
-    return _add([(pl.col(column) > 0).sum() for column in JOIN_PATH_COLUMNS])
+def positive_count_expr(delta: float = 0.0) -> pl.Expr:
+    """Number of tickpaths executable at cost offset ``delta`` (those with ``m > delta``);
+    ``delta = 0`` is the baseline positive-MMA count across the four paths."""
+    return _add([(pl.col(column) > delta).sum() for column in JOIN_PATH_COLUMNS])
 
 
 def any_positive_count_expr() -> pl.Expr:
