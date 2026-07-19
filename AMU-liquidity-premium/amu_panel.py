@@ -44,14 +44,19 @@ rel_strike_min = float(filters_cfg["rel_strike_min"])
 rel_strike_max = float(filters_cfg["rel_strike_max"])
 max_amu_bp = float(filters_cfg["max_amu_bp"])
 filter_stale = bool(filters_cfg.get("filter_stale", False))
-# Cost grid (basis points) for which conditional/unconditional AMU are precomputed
-# per cell, so regressions/figures can be redone at any of these costs without
-# rebuilding from the tick frame. c0_bp is the primary cost (cost_per_notional)
-# already netted into the join-path MMA columns; a grid cost c enters as the offset
-# delta = c - c0_bp. The grid is [start, end, step] (end inclusive) from config.
+# Absolute AMU cost grid (basis points): conditional/unconditional AMU precomputed
+# per cell at each grid cost, so calculations can be redone at any cost without
+# rebuilding from the tick frame. Grid costs are ABSOLUTE and independent of
+# cost_per_notional. Because MMA = gross_wedge - c0_bp, evaluating AMU at cost c uses
+# the offset delta = c - c0_bp, and (MMA - delta) = gross_wedge - c cancels c0_bp
+# exactly -- so a grid cost of 20 always means AMU at 20 bp of the gross wedge,
+# regardless of cost_per_notional. Grid is [start, end, step], end inclusive.
 c0_bp = float(pcp_cfg["cost_per_notional"]) * 1.0e4
-_cost_grid = list(pcp_cfg.get("cost_grid", [5, 50, 5]))
-COST_GRID_BP = list(range(int(_cost_grid[0]), int(_cost_grid[1]) + 1, int(_cost_grid[2])))
+# cost_grid is in fractions of notional (like cost_per_notional); convert to integer
+# basis points for the offset math and the per-cost column names.
+_cost_grid = list(pcp_cfg.get("cost_grid", [0.0005, 0.005, 0.0005]))
+_cg_bp = [int(round(float(x) * 1.0e4)) for x in _cost_grid]  # [start_bp, end_bp, step_bp]
+COST_GRID_BP = list(range(_cg_bp[0], _cg_bp[1] + 1, _cg_bp[2]))
 pcp_metric_kwargs = {
     "cost_per_notional": float(pcp_cfg["cost_per_notional"]),
     "fut_mgn_rate": float(pcp_cfg["fut_mgn_rate"]),
