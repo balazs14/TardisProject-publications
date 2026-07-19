@@ -783,6 +783,84 @@ def plot_total_mma_hist_pre_post_btc_etp_from_parquet(parquet_path: str | Path, 
     return output_path
 
 
+@debug_runtime("plot_amu_bps_by_cost_pre_post_from_parquet")
+def plot_amu_bps_by_cost_pre_post_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
+    """Conditional and unconditional AMU as a function of the assumed round-trip cost,
+    split pre/post-2024. Pooled across all markets and the four paths. AMU at cost c is
+    read off the pooled MMA histogram at offset delta = c - c0 (c0 = cost_per_notional),
+    so the x-axis is the absolute cost in bp."""
+    parquet = pq.ParquetFile(str(parquet_path))
+    spread_columns = ["fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp"]
+    columns = ["mdy", "rel_strike", "call_opt_spread_bp", "put_opt_spread_bp", "min_quote_size_dollar"] + spread_columns
+    lo, hi = -300, 300
+    edges = np.arange(lo, hi + 1)
+    centers = 0.5 * (edges[:-1] + edges[1:])
+    event_day = pd.Timestamp(str(regression_cfg["post_2024_start"])).date()
+    c0_bp = float(pcp_cfg["cost_per_notional"]) * 10_000.0
+    max_amu = float(max_amu_bp_default)
+
+    hist_pre = np.zeros(len(edges) - 1, dtype=float)
+    hist_post = np.zeros(len(edges) - 1, dtype=float)
+    for batch in parquet.iter_batches(batch_size=100_000, columns=columns):
+        chunk = filter_ticks(pl.from_arrow(batch))
+        if chunk.is_empty():
+            continue
+        mdy = pd.to_datetime(chunk.get_column("mdy").to_numpy(), errors="coerce")
+        pre_mask = np.asarray(mdy < pd.Timestamp(event_day))
+        for column in spread_columns:
+            values = chunk.get_column(column).cast(pl.Float64, strict=False).to_numpy()
+            valid = np.isfinite(values)
+            vpre = values[pre_mask & valid]
+            vpost = values[(~pre_mask) & valid]
+            if vpre.size:
+                hist_pre += np.histogram(np.clip(vpre, lo, hi - 1e-9), bins=edges)[0]
+            if vpost.size:
+                hist_post += np.histogram(np.clip(vpost, lo, hi - 1e-9), bins=edges)[0]
+
+    costs = np.arange(2.0, 60.0 + 1e-9, 2.0)
+
+    def curve(hist: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        total = hist.sum()
+        cond = np.full(costs.size, np.nan)
+        uncond = np.full(costs.size, np.nan)
+        for k, c in enumerate(costs):
+            delta = c - c0_bp
+            mask = centers > delta
+            weights = np.clip(centers[mask] - delta, 0.0, max_amu)
+            counts = hist[mask]
+            positive = counts.sum()
+            possum = float((counts * weights).sum())
+            if positive > 0:
+                cond[k] = possum / positive
+            if total > 0:
+                uncond[k] = possum / total
+        return cond, uncond
+
+    cond_pre, uncond_pre = curve(hist_pre)
+    cond_post, uncond_post = curve(hist_post)
+
+    sns.set_theme(style="whitegrid", context="talk")
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(costs, cond_pre, color="#1f77b4", linestyle="-", linewidth=2.2, label="Pre 2024, conditional")
+    ax.plot(costs, cond_post, color="#d62728", linestyle="-", linewidth=2.2, label="Post 2024, conditional")
+    ax.plot(costs, uncond_pre, color="#1f77b4", linestyle="--", linewidth=2.2, label="Pre 2024, unconditional")
+    ax.plot(costs, uncond_post, color="#d62728", linestyle="--", linewidth=2.2, label="Post 2024, unconditional")
+    ax.axvline(c0_bp, color="black", linestyle=":", linewidth=1.4, alpha=0.7)
+    ax.text(c0_bp, ax.get_ylim()[1], "  primary cost", color="black", fontsize=9, va="top", ha="left")
+    ax.set_xlabel("Round-trip cost (bp)")
+    ax.set_ylabel("AMU (bp)")
+    ax.set_ylim(bottom=0.0)
+    ax.set_title("AMU versus assumed cost, pre/post 2024")
+    ax.legend(title="", fontsize=11)
+
+    output_path = output_dir / "amu_bps_by_cost_pre_post.pdf"
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    logger.debug("Saved AMU-by-cost figure %s pre=%.0f post=%.0f", output_path, hist_pre.sum(), hist_post.sum())
+    return output_path
+
+
 @debug_runtime("plot_amu_bps_by_date_from_parquet")
 def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
     filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
@@ -1116,6 +1194,7 @@ def generate_all_statistics(
         "summary_daily_option_coverage_table": write_summary_daily_table_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "amu_summary_table": write_amu_summary_table_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "spread_figures": plot_4_spreads_from_parquet(pcpb_parquet_path, output_dir=output_root),
+        "amu_bps_by_cost_pre_post": plot_amu_bps_by_cost_pre_post_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "total_mma_hist_pre_post_btc_etp": plot_total_mma_hist_pre_post_btc_etp_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "multi_exchange_amu_bps_by_date": plot_amu_bps_by_date_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "multi_exchange_amu_bps_by_date_2023_2024_avg_events": plot_amu_bps_avg_2023_2024_with_events_from_parquet(pcpb_parquet_path, output_dir=output_root),
