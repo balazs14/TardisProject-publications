@@ -25,7 +25,7 @@ event_dates = {
     for label, value in CONFIG["figures"]["event_dates"].items()
 }
 
-# ARP flavour these figures plot. The panel carries both mean_amu_conditional_bp
+# AMU flavour these figures plot. The panel carries both mean_amu_conditional_bp
 # and mean_amu_unconditional_bp; switch to "mean_amu_unconditional_bp" for the
 # per-quote (frequency x conditional) wedge instead of the conditional size.
 PANEL_AMU_COLUMN = "mean_amu_conditional_bp"
@@ -66,9 +66,9 @@ def plot_daily_amu_timeseries(frame: pd.DataFrame, output_path: str | Path | Non
     fig, ax = plt.subplots(figsize=(11, 5))
     sns.lineplot(data=plot_frame, x="day", y=PANEL_AMU_COLUMN, hue="series", ax=ax)
     _add_event_markers(ax)
-    ax.set_ylabel("Mean ARP (bp)")
+    ax.set_ylabel("Mean AMU (bp)")
     ax.set_xlabel("Day")
-    ax.set_title("ARP by date")
+    ax.set_title("AMU by date")
     return _finalize_figure(fig, output_path)
 
 
@@ -85,7 +85,7 @@ def plot_pre_post_heatmaps(frame: pd.DataFrame, output_path: str | Path | None =
         )
         heatmaps.append(heatmap)
 
-    # Compute 99th percentile of finite ARP values across both periods for adaptive color range.
+    # Compute 99th percentile of finite AMU values across both periods for adaptive color range.
     values = [hm.to_numpy(dtype=float).ravel() for hm in heatmaps if not hm.empty]
     finite_values = np.concatenate([v[np.isfinite(v)] for v in values]) if values else np.array([], dtype=float)
     shared_vmin = 0.0
@@ -106,12 +106,12 @@ def plot_pre_post_heatmaps(frame: pd.DataFrame, output_path: str | Path | None =
             vmin=shared_vmin,
             vmax=shared_vmax,
             ax=ax,
-            cbar_kws={"label": "conditional ARP (bp)"},
+            cbar_kws={"label": "conditional AMU (bp)"},
         )
         ax.set_title(title)
         ax.set_xlabel("Relative strike bucket")
     axes[0].set_ylabel("TTE bucket")
-    fig.suptitle("Mean conditional ARP across strike and maturity buckets")
+    fig.suptitle("Mean conditional AMU across strike and maturity buckets")
     return _finalize_figure(fig, output_path)
 
 
@@ -126,7 +126,7 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
         event_rows.append(tmp.loc[tmp["rel_day"].between(-window, window)])
     plot_frame = pd.concat(event_rows, ignore_index=True)
     # Aggregate across all markets (no exchange separation)
-    event_amu_col = "mean_amu_unconditional_bp"  # fig 9 plots unconditional ARP
+    event_amu_col = "mean_amu_unconditional_bp"  # fig 9 plots unconditional AMU
     plot_frame = plot_frame.groupby(["event", "event_date", "rel_day"], as_index=False)[event_amu_col].mean()
     fig, ax = plt.subplots(figsize=(11, 6))
     
@@ -138,7 +138,7 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
     
     sns.lineplot(data=plot_frame, x="rel_day", y=event_amu_col, hue="event", ax=ax, linewidth=2.0, marker=None)
     ax.axvline(0, color="black", linestyle="--", linewidth=1)
-    ax.set_ylabel("Mean unconditional ARP (bp)")
+    ax.set_ylabel("Mean unconditional AMU (bp)")
     ax.set_xlabel("Days relative to event")
     
     # Add event dates to legend labels
@@ -244,10 +244,10 @@ def plot_compression_decomposition(frame: pd.DataFrame, output_path: str | Path 
         ax.set_xlabel("")
         ax.tick_params(axis="x", rotation=0)
 
-    axes_flat[0].set_ylabel("Post-Pre 2024 conditional ARP (bps)")
+    axes_flat[0].set_ylabel("Post-Pre 2024 conditional AMU (bps)")
     for ax in axes_flat[1:]:
         ax.set_ylabel("")
-    fig.suptitle("Conditional ARP compression by segment")
+    fig.suptitle("Conditional AMU compression by segment")
     return _finalize_figure(fig, output_path)
 
 
@@ -301,7 +301,7 @@ def plot_regression_coefficients(
         ax.set_title(pretty_titles[spec_name], fontsize=11)
         ax.set_xlabel("Coefficient with 95% CI")
 
-    fig.suptitle("Nested ARP regressions: coefficient estimates with 95\\% CI")
+    fig.suptitle("Nested AMU regressions: coefficient estimates with 95\\% CI")
     return _finalize_figure(fig, output_path)
 
 

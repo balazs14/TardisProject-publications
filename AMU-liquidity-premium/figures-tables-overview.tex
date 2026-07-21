@@ -89,7 +89,7 @@
 \begin{table}[htbp]
 \centering
 \footnotesize
-\caption{Executable arbitrage-profit formulas by path and contract style. To obtain the basis-point statistics used for MMA/ARP, multiply each expression by $10{,}000/\mathrm{index\_level}$. Each expression includes the trading-cost term $\mathrm{cost}=\texttt{cost\_per\_notional}\,(\CostPerNotional)\times \mathrm{index\_level}$ from Table~\ref{tab:data_processing_assumptions}. Contract size cancels in the basis-point expression. For inverse contracts, $S_{bid}$ and $S_{ask}$ are the prices at which the coin payoff is converted to USD or stablecoin.}
+\caption{Executable arbitrage-profit formulas by path and contract style. To obtain the basis-point statistics used for MMA/AMU, multiply each expression by $10{,}000/\mathrm{index\_level}$. Each expression includes the trading-cost term $\mathrm{cost}=\texttt{cost\_per\_notional}\,(\CostPerNotional)\times \mathrm{index\_level}$ from Table~\ref{tab:data_processing_assumptions}. Contract size cancels in the basis-point expression. For inverse contracts, $S_{bid}$ and $S_{ask}$ are the prices at which the coin payoff is converted to USD or stablecoin.}
 \label{tab:arbitrage_eight_formulas}
 \setlength{\tabcolsep}{3pt}
 \begin{tabularx}{0.98\textwidth}{@{}>{\RaggedRight\arraybackslash}p{0.14\textwidth}>{\RaggedRight\arraybackslash}p{0.40\textwidth}>{\RaggedRight\arraybackslash}p{0.40\textwidth}@{}}
@@ -115,21 +115,21 @@ $(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.98\textwidth]{artifacts/arbitrage_paths_crossed_noncrossed.pdf}
-\caption{Real quoted versus parity-implied (synthetic) option market. When the markets are crossed and disjoint ($C_{ask}<C^{\mathrm{syn}}_{bid}$, or the symmetric case), there is a single guaranteed riskless arbitrage. When one market is nested inside the other, or when the two straddle each other, there is no guaranteed profit but two paths carry a \emph{potential} market-maker advantage, realized only if the maker's quote is joined and then hit. In the nested case these are the forward and backward join-call paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C_{ask}-C^{\mathrm{syn}}_{ask}$), with the join-put payoffs equal to their negatives (exactly so when the futures market has zero spread; the trading cost need not be zero); in the straddling case they are the forward join-call and forward join-put paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C^{\mathrm{syn}}_{ask}-C_{ask}$). The latter two configurations are what ARP aggregates. Schematic, illustrative levels.}
+\caption{Real quoted versus parity-implied (synthetic) option market. When the markets are crossed and disjoint ($C_{ask}<C^{\mathrm{syn}}_{bid}$, or the symmetric case), there is a single guaranteed riskless arbitrage. When one market is nested inside the other, or when the two straddle each other, there is no guaranteed profit but two paths carry a \emph{potential} market-maker advantage, realized only if the maker's quote is joined and then hit. In the nested case these are the forward and backward join-call paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C_{ask}-C^{\mathrm{syn}}_{ask}$), with the join-put payoffs equal to their negatives (exactly so when the futures market has zero spread; the trading cost need not be zero); in the straddling case they are the forward join-call and forward join-put paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C^{\mathrm{syn}}_{ask}-C_{ask}$). The latter two configurations are what AMU aggregates. Schematic, illustrative levels.}
 \label{fig:arb_paths_crossed_noncrossed}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/amu_fair_band_synthetic.pdf}
-\caption{No ARP requires each real quote to track its matching synthetic quote within $\pm\mathrm{cost}$. The band centres are the frictionless (no-cost) synthetic prices $P_{bid}+(F_{bid}-K)e^{-rT}$ and $P_{ask}+(F_{ask}-K)e^{-rT}$; the trading cost buys the $\pm\mathrm{cost}$ cushion around each. As costs shrink, the real market is squeezed onto the synthetic market. Schematic, illustrative levels.}
+\caption{No AMU requires each real quote to track its matching synthetic quote within $\pm\mathrm{cost}$. The band centres are the frictionless (no-cost) synthetic prices $P_{bid}+(F_{bid}-K)e^{-rT}$ and $P_{ask}+(F_{ask}-K)e^{-rT}$; the trading cost buys the $\pm\mathrm{cost}$ cushion around each. As costs shrink, the real market is squeezed onto the synthetic market. Schematic, illustrative levels.}
 \label{fig:amu_fair_band_synthetic}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.82\textwidth]{artifacts/amu_schematic_mma_distribution.pdf}
-\caption{Schematic MMA distribution. The dashed rectangle over $(-2\,\mathrm{cost},0)$ is the no-information benchmark implied by the no-ARP band (uniform quoting). Competitive quoting instead concentrates the mode at $-\mathrm{cost}$, the symmetric equilibrium of the conjugate forward/backward paths; the mass that crosses zero into positive territory is the executable ARP. Schematic, illustrative levels.}
+\caption{Schematic MMA distribution. The dashed rectangle over $(-2\,\mathrm{cost},0)$ is the no-information benchmark implied by the no-AMU band (uniform quoting). Competitive quoting instead concentrates the mode at $-\mathrm{cost}$, the symmetric equilibrium of the conjugate forward/backward paths; the mass that crosses zero into positive territory is the executable AMU. Schematic, illustrative levels.}
 \label{fig:amu_schematic_mma_distribution}
 \end{figure}
 
@@ -142,19 +142,19 @@ $(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 
 \begin{table}[htbp]
 \centering
-\caption{Data-processing assumptions for MMA/ARP construction.}
+\caption{Data-processing assumptions for MMA/AMU construction.}
 \label{tab:data_processing_assumptions}
 \begin{tabularx}{0.95\textwidth}{lX}
 \toprule
 Component & Assumption \\
 \midrule
-ARP clipping rule & MMA series are clipped to $[0,\MaxAmuBps]$ basis points before positive-part averaging. \\
+AMU clipping rule & MMA series are clipped to $[0,\MaxAmuBps]$ basis points before positive-part averaging. \\
 MMA clipping rule & MMA series are clipped to $[-\MaxMmaBps,+\MaxMmaBps]$ basis points. \\
 Spread filter & Call and put spreads are capped at $\SpreadBpMax$ basis points. \\
 Relative-strike filter & Allowed range is $[\RelStrikeMin,\RelStrikeMax]$. \\
 Minimum quote size & \texttt{min\_quote\_size\_dollar} must be at least \MinQuoteSizeDollar. \\
 Subsampling & Last-known observation carried forward to the configured interval (default \texttt{\SampleFreqDefault}); a leg with a missing or non-updated bid/ask price or size is marked stale.\\
-Stale-quote filter & \FilterStale{}: when enabled, ticks with a stale call, put, or spot leg are dropped before any ARP/MMA aggregation. \\
+Stale-quote filter & \FilterStale{}: when enabled, ticks with a stale call, put, or spot leg are dropped before any AMU/MMA aggregation. \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -162,77 +162,77 @@ Stale-quote filter & \FilterStale{}: when enabled, ticks with a stale call, put,
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.8\textwidth]{artifacts/all_markets_avg_4_spreads.pdf}
-\caption{Average density of the four MMA paths across all markets. The distribution peaks at minus the round-trip cost (dashed line); everything to the left of zero is non-executable for the maker, and only the positive tail to the right of zero contributes to ARP.}
+\caption{Average density of the four MMA paths across all markets. The distribution peaks at minus the round-trip cost (dashed line); everything to the left of zero is non-executable for the maker, and only the positive tail to the right of zero contributes to AMU.}
 \label{fig:all_markets_avg_4_spreads}
 \end{figure}
 
 \begin{table}[htbp]
 \centering
 {\renewcommand{\arraystretch}{1.3}\normalfont\normalsize\input{artifacts/amu_summary_table.tex}}
-\caption{Global ARP summary across exchanges and underlyings. ARP is the positive-part mean of MMA, in basis points of notional: \emph{cond} averages over the executable (positive-MMA) paths only, \emph{uncond} over all paths (equivalently, \emph{cond} times the fraction of paths that are executable). A \emph{path} is one of the four put--call-parity join paths (forward/backward $\times$ join-call/join-put) evaluated at a single synchronized quote; each matched put--call pair contributes four paths. The last two columns count ticks: \emph{positive MMA} is the number of synchronized ticks with at least one executable path, and \emph{num pairs} the number of matched put--call pair ticks.}
+\caption{Global AMU summary across exchanges and underlyings. AMU is the positive-part mean of MMA, in basis points of notional: \emph{cond} averages over the executable (positive-MMA) paths only, \emph{uncond} over all paths (equivalently, \emph{cond} times the fraction of paths that are executable). A \emph{path} is one of the four put--call-parity join paths (forward/backward $\times$ join-call/join-put) evaluated at a single synchronized quote; each matched put--call pair contributes four paths. The last two columns count ticks: \emph{positive MMA} is the number of synchronized ticks with at least one executable path, and \emph{num pairs} the number of matched put--call pair ticks.}
 \label{tab:amu_summary}
 \end{table}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_rel_strike.pdf}
-\caption{ARP by relative strike across exchanges and underlyings, decomposed into its two margins: the conditional size (upper panel, comparatively flat) and the executable frequency $\phi$ (lower panel, a deep V minimized at the money). Their product, the unconditional ARP, is minimized at the money and rises sharply into the wings.}
+\caption{AMU by relative strike across exchanges and underlyings, decomposed into its two margins: the conditional size (upper panel, comparatively flat) and the executable frequency $\phi$ (lower panel, a deep V minimized at the money). Their product, the unconditional AMU, is minimized at the money and rises sharply into the wings.}
 \label{fig:multi_exchange_amu_by_strike}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_tte.pdf}
-\caption{ARP by time to expiry across exchanges and underlyings: the conditional size (upper panel, comparatively flat) and the executable frequency $\phi$ (lower panel). The frequency---and hence the unconditional ARP---is U-shaped: elevated at the shortest and longest maturities, lowest around one month.}
+\caption{AMU by time to expiry across exchanges and underlyings: the conditional size (upper panel, comparatively flat) and the executable frequency $\phi$ (lower panel). The frequency---and hence the unconditional AMU---is U-shaped: elevated at the shortest and longest maturities, lowest around one month.}
 \label{fig:multi_exchange_amu_by_tte}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_date.pdf}
-\caption{Daily unconditional ARP by exchange and underlying, 2020--2026, with the BTCUSD index overlaid. It is high and volatile before 2024 and compresses to a lower, tighter band afterward.}
+\caption{Daily unconditional AMU by exchange and underlying, 2020--2026, with the BTCUSD index overlaid. It is high and volatile before 2024 and compresses to a lower, tighter band afterward.}
 \label{fig:multi_exchange_amu_by_date}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_date_2023_2024_avg_events.pdf}
-\caption{All-market average unconditional ARP, 2023--2024, with the main institutional event dates marked by vertical lines.}
+\caption{All-market average unconditional AMU, 2023--2024, with the main institutional event dates marked by vertical lines.}
 \label{fig:multi_exchange_amu_by_date_2023_2024_avg_events}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/liquidity_event_study.png}
-\caption{Event-study windows for the unconditional ARP around the main 2024 institutional event dates, shown separately by event.}
+\caption{Event-study windows for the unconditional AMU around the main 2024 institutional event dates, shown separately by event.}
 \label{fig:liquidity_event_study}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.85\textwidth]{artifacts/total_mma_hist_pre_post_btc_etp.pdf}
-\caption{Total MMA histogram across all four paths, split into pre- and post-2024 periods. The post-2024 distribution is more concentrated at the cost floor, and the positive-tail averages---both the conditional and the unconditional ARP, annotated on the figure---fall markedly after 2024.}
+\caption{Total MMA histogram across all four paths, split into pre- and post-2024 periods. The post-2024 distribution is more concentrated at the cost floor, and the positive-tail averages---both the conditional and the unconditional AMU, annotated on the figure---fall markedly after 2024.}
 \label{fig:total_mma_hist_pre_post_btc_etp}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.85\textwidth]{artifacts/amu_bps_by_cost_pre_post.pdf}
-\caption{Conditional (solid) and unconditional (dashed) ARP versus the assumed round-trip cost, pre- (blue) versus post-2024 (red), pooled across markets and paths; the dotted line marks the primary cost (\CostBp~bp). The pre-to-post gap in unconditional ARP is approximately flat in cost; the gap in conditional ARP shrinks sharply as cost rises. The unconditional measure is therefore the natural object for the regime comparison.}
+\caption{Conditional (solid) and unconditional (dashed) AMU versus the assumed round-trip cost, pre- (blue) versus post-2024 (red), pooled across markets and paths; the dotted line marks the primary cost (\CostBp~bp). The pre-to-post gap in unconditional AMU is approximately flat in cost; the gap in conditional AMU shrinks sharply as cost rises. The unconditional measure is therefore the natural object for the regime comparison.}
 \label{fig:amu_by_cost_pre_post}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_pre_post_heatmap.png}
-\caption{Mean \emph{conditional} ARP across relative-strike and maturity buckets, pre- versus post-2024. The high-ARP interior of the surface cools after 2024; only the deep-OTM, long-dated corner stays elevated.}
+\caption{Mean \emph{conditional} AMU across relative-strike and maturity buckets, pre- versus post-2024. The high-AMU interior of the surface cools after 2024; only the deep-OTM, long-dated corner stays elevated.}
 \label{fig:liquidity_pre_post_heatmap}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_compression_decomposition.png}
-\caption{Pre- to post-2024 change in \emph{conditional} ARP by segment (BTC/ETH, Deribit/OKX, ATM/Non-ATM, NearExp/FarExp). Every segment compresses; the far-expiry bucket compresses most.}
+\caption{Pre- to post-2024 change in \emph{conditional} AMU by segment (BTC/ETH, Deribit/OKX, ATM/Non-ATM, NearExp/FarExp). Every segment compresses; the far-expiry bucket compresses most.}
 \label{fig:liquidity_compression_decomposition}
 \end{figure}
 
@@ -266,7 +266,7 @@ $\varepsilon_{g,t}$ & Idiosyncratic error. \\
 \begin{table}[htbp]
 \centering
 {\renewcommand{\arraystretch}{1.2}\normalfont\small\input{artifacts/regression_coefficients_table.tex}}
-\caption{Regressions of the cell-level unconditional ARP. Column (1) regresses ARP on the post-2024 indicator; (2) adds cell fixed effects to (1), isolating the within-cell regime effect; (3) instead adds the exchange, underlying, moneyness, and maturity dummies (pooled OLS); (4) adds the depth, spread, and staleness controls with cell fixed effects. HC1 standard errors in parentheses; stars denote $p$-value bands from the $t$-statistic. The columns headed \emph{Eff} report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$: the change in ARP, in standard deviations of ARP, per one-standard-deviation increase in the regressor.}
+\caption{Regressions of the cell-level unconditional AMU. Column (1) regresses AMU on the post-2024 indicator; (2) adds cell fixed effects to (1), isolating the within-cell regime effect; (3) instead adds the exchange, underlying, moneyness, and maturity dummies (pooled OLS); (4) adds the depth, spread, and staleness controls with cell fixed effects. HC1 standard errors in parentheses; stars denote $p$-value bands from the $t$-statistic. The columns headed \emph{Eff} report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$: the change in AMU, in standard deviations of AMU, per one-standard-deviation increase in the regressor.}
 \label{tab:regression_coefficients}
 \end{table}
 

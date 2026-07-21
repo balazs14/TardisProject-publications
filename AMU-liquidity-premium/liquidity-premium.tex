@@ -74,7 +74,7 @@
 
 \begin{document}
 
-\title{\textbf{The Arbitrage Risk Premium and the Compression of Bid--Ask Spreads in Cryptocurrency Option Markets}}
+\title{\textbf{Absolute Market Unfairness and the Compression of Bid--Ask Spreads in Cryptocurrency Option Markets}}
 
 \author{Bal\'azs Kr\'alik\thanks{Corresponding Author. Assistant Professor at Corvinus University of Budapest, Institute of Finance, F\H{o}v\'am square 8. Budapest, Hungary, 1093. E-mail: balazs.kralik@uni-corvinus.hu.}, N\'ora Felf\"oldi-Sz\H{u}cs\thanks{Associate Professor at Corvinus University of Budapest, Institute of Finance.}, Tam\'as Rutai\thanks{Student at Corvinus University of Budapest.}, Kata V\'aradi\thanks{Associate Professor at Corvinus University of Budapest, Institute of Finance.}}
 \date{}
@@ -84,7 +84,7 @@
 TODO
 
 \medskip
-\textbf{Keywords:} cryptocurrency options, bid--ask spreads, arbitrage risk premium, put--call parity, limits to arbitrage, ETF approval, MiCA
+\textbf{Keywords:} cryptocurrency options, bid--ask spreads, absolute market unfairness, put--call parity, limits to arbitrage, ETF approval, MiCA
 
 \medskip
 \textbf{JEL classification:} G12, G14, G15, G23
@@ -110,11 +110,11 @@ Our paper will focus on characterizing AMU on cryptocurrency option markets. We 
 
 The empirical analysis is organized around three research questions:
 \begin{quote}
-\textbf{1.} How large is ARP, and does it differ across exchanges and underlyings?\\
-\textbf{2.} Did ARP drop significantly upon the 2024 regulatory and institutional regime shift?\\
+\textbf{1.} How large is AMU, and does it differ across exchanges and underlyings?\\
+\textbf{2.} Did AMU drop significantly upon the 2024 regulatory and institutional regime shift?\\
 \textbf{3.} Is any post-2024 drop fully explained by the usual liquidity frictions, or does it partly reflect a lower premium demanded by a new class of parity-enforcing participants?
 \end{quote}
-We answer all three. Section~\ref{sec:lit} places ARP in the literature. Section~\ref{sec:method} states the cost-plus-premium identity, defines MMA and ARP, and describes the data and panel. Section~\ref{sec:descriptive} presents the level and cross-section of ARP. Section~\ref{sec:regulation} describes the 2024 regulatory shift. Section~\ref{sec:rq2} documents the compression and its robustness to the cost assumption. Section~\ref{sec:regressions} reports the regressions. Section~\ref{sec:concl} concludes.
+We answer all three. Section~\ref{sec:lit} places AMU in the literature. Section~\ref{sec:method} states the cost-plus-premium identity, defines MMA and AMU, and describes the data and panel. Section~\ref{sec:descriptive} presents the level and cross-section of AMU. Section~\ref{sec:regulation} describes the 2024 regulatory shift. Section~\ref{sec:rq2} documents the compression and its robustness to the cost assumption. Section~\ref{sec:regressions} reports the regressions. Section~\ref{sec:concl} concludes.
 
 \section{Related literature}
 \label{sec:lit}
@@ -125,25 +125,25 @@ Testing put--call parity has a long tradition in equity, index, and currency opt
 
 Recent crypto work increasingly treats derivative efficiency as a joint market-structure problem. \citet{alexander2024arbitrage} develop arbitrage tests linking Bitcoin and Ether options with perpetual futures and find that crypto derivative markets have become more efficient over time, especially for longer-maturity options. \citet{felfoldi2024put} study high-frequency put--call parity in Binance Ether options and emphasize that violations become much smaller once synchronization and trading costs are handled carefully. We extend this line to inverse options and matching futures on Deribit and OKX, and add a directly comparable measure of the investor-facing arbitrage profit expressed in basis points.
 
-\subsection{The arbitrage risk premium and the limits of arbitrage}
+\subsection{The absolute market unfairness and the limits of arbitrage}
 
-Reading ARP as the compensation required to enforce parity rests on the idea that arbitrage is costly and capital constrained, so that a no-arbitrage band opens up and only wedges piercing it are exploitable. \citet{amihud1986asset} show that bid--ask spreads affect asset pricing because investors require compensation for illiquidity. \citet{shleifer1997limits} emphasize that textbook arbitrage is typically neither riskless nor capital-free in practice. \citet{garleanu2011margin} formalize how margin requirements and funding constraints generate deviations from the law of one price. These mechanisms are directly relevant to crypto derivatives, where collateral denomination, margin rules, exchange credit risk, and stablecoin conversion all raise the cost of enforcing parity.
+Reading AMU as the compensation required to enforce parity rests on the idea that arbitrage is costly and capital constrained, so that a no-arbitrage band opens up and only wedges piercing it are exploitable. \citet{amihud1986asset} show that bid--ask spreads affect asset pricing because investors require compensation for illiquidity. \citet{shleifer1997limits} emphasize that textbook arbitrage is typically neither riskless nor capital-free in practice. \citet{garleanu2011margin} formalize how margin requirements and funding constraints generate deviations from the law of one price. These mechanisms are directly relevant to crypto derivatives, where collateral denomination, margin rules, exchange credit risk, and stablecoin conversion all raise the cost of enforcing parity.
 
 The decomposition of required mispricing into direct costs plus a risk premium is standard. \citet{pontiff1996costly, pontiff2006costly} shows that holding costs---including the idiosyncratic risk borne by an undiversified arbitrageur---dominate the cost of arbitrage, and that mispricing survives in proportion to them. \citet{chen2021implied} estimate the implied no-arbitrage band and the intensity of arbitrage enforcement directly from market data. \citet{gromb2010limits} survey the theory: every friction that makes convergence risky widens the band and raises the required premium. For the market maker, \citet{bollen2004modeling} decompose the quoted spread into order-processing costs, an inventory-holding premium, and adverse selection; our premium is the analogous residual for the parity-enforcing quote.
 
 No-arbitrage bands persist and move with market structure elsewhere too. Post-crisis balance-sheet constraints generated persistent covered interest parity deviations \citep{du2018deviations}; ETF premia persist when the underlying is illiquid or authorized participants are constrained \citep{pan2017etf, todorov2021bond}. The crypto case is the mirror image of CIP: regulatory clarity and institutional access \emph{reduced} the effective cost of arbitrage capital, compressing the band rather than widening it.
 
-\section{The arbitrage risk premium: concept and measurement}
+\section{The absolute market unfairness: concept and measurement}
 \label{sec:method}
 
 The organizing idea is the accounting identity of costly arbitrage:
 \begin{equation}
-\text{required mispricing} \;=\; \text{direct transaction costs} \;+\; \text{arbitrage risk premium}.
+\text{required mispricing} \;=\; \text{direct transaction costs} \;+\; \text{absolute market unfairness}.
 \label{eq:arp-identity}
 \end{equation}
 A quoted deviation activates an arbitrageur only once it covers the direct costs of the round trip; what remains is the premium for bearing the trade's risks---counterparty and default, execution and settlement, convergence, liquidity, inventory, funding, and market impact. In our setting the mispriced object is a \emph{quote}: a standing top-of-book price displaced from its parity-implied benchmark. These frictions are the subject of the limits-to-arbitrage literature; they widen the no-arbitrage band \citep{pontiff2006costly, chen2021implied, gromb2010limits}. For the quote-setting market maker, the classical spread decomposition into order processing, inventory holding, and adverse selection \citep{bollen2004modeling} is the same identity applied to a single instrument; we measure its analogue for the parity-enforcing quote. Everything downstream is net of a single direct-cost parameter (\CostPerNotional{} of notional); Section~\ref{sec:rq2} verifies that the conclusions do not depend on it.
 
-\subsection{Market maker advantage and the arbitrage risk premium}
+\subsection{Market maker advantage and the absolute market unfairness}
 \label{sec:def}
 
 In crypto options the no-arbitrage benchmark is still put--call parity, but its implementation is contract-specific. The most liquid contracts in our sample---inverse BTCUSD and ETHUSD options on Deribit and OKX---are quoted against a USD index while collateral, premium, and settlement are denominated in coin. Parity must be written after converting premia and the futures leg into a common currency \citep{alexander2023crypto, lucic2024valuation}: the coin-denominated premia are scaled by the conversion price $S$, and contract size cancels in basis points of notional.
@@ -158,28 +158,28 @@ Let $m_{i,p,t}$ denote the signed basis-point payoff of path $p$---one of the fo
 \end{equation}
 where $n_{g,t}$ is the number of matched pairs in the cell. Because the average includes the many paths with no positive arbitrage profit after costs (which still compensate liquidity provision), \emph{mean MMA is negative}: it sits close to minus the round-trip cost. MMA is the round-trip outcome of a maker who indiscriminately joins every quote.
 
-\textbf{The arbitrage risk premium (ARP)} comes in two complementary forms, both built from the positive part of $m$. The \emph{conditional} ARP averages $m$ over only the \emph{positive-MMA tickpaths}---those with $m_{i,p,t}>0$:
+\textbf{The absolute market unfairness (AMU)} comes in two complementary forms, both built from the positive part of $m$. The \emph{conditional} AMU averages $m$ over only the \emph{positive-MMA tickpaths}---those with $m_{i,p,t}>0$:
 \begin{equation}
-\mathrm{ARP}^{\mathrm{c}}_{g,t}=\frac{\sum_{i\in g,t}\sum_{p=1}^{4}\max\!\left(0,\,m_{i,p,t}\right)}
+\mathrm{AMU}^{\mathrm{c}}_{g,t}=\frac{\sum_{i\in g,t}\sum_{p=1}^{4}\max\!\left(0,\,m_{i,p,t}\right)}
 {\sum_{i\in g,t}\sum_{p=1}^{4}\mathbf{1}\{m_{i,p,t}>0\}},
 \end{equation}
 the average \emph{size} of the executable wedge conditional on one existing. Let the \emph{executable frequency} $\phi_{g,t}$ be the share of the $4\,n_{g,t}$ tickpaths that are executable,
 \begin{equation}
 \phi_{g,t}=\frac{1}{4\,n_{g,t}}\sum_{i\in g,t}\sum_{p=1}^{4}\mathbf{1}\{m_{i,p,t}>0\},
 \end{equation}
-and let the \emph{unconditional} ARP average the same positive part over \emph{all} tickpaths:
+and let the \emph{unconditional} AMU average the same positive part over \emph{all} tickpaths:
 \begin{equation}
-\mathrm{ARP}^{\mathrm{u}}_{g,t}=\frac{1}{4\,n_{g,t}}\sum_{i\in g,t}\sum_{p=1}^{4}\max\!\left(0,\,m_{i,p,t}\right)=\phi_{g,t}\,\mathrm{ARP}^{\mathrm{c}}_{g,t}.
+\mathrm{AMU}^{\mathrm{u}}_{g,t}=\frac{1}{4\,n_{g,t}}\sum_{i\in g,t}\sum_{p=1}^{4}\max\!\left(0,\,m_{i,p,t}\right)=\phi_{g,t}\,\mathrm{AMU}^{\mathrm{c}}_{g,t}.
 \label{eq:amu-decomposition}
 \end{equation}
-This identity, $\mathrm{ARP}^{\mathrm{u}}=\phi\,\mathrm{ARP}^{\mathrm{c}}$, is the organizing decomposition of the paper: the per-quote wedge factors into how \emph{often} a wedge appears ($\phi$, the extensive margin) times how \emph{large} it is when it does (conditional ARP, the intensive margin). The surface cross-section is read through this size/frequency split (Figures~\ref{fig:multi_exchange_amu_by_strike}--\ref{fig:multi_exchange_amu_by_tte}); the time series and regressions use the unconditional ARP. Both are in basis points of notional.
+This identity, $\mathrm{AMU}^{\mathrm{u}}=\phi\,\mathrm{AMU}^{\mathrm{c}}$, is the organizing decomposition of the paper: the per-quote wedge factors into how \emph{often} a wedge appears ($\phi$, the extensive margin) times how \emph{large} it is when it does (conditional AMU, the intensive margin). The surface cross-section is read through this size/frequency split (Figures~\ref{fig:multi_exchange_amu_by_strike}--\ref{fig:multi_exchange_amu_by_tte}); the time series and regressions use the unconditional AMU. Both are in basis points of notional.
 
-ARP is the profit of a maker who joins the market only when the executable path is favorable, and is then hit. It promises no particular dollar amount: realization depends on the liquidity along the path and on a taker crossing. What it measures is how bad the quoted prices are. MMA, conditional ARP, and unconditional ARP summarize the same tickpath distribution of $m$: its mean over all tickpaths, its mean over the positive ones, and the mean of its positive part.
+AMU is the profit of a maker who joins the market only when the executable path is favorable, and is then hit. It promises no particular dollar amount: realization depends on the liquidity along the path and on a taker crossing. What it measures is how bad the quoted prices are. MMA, conditional AMU, and unconditional AMU summarize the same tickpath distribution of $m$: its mean over all tickpaths, its mean over the positive ones, and the mean of its positive part.
 
 \begin{table}[htbp]
 \centering
 \footnotesize
-\caption{Executable arbitrage-profit formulas by path and contract style. To obtain the basis-point statistics used for MMA/ARP, multiply each expression by $10{,}000/\mathrm{index\_level}$. Each expression includes the trading-cost term $\mathrm{cost}=\texttt{cost\_per\_notional}\,(\CostPerNotional)\times \mathrm{index\_level}$ from Table~\ref{tab:data_processing_assumptions}. Contract size cancels in the basis-point expression. For inverse contracts, $S_{bid}$ and $S_{ask}$ are the prices at which the coin payoff is converted to USD or stablecoin.}
+\caption{Executable arbitrage-profit formulas by path and contract style. To obtain the basis-point statistics used for MMA/AMU, multiply each expression by $10{,}000/\mathrm{index\_level}$. Each expression includes the trading-cost term $\mathrm{cost}=\texttt{cost\_per\_notional}\,(\CostPerNotional)\times \mathrm{index\_level}$ from Table~\ref{tab:data_processing_assumptions}. Contract size cancels in the basis-point expression. For inverse contracts, $S_{bid}$ and $S_{ask}$ are the prices at which the coin payoff is converted to USD or stablecoin.}
 \label{tab:arbitrage_eight_formulas}
 \setlength{\tabcolsep}{3pt}
 \begin{tabularx}{0.98\textwidth}{@{}>{\RaggedRight\arraybackslash}p{0.14\textwidth}>{\RaggedRight\arraybackslash}p{0.40\textwidth}>{\RaggedRight\arraybackslash}p{0.40\textwidth}@{}}
@@ -202,29 +202,29 @@ $(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \end{tabularx}
 \end{table}
 
-Trading costs are knowable but venue-dependent and complicated. Throughout we assume a fixed proportional cost of \CostPerNotional{} per round trip. Two properties make this innocuous. First, the pre/post dynamics of unconditional ARP are robust to the cost level, which we verify by recomputing the headline comparison over a cost grid (Figure~\ref{fig:amu_by_cost_pre_post}); the conditional flavour is more cost-sensitive, one reason the headline analyses use the unconditional measure. Second, a fixed cost across venues keeps cross-exchange comparisons coherent. The cost assumption only places ARP on a sensible scale.
+Trading costs are knowable but venue-dependent and complicated. Throughout we assume a fixed proportional cost of \CostPerNotional{} per round trip. Two properties make this innocuous. First, the pre/post dynamics of unconditional AMU are robust to the cost level, which we verify by recomputing the headline comparison over a cost grid (Figure~\ref{fig:amu_by_cost_pre_post}); the conditional flavour is more cost-sensitive, one reason the headline analyses use the unconditional measure. Second, a fixed cost across venues keeps cross-exchange comparisons coherent. The cost assumption only places AMU on a sensible scale.
 
 \subsection{The range of arbitrage configurations}
 
-It is useful to see what ARP is measuring geometrically. For a given option leg---say the call---the quotes define a \emph{real} market $[C_{bid},C_{ask}]$, while parity combined with the put and the matching futures defines a \emph{synthetic} market $[C^{\mathrm{syn}}_{bid},C^{\mathrm{syn}}_{ask}]$, where $C^{\mathrm{syn}}=P+(F-K)e^{-rT}$. Both intervals live on the same price axis, and their relative position determines whether, and how strongly, an arbitrage exists. Figure~\ref{fig:arb_paths_crossed_noncrossed} shows the three qualitatively distinct configurations.
+It is useful to see what AMU is measuring geometrically. For a given option leg---say the call---the quotes define a \emph{real} market $[C_{bid},C_{ask}]$, while parity combined with the put and the matching futures defines a \emph{synthetic} market $[C^{\mathrm{syn}}_{bid},C^{\mathrm{syn}}_{ask}]$, where $C^{\mathrm{syn}}=P+(F-K)e^{-rT}$. Both intervals live on the same price axis, and their relative position determines whether, and how strongly, an arbitrage exists. Figure~\ref{fig:arb_paths_crossed_noncrossed} shows the three qualitatively distinct configurations.
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.98\textwidth]{artifacts/arbitrage_paths_crossed_noncrossed.pdf}
-\caption{Real quoted versus parity-implied (synthetic) option market. When the markets are crossed and disjoint ($C_{ask}<C^{\mathrm{syn}}_{bid}$, or the symmetric case), there is a single guaranteed riskless arbitrage. When one market is nested inside the other, or when the two straddle each other, there is no guaranteed profit but two paths carry a \emph{potential} market-maker advantage, realized only if the maker's quote is joined and then hit. In the nested case these are the forward and backward join-call paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C_{ask}-C^{\mathrm{syn}}_{ask}$), with the join-put payoffs equal to their negatives (exactly so when the futures market has zero spread; the trading cost need not be zero); in the straddling case they are the forward join-call and forward join-put paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C^{\mathrm{syn}}_{ask}-C_{ask}$). The latter two configurations are what ARP aggregates. Schematic, illustrative levels.}
+\caption{Real quoted versus parity-implied (synthetic) option market. When the markets are crossed and disjoint ($C_{ask}<C^{\mathrm{syn}}_{bid}$, or the symmetric case), there is a single guaranteed riskless arbitrage. When one market is nested inside the other, or when the two straddle each other, there is no guaranteed profit but two paths carry a \emph{potential} market-maker advantage, realized only if the maker's quote is joined and then hit. In the nested case these are the forward and backward join-call paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C_{ask}-C^{\mathrm{syn}}_{ask}$), with the join-put payoffs equal to their negatives (exactly so when the futures market has zero spread; the trading cost need not be zero); in the straddling case they are the forward join-call and forward join-put paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C^{\mathrm{syn}}_{ask}-C_{ask}$). The latter two configurations are what AMU aggregates. Schematic, illustrative levels.}
 \label{fig:arb_paths_crossed_noncrossed}
 \end{figure}
 
-In the crossed case the real ask lies below the synthetic bid (or vice versa); buying one and selling the other locks in the gap. In the nested and straddling cases there is no guaranteed profit: the payoff depends on which side is joined and whether a taker crosses. These conditional states are what MMA and ARP aggregate over the surface.
+In the crossed case the real ask lies below the synthetic bid (or vice versa); buying one and selling the other locks in the gap. In the nested and straddling cases there is no guaranteed profit: the payoff depends on which side is joined and whether a taker crosses. These conditional states are what MMA and AMU aggregate over the surface.
 
-MMA and ARP do not measure the quoted half-spread itself---the compensation makers demand for liquidity provision. They measure where the quotes \emph{sit}: each real quote must track its synthetic counterpart within the cost cushion (Section~\ref{sec:noamu-band}), and ARP is what stands outside that tolerance. This is the through-price gap of the NBBO analogy from the introduction, with the parity-implied synthetic market as the second venue.
+MMA and AMU do not measure the quoted half-spread itself---the compensation makers demand for liquidity provision. They measure where the quotes \emph{sit}: each real quote must track its synthetic counterpart within the cost cushion (Section~\ref{sec:noamu-band}), and AMU is what stands outside that tolerance. This is the through-price gap of the NBBO analogy from the introduction, with the parity-implied synthetic market as the second venue.
 
-\subsection{The no-ARP band and the shape of the MMA distribution}
+\subsection{The no-AMU band and the shape of the MMA distribution}
 \label{sec:noamu-band}
 
 The configurations in Figure~\ref{fig:arb_paths_crossed_noncrossed} raise a sharper question: for a \emph{given} synthetic market, how far can a real quote move before it becomes unfair? The answer pins each real quote to its synthetic counterpart within a tolerance set by the trading cost, and it fixes the shape that the MMA distribution ``should'' take.
 
-Consider the real call ask $C_{ask}$. Two of the four paths in Table~\ref{tab:arbitrage_eight_formulas} contain it---forward/join-put and backward/join-call. Requiring both payoffs to be non-positive (no ARP) yields
+Consider the real call ask $C_{ask}$. Two of the four paths in Table~\ref{tab:arbitrage_eight_formulas} contain it---forward/join-put and backward/join-call. Requiring both payoffs to be non-positive (no AMU) yields
 \begin{equation}
 P_{ask}+(F_{ask}-K)e^{-rT}-\mathrm{cost}
 \;\le\; C_{ask} \;\le\;
@@ -238,24 +238,24 @@ The role of the cost is easy to mis-state. It is \emph{not} that $C_{ask}$ merel
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/amu_fair_band_synthetic.pdf}
-\caption{No ARP requires each real quote to track its matching synthetic quote within $\pm\mathrm{cost}$. The band centres are the frictionless (no-cost) synthetic prices $P_{bid}+(F_{bid}-K)e^{-rT}$ and $P_{ask}+(F_{ask}-K)e^{-rT}$; the trading cost buys the $\pm\mathrm{cost}$ cushion around each. As costs shrink, the real market is squeezed onto the synthetic market. Schematic, illustrative levels.}
+\caption{No AMU requires each real quote to track its matching synthetic quote within $\pm\mathrm{cost}$. The band centres are the frictionless (no-cost) synthetic prices $P_{bid}+(F_{bid}-K)e^{-rT}$ and $P_{ask}+(F_{ask}-K)e^{-rT}$; the trading cost buys the $\pm\mathrm{cost}$ cushion around each. As costs shrink, the real market is squeezed onto the synthetic market. Schematic, illustrative levels.}
 \label{fig:amu_fair_band_synthetic}
 \end{figure}
 
 Equation~\eqref{eq:cask-band} also fixes the shape of the MMA distribution. Write $u=C_{ask}-C^{\mathrm{syn}}_{ask}$; up to the futures half-spread the two conjugate $C_{ask}$ payoffs are $u-\mathrm{cost}$ (forward, join put) and $-\mathrm{cost}-u$ (backward, join call). As $C_{ask}$ ranges over its fair band $u\in(-\mathrm{cost},\mathrm{cost})$, each sweeps linearly over $(-2\,\mathrm{cost},0)$. If makers placed quotes with no preferred point inside the band, the implied MMA would be \emph{uniform} on $(-2\,\mathrm{cost},0)$: a rectangle of width $2\,\mathrm{cost}$ immediately to the left of zero. That rectangle is the no-information benchmark (dashed in Figure~\ref{fig:amu_schematic_mma_distribution}).
 
-The observed distribution instead peaks sharply at $-\mathrm{cost}$, and a short equilibrium argument says why. The two conjugate paths share the call-ask and put-ask quotes, and their payoffs sum to $-2\,\mathrm{cost}$: they are mirror images about $-\mathrm{cost}$. Each maker improves their quote to gain MMA, which lowers the conjugate MMA by the same amount; the only outcome that hands no advantage to either side is the symmetric one, at $-\mathrm{cost}$. The same argument pins the bid-side paths. Competitive quoting therefore parks the modal MMA at $-\mathrm{cost}$ (Figures~\ref{fig:amu_schematic_mma_distribution} and~\ref{fig:all_markets_avg_4_spreads}). Stale or aggressive quotes populate the tails; the right tail crossing zero is the executable ARP.
+The observed distribution instead peaks sharply at $-\mathrm{cost}$, and a short equilibrium argument says why. The two conjugate paths share the call-ask and put-ask quotes, and their payoffs sum to $-2\,\mathrm{cost}$: they are mirror images about $-\mathrm{cost}$. Each maker improves their quote to gain MMA, which lowers the conjugate MMA by the same amount; the only outcome that hands no advantage to either side is the symmetric one, at $-\mathrm{cost}$. The same argument pins the bid-side paths. Competitive quoting therefore parks the modal MMA at $-\mathrm{cost}$ (Figures~\ref{fig:amu_schematic_mma_distribution} and~\ref{fig:all_markets_avg_4_spreads}). Stale or aggressive quotes populate the tails; the right tail crossing zero is the executable AMU.
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.82\textwidth]{artifacts/amu_schematic_mma_distribution.pdf}
-\caption{Schematic MMA distribution. The dashed rectangle over $(-2\,\mathrm{cost},0)$ is the no-information benchmark implied by the no-ARP band (uniform quoting). Competitive quoting instead concentrates the mode at $-\mathrm{cost}$, the symmetric equilibrium of the conjugate forward/backward paths; the mass that crosses zero into positive territory is the executable ARP. Schematic, illustrative levels.}
+\caption{Schematic MMA distribution. The dashed rectangle over $(-2\,\mathrm{cost},0)$ is the no-information benchmark implied by the no-AMU band (uniform quoting). Competitive quoting instead concentrates the mode at $-\mathrm{cost}$, the symmetric equilibrium of the conjugate forward/backward paths; the mass that crosses zero into positive territory is the executable AMU. Schematic, illustrative levels.}
 \label{fig:amu_schematic_mma_distribution}
 \end{figure}
 
 \subsection{Data and sample}
 
-The sample uses high-frequency Deribit and OKX BTCUSD and ETHUSD inverse options and matching-expiry futures from Tardis.dev \citep{tardis_main}, spanning 2020 through June 2026, with synchronized best bids and asks for calls, puts, and futures. Ticks are processed with our open-source codebases---\texttt{balazs14/TardisProject} and \texttt{balazs14/publications} (subfolder \texttt{AMU-liquidity-premium})---which implement synchronization, filtering, parity-path construction, and ARP aggregation \citep{kralik_tardisproject_repo, kralik_amu_publication_repo}. The same calculation applies across the full horizon, so pre/post-2024 comparisons are coherent.
+The sample uses high-frequency Deribit and OKX BTCUSD and ETHUSD inverse options and matching-expiry futures from Tardis.dev \citep{tardis_main}, spanning 2020 through June 2026, with synchronized best bids and asks for calls, puts, and futures. Ticks are processed with our open-source codebases---\texttt{balazs14/TardisProject} and \texttt{balazs14/publications} (subfolder \texttt{AMU-liquidity-premium})---which implement synchronization, filtering, parity-path construction, and AMU aggregation \citep{kralik_tardisproject_repo, kralik_amu_publication_repo}. The same calculation applies across the full horizon, so pre/post-2024 comparisons are coherent.
 
 Table~\ref{tab:summary_daily_option_coverage} summarizes coverage. Deribit lists a wider surface---more contracts, expirations, and strikes per day---while spreads are broadly comparable, slightly wider for ETH on OKX. The OKX series are longer because Deribit introduced matching-expiry futures later.
 
@@ -273,139 +273,139 @@ Observations are synchronized on a regular time grid, filtered to matched pairs 
 
 \begin{table}[htbp]
 \centering
-\caption{Data-processing assumptions for MMA/ARP construction.}
+\caption{Data-processing assumptions for MMA/AMU construction.}
 \label{tab:data_processing_assumptions}
 \begin{tabularx}{0.95\textwidth}{lX}
 \toprule
 Component & Assumption \\
 \midrule
-ARP clipping rule & MMA series are clipped to $[0,\MaxAmuBps]$ basis points before positive-part averaging. \\
+AMU clipping rule & MMA series are clipped to $[0,\MaxAmuBps]$ basis points before positive-part averaging. \\
 MMA clipping rule & MMA series are clipped to $[-\MaxMmaBps,+\MaxMmaBps]$ basis points. \\
 Spread filter & Call and put spreads are capped at $\SpreadBpMax$ basis points. \\
 Relative-strike filter & Allowed range is $[\RelStrikeMin,\RelStrikeMax]$. \\
 Minimum quote size & \texttt{min\_quote\_size\_dollar} must be at least \MinQuoteSizeDollar. \\
 Subsampling & Last-known observation carried forward to the configured interval (default \texttt{\SampleFreqDefault}); a leg with a missing or non-updated bid/ask price or size is marked stale.\\
-Stale-quote filter & \FilterStale{}: when enabled, ticks with a stale call, put, or spot leg are dropped before any ARP/MMA aggregation. \\
+Stale-quote filter & \FilterStale{}: when enabled, ticks with a stale call, put, or spot leg are dropped before any AMU/MMA aggregation. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\section{The level and cross-section of the arbitrage risk premium}
+\section{The level and cross-section of the absolute market unfairness}
 \label{sec:descriptive}
 
 \subsection{The shape of the MMA distribution and why it peaks below zero}
 \label{sec:peak}
 
-The most informative object in the data is the shape of the MMA distribution (Figure~\ref{fig:all_markets_avg_4_spreads}). Pooled across markets and paths, the density peaks sharply at minus the trading cost---near $-\CostBp$ basis points---and falls away on both sides. Zero separates the non-executable region from the positive, executable tail that feeds ARP.
+The most informative object in the data is the shape of the MMA distribution (Figure~\ref{fig:all_markets_avg_4_spreads}). Pooled across markets and paths, the density peaks sharply at minus the trading cost---near $-\CostBp$ basis points---and falls away on both sides. Zero separates the non-executable region from the positive, executable tail that feeds AMU.
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.8\textwidth]{artifacts/all_markets_avg_4_spreads.pdf}
-\caption{Average density of the four MMA paths across all markets. The distribution peaks at minus the round-trip cost (dashed line); everything to the left of zero is non-executable for the maker, and only the positive tail to the right of zero contributes to ARP.}
+\caption{Average density of the four MMA paths across all markets. The distribution peaks at minus the round-trip cost (dashed line); everything to the left of zero is non-executable for the maker, and only the positive tail to the right of zero contributes to AMU.}
 \label{fig:all_markets_avg_4_spreads}
 \end{figure}
 
 
-The economic reading is central to the paper. Makers improve quotes only as much as competition forces them to, given costs, so the mass concentrates at $-\text{cost}$: in the modal state the wedge has been competed down to roughly the cost of the trade. Quoting is noisy, so the distribution is not a point mass. Quotes that are too good for the buy side populate the left tail; quotes that are too bad leave an executable wedge and populate the right tail. The right tail's conditional mean is the conditional ARP, its share is $\phi$, and their product is the unconditional ARP. ARP is nonzero simply because repricing is not instantaneous: after a shock, some quotes are briefly stale or mis-set relative to the synthetic market. Faster, denser competition erases both tails quicker. Everything that follows measures this right tail across exchanges, the surface, and time.
+The economic reading is central to the paper. Makers improve quotes only as much as competition forces them to, given costs, so the mass concentrates at $-\text{cost}$: in the modal state the wedge has been competed down to roughly the cost of the trade. Quoting is noisy, so the distribution is not a point mass. Quotes that are too good for the buy side populate the left tail; quotes that are too bad leave an executable wedge and populate the right tail. The right tail's conditional mean is the conditional AMU, its share is $\phi$, and their product is the unconditional AMU. AMU is nonzero simply because repricing is not instantaneous: after a shock, some quotes are briefly stale or mis-set relative to the synthetic market. Faster, denser competition erases both tails quicker. Everything that follows measures this right tail across exchanges, the surface, and time.
 
-\subsection{RQ1: ARP across exchanges, moneyness, and maturity}
+\subsection{RQ1: AMU across exchanges, moneyness, and maturity}
 \label{sec:rq1}
 
-The global averages in Table~\ref{tab:amu_summary} show that exchanges differ moderately, and not along a simple BTC/ETH split. The standout is ETH on OKX, the thinnest book (Table~\ref{tab:summary_daily_option_coverage})---as expected if ARP is the premium over the direct-cost floor. Positive MMA is not rare: a large fraction of ticks carry at least one executable path, so the positive-part average measures a routine phenomenon, not isolated glitches. The ratio of the unconditional to the conditional column recovers $\phi$ (Eq.~\ref{eq:amu-decomposition}).
+The global averages in Table~\ref{tab:amu_summary} show that exchanges differ moderately, and not along a simple BTC/ETH split. The standout is ETH on OKX, the thinnest book (Table~\ref{tab:summary_daily_option_coverage})---as expected if AMU is the premium over the direct-cost floor. Positive MMA is not rare: a large fraction of ticks carry at least one executable path, so the positive-part average measures a routine phenomenon, not isolated glitches. The ratio of the unconditional to the conditional column recovers $\phi$ (Eq.~\ref{eq:amu-decomposition}).
 
 \begin{table}[htbp]
 \centering
 {\renewcommand{\arraystretch}{1.3}\normalfont\normalsize\input{artifacts/amu_summary_table.tex}}
-\caption{Global ARP summary across exchanges and underlyings. ARP is the positive-part mean of MMA, in basis points of notional: \emph{cond} averages over the executable (positive-MMA) paths only, \emph{uncond} over all paths (equivalently, \emph{cond} times the fraction of paths that are executable). A \emph{path} is one of the four put--call-parity join paths (forward/backward $\times$ join-call/join-put) evaluated at a single synchronized quote; each matched put--call pair contributes four paths. The last two columns count ticks: \emph{positive MMA} is the number of synchronized ticks with at least one executable path, and \emph{num pairs} the number of matched put--call pair ticks.}
+\caption{Global AMU summary across exchanges and underlyings. AMU is the positive-part mean of MMA, in basis points of notional: \emph{cond} averages over the executable (positive-MMA) paths only, \emph{uncond} over all paths (equivalently, \emph{cond} times the fraction of paths that are executable). A \emph{path} is one of the four put--call-parity join paths (forward/backward $\times$ join-call/join-put) evaluated at a single synchronized quote; each matched put--call pair contributes four paths. The last two columns count ticks: \emph{positive MMA} is the number of synchronized ticks with at least one executable path, and \emph{num pairs} the number of matched put--call pair ticks.}
 \label{tab:amu_summary}
 \end{table}
 
-The shape over the surface is sharper than the venue averages and regular across all four markets. In Figure~\ref{fig:multi_exchange_amu_by_strike}, the frequency $\phi$ (lower panel) traces a deep V---near one in the wings, a few percent at the money---while the conditional size (upper panel) is comparatively flat. Their product, the unconditional ARP, inherits the V. Figure~\ref{fig:multi_exchange_amu_by_tte} tells the same story in maturity with a U-shaped frequency: elevated at the shortest maturities, minimal near one month, rising again for long-dated contracts. The premium is smallest for month-scale, near-the-money contracts and largest in the illiquid corners. What varies over the surface is the \emph{incidence} of executable mis-quoting, not its size.
+The shape over the surface is sharper than the venue averages and regular across all four markets. In Figure~\ref{fig:multi_exchange_amu_by_strike}, the frequency $\phi$ (lower panel) traces a deep V---near one in the wings, a few percent at the money---while the conditional size (upper panel) is comparatively flat. Their product, the unconditional AMU, inherits the V. Figure~\ref{fig:multi_exchange_amu_by_tte} tells the same story in maturity with a U-shaped frequency: elevated at the shortest maturities, minimal near one month, rising again for long-dated contracts. The premium is smallest for month-scale, near-the-money contracts and largest in the illiquid corners. What varies over the surface is the \emph{incidence} of executable mis-quoting, not its size.
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_rel_strike.pdf}
-\caption{ARP by relative strike across exchanges and underlyings, decomposed into its two margins: the conditional size (upper panel, comparatively flat) and the executable frequency $\phi$ (lower panel, a deep V minimized at the money). Their product, the unconditional ARP, is minimized at the money and rises sharply into the wings.}
+\caption{AMU by relative strike across exchanges and underlyings, decomposed into its two margins: the conditional size (upper panel, comparatively flat) and the executable frequency $\phi$ (lower panel, a deep V minimized at the money). Their product, the unconditional AMU, is minimized at the money and rises sharply into the wings.}
 \label{fig:multi_exchange_amu_by_strike}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_tte.pdf}
-\caption{ARP by time to expiry across exchanges and underlyings: the conditional size (upper panel, comparatively flat) and the executable frequency $\phi$ (lower panel). The frequency---and hence the unconditional ARP---is U-shaped: elevated at the shortest and longest maturities, lowest around one month.}
+\caption{AMU by time to expiry across exchanges and underlyings: the conditional size (upper panel, comparatively flat) and the executable frequency $\phi$ (lower panel). The frequency---and hence the unconditional AMU---is U-shaped: elevated at the shortest and longest maturities, lowest around one month.}
 \label{fig:multi_exchange_amu_by_tte}
 \end{figure}
 
-These regularities answer RQ1. ARP differs across venues, but position on the surface---distance from the money and from a one-month horizon---explains far more of its variation than venue does. Both patterns line up with liquidity: the wedge is largest where books are thin and quotes stale.
+These regularities answer RQ1. AMU differs across venues, but position on the surface---distance from the money and from a one-month horizon---explains far more of its variation than venue does. Both patterns line up with liquidity: the wedge is largest where books are thin and quotes stale.
 
 \section{The 2024 regulatory shift}
 \label{sec:regulation}
 
 Three milestones cluster in 2024. On January 10 the SEC approved spot Bitcoin ETPs, connecting crypto price risk to regulated custody, authorized-participant arbitrage, and mainstream brokerage \citep{sec_spot_bitcoin_etp_2024}. In May it approved spot Ether ETFs, which began trading in July \citep{sec_spot_ether_etp_2024}. In parallel, MiCA came into force in stages: stablecoin provisions in mid-2024, the CASP licensing regime at end-2024 \citep{esma_mica_2024}. None of this changed put--call parity; it changed who can hold, finance, and hedge crypto exposure at scale, and under what legal certainty.
 
-That is what the ARP lens is built for. The premium in Eq.~\ref{eq:arp-identity} compensates for counterparty, custody, funding, convergence, and inventory risk. Each is cheaper to bear for a large, diversified, well-capitalized institution than for the crypto-native firms that previously dominated: regulation mitigates custody and legal risk, balance-sheet depth mitigates funding risk, diversification mitigates inventory and convergence risk. If the 2024 shift brought such participants into parity enforcement---directly or by financing those who do it---the required premium should fall, beyond any improvement in the usual frictions.
+That is what the AMU lens is built for. The premium in Eq.~\ref{eq:arp-identity} compensates for counterparty, custody, funding, convergence, and inventory risk. Each is cheaper to bear for a large, diversified, well-capitalized institution than for the crypto-native firms that previously dominated: regulation mitigates custody and legal risk, balance-sheet depth mitigates funding risk, diversification mitigates inventory and convergence risk. If the 2024 shift brought such participants into parity enforcement---directly or by financing those who do it---the required premium should fall, beyond any improvement in the usual frictions.
 
-The task is therefore sharp: did ARP drop significantly at the 2024 shift, and is the drop fully explained by observable frictions, or partly a lower premium demanded by the marginal enforcer? Sections~\ref{sec:rq2} and~\ref{sec:regressions} take these in turn.
+The task is therefore sharp: did AMU drop significantly at the 2024 shift, and is the drop fully explained by observable frictions, or partly a lower premium demanded by the marginal enforcer? Sections~\ref{sec:rq2} and~\ref{sec:regressions} take these in turn.
 
-\section{Did the arbitrage risk premium fall in 2024?}
+\section{Did the absolute market unfairness fall in 2024?}
 \label{sec:rq2}
 
 \subsection{Time-series and distributional evidence}
 
-The time-series evidence is direct. Figure~\ref{fig:multi_exchange_amu_by_date} plots daily ARP by market against the BTCUSD index. Through 2020--2023 ARP is elevated and volatile, spiking in turbulent episodes; from 2024 it drops to a lower, tighter regime. The spikes cluster in stressed markets, when market making is balance-sheet intensive and quote quality poor.
+The time-series evidence is direct. Figure~\ref{fig:multi_exchange_amu_by_date} plots daily AMU by market against the BTCUSD index. Through 2020--2023 AMU is elevated and volatile, spiking in turbulent episodes; from 2024 it drops to a lower, tighter regime. The spikes cluster in stressed markets, when market making is balance-sheet intensive and quote quality poor.
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_date.pdf}
-\caption{Daily unconditional ARP by exchange and underlying, 2020--2026, with the BTCUSD index overlaid. It is high and volatile before 2024 and compresses to a lower, tighter band afterward.}
+\caption{Daily unconditional AMU by exchange and underlying, 2020--2026, with the BTCUSD index overlaid. It is high and volatile before 2024 and compresses to a lower, tighter band afterward.}
 \label{fig:multi_exchange_amu_by_date}
 \end{figure}
 
-Zooming in, Figure~\ref{fig:multi_exchange_amu_by_date_2023_2024_avg_events} tracks the all-market average across 2023--2024 with event dates marked. ARP runs high through 2023, steps down around the January 2024 ETP approval, and keeps falling through the Ether ETF and MiCA milestones. The event-study windows (Figure~\ref{fig:liquidity_event_study}) are noisier---the windows overlap---but show the same tendency: lower and less spiky after events.
+Zooming in, Figure~\ref{fig:multi_exchange_amu_by_date_2023_2024_avg_events} tracks the all-market average across 2023--2024 with event dates marked. AMU runs high through 2023, steps down around the January 2024 ETP approval, and keeps falling through the Ether ETF and MiCA milestones. The event-study windows (Figure~\ref{fig:liquidity_event_study}) are noisier---the windows overlap---but show the same tendency: lower and less spiky after events.
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_date_2023_2024_avg_events.pdf}
-\caption{All-market average unconditional ARP, 2023--2024, with the main institutional event dates marked by vertical lines.}
+\caption{All-market average unconditional AMU, 2023--2024, with the main institutional event dates marked by vertical lines.}
 \label{fig:multi_exchange_amu_by_date_2023_2024_avg_events}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/liquidity_event_study.png}
-\caption{Event-study windows for the unconditional ARP around the main 2024 institutional event dates, shown separately by event.}
+\caption{Event-study windows for the unconditional AMU around the main 2024 institutional event dates, shown separately by event.}
 \label{fig:liquidity_event_study}
 \end{figure}
 
-Two figures show \emph{how} the compression happened. Figure~\ref{fig:total_mma_hist_pre_post_btc_etp} overlays the pre- and post-2024 MMA histograms: the post-2024 density concentrates at the cost floor with thinner tails, and average unconditional ARP falls from \AmuPreBp~bp to \AmuPostBp~bp. This is the signature of the mechanism in Section~\ref{sec:peak}: denser competition erases more of the transient tails. Figure~\ref{fig:liquidity_pre_post_heatmap} shows the compression over the strike--maturity grid: the pre-2024 hot band at long maturities and away-from-money strikes cools sharply, leaving only the deep-OTM, long-dated corner elevated. Figure~\ref{fig:liquidity_compression_decomposition} shows the change is broad but uneven: conditional ARP fell in every segment, most in the far-expiry bucket, least on Deribit, more for ETH than BTC and for non-ATM than ATM---largest where the pre-2024 wedge was largest.
+Two figures show \emph{how} the compression happened. Figure~\ref{fig:total_mma_hist_pre_post_btc_etp} overlays the pre- and post-2024 MMA histograms: the post-2024 density concentrates at the cost floor with thinner tails, and average unconditional AMU falls from \AmuPreBp~bp to \AmuPostBp~bp. This is the signature of the mechanism in Section~\ref{sec:peak}: denser competition erases more of the transient tails. Figure~\ref{fig:liquidity_pre_post_heatmap} shows the compression over the strike--maturity grid: the pre-2024 hot band at long maturities and away-from-money strikes cools sharply, leaving only the deep-OTM, long-dated corner elevated. Figure~\ref{fig:liquidity_compression_decomposition} shows the change is broad but uneven: conditional AMU fell in every segment, most in the far-expiry bucket, least on Deribit, more for ETH than BTC and for non-ATM than ATM---largest where the pre-2024 wedge was largest.
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.85\textwidth]{artifacts/total_mma_hist_pre_post_btc_etp.pdf}
-\caption{Total MMA histogram across all four paths, split into pre- and post-2024 periods. The post-2024 distribution is more concentrated at the cost floor, and the positive-tail averages---both the conditional and the unconditional ARP, annotated on the figure---fall markedly after 2024.}
+\caption{Total MMA histogram across all four paths, split into pre- and post-2024 periods. The post-2024 distribution is more concentrated at the cost floor, and the positive-tail averages---both the conditional and the unconditional AMU, annotated on the figure---fall markedly after 2024.}
 \label{fig:total_mma_hist_pre_post_btc_etp}
 \end{figure}
 
-The compression is not an artifact of the cost assumption. Figure~\ref{fig:amu_by_cost_pre_post} recomputes both ARP flavours over a grid of costs, pre and post. The pre-to-post drop in unconditional ARP is approximately independent of the assumed cost; the drop in conditional ARP is not.
+The compression is not an artifact of the cost assumption. Figure~\ref{fig:amu_by_cost_pre_post} recomputes both AMU flavours over a grid of costs, pre and post. The pre-to-post drop in unconditional AMU is approximately independent of the assumed cost; the drop in conditional AMU is not.
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.85\textwidth]{artifacts/amu_bps_by_cost_pre_post.pdf}
-\caption{Conditional (solid) and unconditional (dashed) ARP versus the assumed round-trip cost, pre- (blue) versus post-2024 (red), pooled across markets and paths; the dotted line marks the primary cost (\CostBp~bp). The pre-to-post gap in unconditional ARP is approximately flat in cost; the gap in conditional ARP shrinks sharply as cost rises. The unconditional measure is therefore the natural object for the regime comparison.}
+\caption{Conditional (solid) and unconditional (dashed) AMU versus the assumed round-trip cost, pre- (blue) versus post-2024 (red), pooled across markets and paths; the dotted line marks the primary cost (\CostBp~bp). The pre-to-post gap in unconditional AMU is approximately flat in cost; the gap in conditional AMU shrinks sharply as cost rises. The unconditional measure is therefore the natural object for the regime comparison.}
 \label{fig:amu_by_cost_pre_post}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_pre_post_heatmap.png}
-\caption{Mean \emph{conditional} ARP across relative-strike and maturity buckets, pre- versus post-2024. The high-ARP interior of the surface cools after 2024; only the deep-OTM, long-dated corner stays elevated.}
+\caption{Mean \emph{conditional} AMU across relative-strike and maturity buckets, pre- versus post-2024. The high-AMU interior of the surface cools after 2024; only the deep-OTM, long-dated corner stays elevated.}
 \label{fig:liquidity_pre_post_heatmap}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_compression_decomposition.png}
-\caption{Pre- to post-2024 change in \emph{conditional} ARP by segment (BTC/ETH, Deribit/OKX, ATM/Non-ATM, NearExp/FarExp). Every segment compresses; the far-expiry bucket compresses most.}
+\caption{Pre- to post-2024 change in \emph{conditional} AMU by segment (BTC/ETH, Deribit/OKX, ATM/Non-ATM, NearExp/FarExp). Every segment compresses; the far-expiry bucket compresses most.}
 \label{fig:liquidity_compression_decomposition}
 \end{figure}
 
@@ -415,22 +415,22 @@ The compression is not an artifact of the cost assumption. Figure~\ref{fig:amu_b
 \subsection{Empirical design}
 \label{sec:design}
 
-The dependent variable in all four regressions is the cell-level unconditional ARP, $\mathrm{ARP}^{\mathrm{u}}_{g,t}=\phi_{g,t}\,\mathrm{ARP}^{\mathrm{c}}_{g,t}$ (Eq.~\ref{eq:amu-decomposition})---a quote-level, panel-observable object. Regressors enter in three blocks: the post-2024 indicator $\mathrm{Post}_t$; segment dummies (exchange, underlying, moneyness, maturity); and three liquidity frictions,
+The dependent variable in all four regressions is the cell-level unconditional AMU, $\mathrm{AMU}^{\mathrm{u}}_{g,t}=\phi_{g,t}\,\mathrm{AMU}^{\mathrm{c}}_{g,t}$ (Eq.~\ref{eq:amu-decomposition})---a quote-level, panel-observable object. Regressors enter in three blocks: the post-2024 indicator $\mathrm{Post}_t$; segment dummies (exchange, underlying, moneyness, maturity); and three liquidity frictions,
 \begin{align}
 \mathrm{Spr}_{g,t}&=\tfrac{1}{2}\!\left(\texttt{mean\_call\_spread\_bp}_{g,t}+\texttt{mean\_put\_spread\_bp}_{g,t}\right),\\
 \mathrm{Depth}_{g,t}&=\log\!\left(\texttt{mean\_min\_quote\_size\_dollar}_{g,t}\right),\\
 \mathrm{Stale}_{g,t}&=\text{mean stale-quote fraction across call, put, and spot legs}.
 \end{align}
-The direct-cost term---compensation for routine liquidity provision---is already subtracted inside every path payoff in Table~\ref{tab:arbitrage_eight_formulas}. ARP is what survives above that floor: per Eq.~\ref{eq:arp-identity}, the premium for bearing the risks of enforcing parity---inventory, funding, settlement, convergence, and adverse selection \citep{amihud1986asset, shleifer1997limits, garleanu2011margin, bollen2004modeling}. The friction controls test whether that premium is fully accounted for by observable frictions---wider spreads, thinner depth, staler quotes---or whether a residual premium moves on its own.
+The direct-cost term---compensation for routine liquidity provision---is already subtracted inside every path payoff in Table~\ref{tab:arbitrage_eight_formulas}. AMU is what survives above that floor: per Eq.~\ref{eq:arp-identity}, the premium for bearing the risks of enforcing parity---inventory, funding, settlement, convergence, and adverse selection \citep{amihud1986asset, shleifer1997limits, garleanu2011margin, bollen2004modeling}. The friction controls test whether that premium is fully accounted for by observable frictions---wider spreads, thinner depth, staler quotes---or whether a residual premium moves on its own.
 
 $\mathrm{Post}_t$ equals one on and after January 10, 2024---the Bitcoin ETP approval, first of the 2024 milestones---treated as a single regime date rather than separate shocks.
 
 We estimate four specifications, adding regressors in blocks:
 \begin{align}
-\mathrm{ARP}^{\mathrm{u}}_{g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\varepsilon_{g,t},\\
-\mathrm{ARP}^{\mathrm{u}}_{g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\gamma_g+\varepsilon_{g,t},\\
-\mathrm{ARP}^{\mathrm{u}}_{g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\beta_{\mathrm{OKX}}\mathrm{OKX}_g+\beta_{\mathrm{ETH}}\mathrm{ETH}_g+\beta_{\mathrm{ATM}}\mathrm{ATM}_g+\beta_{\mathrm{NE}}\mathrm{NearExp}_g+\varepsilon_{g,t},\\
-\mathrm{ARP}^{\mathrm{u}}_{g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\beta_{\mathrm{Depth}}\mathrm{Depth}_{g,t}+\beta_{\mathrm{Spr}}\mathrm{Spr}_{g,t}+\beta_{\mathrm{Stale}}\mathrm{Stale}_{g,t}+\gamma_g+\varepsilon_{g,t},
+\mathrm{AMU}^{\mathrm{u}}_{g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\varepsilon_{g,t},\\
+\mathrm{AMU}^{\mathrm{u}}_{g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\gamma_g+\varepsilon_{g,t},\\
+\mathrm{AMU}^{\mathrm{u}}_{g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\beta_{\mathrm{OKX}}\mathrm{OKX}_g+\beta_{\mathrm{ETH}}\mathrm{ETH}_g+\beta_{\mathrm{ATM}}\mathrm{ATM}_g+\beta_{\mathrm{NE}}\mathrm{NearExp}_g+\varepsilon_{g,t},\\
+\mathrm{AMU}^{\mathrm{u}}_{g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\beta_{\mathrm{Depth}}\mathrm{Depth}_{g,t}+\beta_{\mathrm{Spr}}\mathrm{Spr}_{g,t}+\beta_{\mathrm{Stale}}\mathrm{Stale}_{g,t}+\gamma_g+\varepsilon_{g,t},
 \end{align}
 all with a constant and HC1 standard errors. Specification (1) is the raw regime effect. Specification (2) adds cell fixed effects $\gamma_g$, isolating the within-cell shift. Specification (3) instead adds the segment dummies as pooled OLS: there the dummies are the objects of interest (RQ1), so we estimate rather than absorb them. Specification (4) adds the frictions with cell fixed effects. The fixed effects are the right control because the surface dependence is strongly nonlinear (Figures~\ref{fig:multi_exchange_amu_by_strike}--\ref{fig:multi_exchange_amu_by_tte}); linear dummies would leave segment structure in the residual and contaminate $\beta_{\mathrm{Post}}$. In (4), $\beta_{\mathrm{Post}}$ measures the regime shift net of both the frictions and the full segment structure. Table~\ref{tab:regressor_abbreviations} defines the abbreviations.
 
@@ -463,20 +463,20 @@ $\varepsilon_{g,t}$ & Idiosyncratic error. \\
 
 \subsection{Results}
 
-Table~\ref{tab:regression_coefficients} reports the four regressions of cell-level unconditional ARP: (1) the raw regime effect; (2) plus cell fixed effects; (3) the segment dummies as pooled OLS; (4) the frictions with cell fixed effects. Standard errors are HC1; the \emph{Eff} columns report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$.
+Table~\ref{tab:regression_coefficients} reports the four regressions of cell-level unconditional AMU: (1) the raw regime effect; (2) plus cell fixed effects; (3) the segment dummies as pooled OLS; (4) the frictions with cell fixed effects. Standard errors are HC1; the \emph{Eff} columns report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$.
 
-\emph{Specification (1): the regime effect (RQ2).} The post-2024 coefficient is negative and strongly significant: ARP is materially lower after 2024. The compression is a genuine level shift, not an artifact of which contracts trade. This settles RQ2.
+\emph{Specification (1): the regime effect (RQ2).} The post-2024 coefficient is negative and strongly significant: AMU is materially lower after 2024. The compression is a genuine level shift, not an artifact of which contracts trade. This settles RQ2.
 
 \emph{Specification (2): the within-cell regime effect.} Cell fixed effects isolate the compression within a given cell over time. Comparing (2) with (1) shows how much of the raw drop is within-cell rather than compositional; comparing (2) with (4) shows how much the friction controls absorb.
 
-\emph{Specification (3): the cross-section (RQ1).} Each segment dummy enters significantly: ARP differs by exchange, underlying, moneyness, and maturity. The standardized effects are nonetheless modest---venue and underlying move ARP far less than position on the surface---so the premium differs from market to market, but by little. The low $R^2$ is expected: linear indicators cannot capture the nonlinear surface dependence, which is why (4) uses fixed effects. This settles RQ1.
+\emph{Specification (3): the cross-section (RQ1).} Each segment dummy enters significantly: AMU differs by exchange, underlying, moneyness, and maturity. The standardized effects are nonetheless modest---venue and underlying move AMU far less than position on the surface---so the premium differs from market to market, but by little. The low $R^2$ is expected: linear indicators cannot capture the nonlinear surface dependence, which is why (4) uses fixed effects. This settles RQ1.
 
 \emph{Specification (4): frictions and the residual regime effect (RQ3).} The frictions enter as limits-to-arbitrage predicts, staleness strongest: the executable tail is made of transiently mispriced, slow-to-update quotes. Much of the regime effect runs through these channels---$\beta_{\mathrm{Post}}$ shrinks substantially from (1) to (4)---but a significant negative residual survives. Were the post-2024 change merely more passive liquidity, the residual would be zero. That it is not signals a change in \emph{who} enforces parity. This settles RQ3.
 
 \begin{table}[htbp]
 \centering
 {\renewcommand{\arraystretch}{1.2}\normalfont\small\input{artifacts/regression_coefficients_table.tex}}
-\caption{Regressions of the cell-level unconditional ARP. Column (1) regresses ARP on the post-2024 indicator; (2) adds cell fixed effects to (1), isolating the within-cell regime effect; (3) instead adds the exchange, underlying, moneyness, and maturity dummies (pooled OLS); (4) adds the depth, spread, and staleness controls with cell fixed effects. HC1 standard errors in parentheses; stars denote $p$-value bands from the $t$-statistic. The columns headed \emph{Eff} report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$: the change in ARP, in standard deviations of ARP, per one-standard-deviation increase in the regressor.}
+\caption{Regressions of the cell-level unconditional AMU. Column (1) regresses AMU on the post-2024 indicator; (2) adds cell fixed effects to (1), isolating the within-cell regime effect; (3) instead adds the exchange, underlying, moneyness, and maturity dummies (pooled OLS); (4) adds the depth, spread, and staleness controls with cell fixed effects. HC1 standard errors in parentheses; stars denote $p$-value bands from the $t$-statistic. The columns headed \emph{Eff} report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$: the change in AMU, in standard deviations of AMU, per one-standard-deviation increase in the regressor.}
 \label{tab:regression_coefficients}
 \end{table}
 
@@ -488,14 +488,14 @@ Figure~\ref{fig:liquidity_friction_gradient} shows how tightly the wedge tracks 
 \caption{Mean MMA against average put--call spread, log quote depth, and stale-quote fraction, and by underlying and exchange. Mean MMA falls almost one-for-one with the spread and moves with staleness, the friction channels that specification (4) controls for.}
 \label{fig:liquidity_friction_gradient}
 \end{figure}
-In sum: ARP differs significantly but modestly across exchanges, underlyings, moneyness, and maturity (RQ1); it is significantly lower after 2024 (RQ2); and a significant part of the compression survives friction controls and cell fixed effects (RQ3). Post-2024 market makers require a lower arbitrage risk premium even after controlling for the usual frictions---consistent with parity enforcement passing to participants with higher risk tolerance.
+In sum: AMU differs significantly but modestly across exchanges, underlyings, moneyness, and maturity (RQ1); it is significantly lower after 2024 (RQ2); and a significant part of the compression survives friction controls and cell fixed effects (RQ3). Post-2024 market makers require a lower absolute market unfairness even after controlling for the usual frictions---consistent with parity enforcement passing to participants with higher risk tolerance.
 
 \section{Conclusion}
 \label{sec:concl}
 
-This paper reads the executable tail of parity wedges in the standing quotes of inverse cryptocurrency option markets as the market's \emph{arbitrage risk premium}: the compensation, beyond direct transaction costs, that quote-setters demand for bearing the risks of enforcing parity. ARP is measured model-free from synchronized quotes, in comparable basis points, net of the direct-cost floor. It asserts nothing about fundamental mispricing and guarantees no dollar profit.
+This paper reads the executable tail of parity wedges in the standing quotes of inverse cryptocurrency option markets as the market's \emph{absolute market unfairness}: the compensation, beyond direct transaction costs, that quote-setters demand for bearing the risks of enforcing parity. AMU is measured model-free from synchronized quotes, in comparable basis points, net of the direct-cost floor. It asserts nothing about fundamental mispricing and guarantees no dollar profit.
 
-Using Deribit and OKX BTCUSD and ETHUSD options from 2020 through June 2026: the premium differs across venues and underlyings, but by little compared with its variation over the surface, where it is governed mainly by how often an executable wedge appears---smallest for month-scale, near-the-money contracts, largest in the illiquid corners. It compressed sharply across the 2024 window, tracking the ETF and MiCA event dates, robustly to the assumed direct-cost level. The compression survives controls for spreads, depth, and staleness within cells: post-2024 parity enforcers---larger, better regulated, better capitalized---require a lower premium for the same risks, not merely more depth. The ARP framework moves the analysis from cataloguing parity violations to measuring the price of arbitrage risk itself, and how it responds to regulation, custody, capital access, and competition.
+Using Deribit and OKX BTCUSD and ETHUSD options from 2020 through June 2026: the premium differs across venues and underlyings, but by little compared with its variation over the surface, where it is governed mainly by how often an executable wedge appears---smallest for month-scale, near-the-money contracts, largest in the illiquid corners. It compressed sharply across the 2024 window, tracking the ETF and MiCA event dates, robustly to the assumed direct-cost level. The compression survives controls for spreads, depth, and staleness within cells: post-2024 parity enforcers---larger, better regulated, better capitalized---require a lower premium for the same risks, not merely more depth. The AMU framework moves the analysis from cataloguing parity violations to measuring the price of arbitrage risk itself, and how it responds to regulation, custody, capital access, and competition.
 
 \bibliography{bibl}
 

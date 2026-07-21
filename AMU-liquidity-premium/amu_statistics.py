@@ -340,7 +340,7 @@ def _parquet_num_rows(parquet_path: str | Path) -> int:
 
 
 def _amu_agg_exprs() -> list[pl.Expr]:
-    # ARP is the mean of MMA over the positive-MMA *tickpaths* in the bucket
+    # AMU is the mean of MMA over the positive-MMA *tickpaths* in the bucket
     # (see amu_metrics for the shared definition). num_pairs is the tick count and
     # num_has_amu the number of ticks with at least one positive path.
     return [
@@ -351,7 +351,7 @@ def _amu_agg_exprs() -> list[pl.Expr]:
 
 
 def _add_amu_bp_columns(frame: pl.LazyFrame) -> pl.LazyFrame:
-    """Attach both explicit ARP flavours to an aggregated frame (which must carry
+    """Attach both explicit AMU flavours to an aggregated frame (which must carry
     amu_possum, num_amu and num_pairs): the conditional size and the unconditional
     (= frequency x conditional) per-quote wedge. Consumers pick whichever they plot."""
     return frame.with_columns(
@@ -363,7 +363,7 @@ def _add_amu_bp_columns(frame: pl.LazyFrame) -> pl.LazyFrame:
 @debug_runtime("inspect_pcpb_input_from_parquet")
 def inspect_pcpb_input_from_parquet(parquet_path: str | Path) -> None:
     parquet_file = pq.ParquetFile(str(parquet_path))
-    logger.info("ARP columns: %s", ", ".join(parquet_file.schema.names))
+    logger.info("AMU columns: %s", ", ".join(parquet_file.schema.names))
 
     lf = _lazy_pcpb(parquet_path)
     ref_syms = lf.select(pl.col("ref_sym").unique().sort()).collect(engine="streaming").to_series().to_list()
@@ -373,9 +373,9 @@ def inspect_pcpb_input_from_parquet(parquet_path: str | Path) -> None:
         pl.col("timestamp").max().alias("max_ts"),
     ).collect(engine="streaming").row(0)
 
-    logger.info("ARP ref_syms: %s", ref_syms)
-    logger.info("ARP exchanges: %s", exchanges)
-    logger.info("ARP timestamp range: %s -> %s", min_ts, max_ts)
+    logger.info("AMU ref_syms: %s", ref_syms)
+    logger.info("AMU exchanges: %s", exchanges)
+    logger.info("AMU timestamp range: %s -> %s", min_ts, max_ts)
 
 
 @debug_runtime("write_summary_daily_table_from_parquet")
@@ -538,7 +538,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
         ax.set_ylabel("Density")
         ax.set_title(f"{exchange} {ref_sym}")
         ax.legend(title="Spread")
-        ax.text(0.75, 0.5, f"mean ARP = {amu_text:.1f} bp", transform=ax.transAxes, bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5), va="top", ha="center")
+        ax.text(0.75, 0.5, f"mean AMU = {amu_text:.1f} bp", transform=ax.transAxes, bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5), va="top", ha="center")
         ax.text(0.25, 0.75, "no trading opportunities", transform=ax.transAxes, bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5), va="top", ha="center")
 
         output_path = output_dir / (
@@ -625,7 +625,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
     ax.text(
         0.98,
         0.90,
-        f"ARP uncond = {overall_amu_uncond_bp:.1f} bp",
+        f"AMU uncond = {overall_amu_uncond_bp:.1f} bp",
         color="#1b9e77",
         transform=ax.transAxes,
         bbox=dict(boxstyle="round", facecolor="white", edgecolor="#1b9e77", alpha=0.85),
@@ -635,7 +635,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
     ax.text(
         0.98,
         0.82,
-        f"ARP cond = {overall_amu_cond_bp:.1f} bp",
+        f"AMU cond = {overall_amu_cond_bp:.1f} bp",
         color="#1b9e77",
         transform=ax.transAxes,
         bbox=dict(boxstyle="round", facecolor="white", edgecolor="#1b9e77", alpha=0.85),
@@ -754,10 +754,10 @@ def plot_total_mma_hist_pre_post_btc_etp_from_parquet(parquet_path: str | Path, 
         ha="left",
     )
     for y_pos, text, color in [
-        (0.90, f"Pre ARP uncond = {pre_amu_uncond_bp:.1f} bp", "#1f77b4"),
-        (0.82, f"Pre ARP cond = {pre_amu_cond_bp:.1f} bp", "#1f77b4"),
-        (0.72, f"Post ARP uncond = {post_amu_uncond_bp:.1f} bp", "#d62728"),
-        (0.64, f"Post ARP cond = {post_amu_cond_bp:.1f} bp", "#d62728"),
+        (0.90, f"Pre AMU uncond = {pre_amu_uncond_bp:.1f} bp", "#1f77b4"),
+        (0.82, f"Pre AMU cond = {pre_amu_cond_bp:.1f} bp", "#1f77b4"),
+        (0.72, f"Post AMU uncond = {post_amu_uncond_bp:.1f} bp", "#d62728"),
+        (0.64, f"Post AMU cond = {post_amu_cond_bp:.1f} bp", "#d62728"),
     ]:
         ax.text(
             0.98,
@@ -785,8 +785,8 @@ def plot_total_mma_hist_pre_post_btc_etp_from_parquet(parquet_path: str | Path, 
 
 @debug_runtime("plot_amu_bps_by_cost_pre_post_from_parquet")
 def plot_amu_bps_by_cost_pre_post_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
-    """Conditional and unconditional ARP as a function of the assumed round-trip cost,
-    split pre/post-2024. Pooled across all markets and the four paths. ARP at cost c is
+    """Conditional and unconditional AMU as a function of the assumed round-trip cost,
+    split pre/post-2024. Pooled across all markets and the four paths. AMU at cost c is
     read off the pooled MMA histogram at offset delta = c - c0 (c0 = cost_per_notional),
     so the x-axis is the absolute cost in bp."""
     parquet = pq.ParquetFile(str(parquet_path))
@@ -848,16 +848,16 @@ def plot_amu_bps_by_cost_pre_post_from_parquet(parquet_path: str | Path, *, outp
     ax.axvline(c0_bp, color="black", linestyle=":", linewidth=1.4, alpha=0.7)
     ax.text(c0_bp, ax.get_ylim()[1], "  primary cost", color="black", fontsize=9, va="top", ha="left")
     ax.set_xlabel("Round-trip cost (bp)")
-    ax.set_ylabel("ARP (bp)")
+    ax.set_ylabel("AMU (bp)")
     ax.set_ylim(bottom=0.0)
-    ax.set_title("ARP versus assumed cost, pre/post 2024")
+    ax.set_title("AMU versus assumed cost, pre/post 2024")
     ax.legend(title="", fontsize=11)
 
     output_path = output_dir / "amu_bps_by_cost_pre_post.pdf"
     fig.tight_layout()
     fig.savefig(output_path, dpi=220, bbox_inches="tight")
     plt.close(fig)
-    logger.debug("Saved ARP-by-cost figure %s pre=%.0f post=%.0f", output_path, hist_pre.sum(), hist_post.sum())
+    logger.debug("Saved AMU-by-cost figure %s pre=%.0f post=%.0f", output_path, hist_pre.sum(), hist_post.sum())
     return output_path
 
 
@@ -867,10 +867,10 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
     lf = filtered_lf.with_columns(
         (pl.col("exchange").cast(pl.Utf8) + pl.lit(" | ") + pl.col("ref_sym").cast(pl.Utf8)).alias("market")
     )
-    # Which ARP flavour this figure plots. Switch to "amu_unconditional_bp" to show
+    # Which AMU flavour this figure plots. Switch to "amu_unconditional_bp" to show
     # the per-quote (frequency x conditional) wedge instead of the conditional size.
     amu_col = "amu_unconditional_bp"
-    amu_label = "ARP conditional (bp)" if amu_col == "amu_conditional_bp" else "ARP unconditional (bp)"
+    amu_label = "AMU conditional (bp)" if amu_col == "amu_conditional_bp" else "AMU unconditional (bp)"
     daily_amu = _add_amu_bp_columns(
         lf.group_by(["mdy", "exchange", "ref_sym", "market"]).agg(_amu_agg_exprs())
     ).select(["mdy", "market", amu_col]).sort(["market", "mdy"]).collect(engine="streaming").to_pandas()
@@ -940,7 +940,7 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
     )
     # Switch to "amu_unconditional_bp" for the per-quote (frequency x conditional) wedge.
     amu_col = "amu_unconditional_bp"
-    amu_label = "ARP conditional (bp)" if amu_col == "amu_conditional_bp" else "ARP unconditional (bp)"
+    amu_label = "AMU conditional (bp)" if amu_col == "amu_conditional_bp" else "AMU unconditional (bp)"
     daily_amu = _add_amu_bp_columns(
         lf.group_by(["mdy", "exchange", "ref_sym", "market"]).agg(_amu_agg_exprs())
     ).select(["mdy", "exchange", "ref_sym", "market", amu_col]).sort(["market", "mdy"]).collect(engine="streaming").to_pandas()
@@ -972,7 +972,7 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
         ax.text(
             0.5,
             0.5,
-            "No ARP observations for 2023-01-01 to 2024-12-31 in the target markets",
+            "No AMU observations for 2023-01-01 to 2024-12-31 in the target markets",
             ha="center",
             va="center",
             wrap=True,
@@ -991,7 +991,7 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
             ax.axvline(event_ts, color=event_color, linestyle="-", linewidth=2.2, alpha=0.95)
             event_handles.append(Line2D([0], [0], color=event_color, linestyle="-", linewidth=2.2, label=label))
 
-    avg_handle = Line2D([0], [0], color="#1f77b4", linestyle="-", linewidth=2.6, label="Avg ARP (all markets)")
+    avg_handle = Line2D([0], [0], color="#1f77b4", linestyle="-", linewidth=2.6, label="Avg AMU (all markets)")
     handles = [avg_handle, *event_handles]
     if handles:
         ax.legend(
@@ -1024,8 +1024,8 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
 
 
 def _render_amu_bins_figure(curve_df, x_col: str, x_label: str, title: str):
-    """Two-panel ARP-vs-(strike|tte) figure: conditional size on top (y from 0, no
-    smoothing), and either the ARP>0 frequency or the raw counts on the bottom
+    """Two-panel AMU-vs-(strike|tte) figure: conditional size on top (y from 0, no
+    smoothing), and either the AMU>0 frequency or the raw counts on the bottom
     (controlled by CONFIG["figures"]["amu_lower_panel"])."""
     figures_cfg = CONFIG.get("figures", {})
     lower_panel = str(figures_cfg.get("amu_lower_panel", "frequency")).lower()
@@ -1035,9 +1035,9 @@ def _render_amu_bins_figure(curve_df, x_col: str, x_label: str, title: str):
     sns.set_theme(style="whitegrid", context="talk")
     fig, (ax_top, ax_bottom) = plt.subplots(2, 1, figsize=(11, 9), sharex=True, gridspec_kw={"height_ratios": [2, 1]})
 
-    # Top: ARP conditional size, raw (unsmoothed), y-axis anchored at 0.
+    # Top: AMU conditional size, raw (unsmoothed), y-axis anchored at 0.
     sns.lineplot(data=curve_df, x=x_col, y="amu_conditional_bp", hue="market", linewidth=2.0, palette="deep", ax=ax_top)
-    ax_top.set_ylabel("ARP conditional size (bp)")
+    ax_top.set_ylabel("AMU conditional size (bp)")
     ax_top.set_ylim(bottom=0.0)
     ax_top.set_title(title)
     ax_top.legend(title="", loc="best")
@@ -1071,7 +1071,7 @@ def _render_amu_bins_figure(curve_df, x_col: str, x_label: str, title: str):
         )
     else:  # frequency (default)
         sns.lineplot(data=curve_df, x=x_col, y="amu_freq", hue="market", linewidth=1.8, palette="deep", legend=False, ax=ax_bottom)
-        ax_bottom.set_ylabel("ARP>0 frequency")
+        ax_bottom.set_ylabel("AMU>0 frequency")
         ax_bottom.set_ylim(bottom=0.0)
 
     ax_bottom.set_xlabel(x_label)
@@ -1098,7 +1098,7 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
     ).select(["market", "rel_strike_bin", "amu_conditional_bp", "amu_unconditional_bp", "num_has_amu", "num_pairs"]).sort(["market", "rel_strike_bin"]).collect(engine="streaming").to_pandas()
 
     fig = _render_amu_bins_figure(
-        curve_df, "rel_strike_bin", "Relative strike (1% bins)", "ARP vs Relative Strike (all exchange/ref_sym)"
+        curve_df, "rel_strike_bin", "Relative strike (1% bins)", "AMU vs Relative Strike (all exchange/ref_sym)"
     )
 
     output_path = output_dir / "multi_exchange_amu_bps_by_rel_strike.pdf"
@@ -1148,7 +1148,7 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
     ).select(["market", "tte_bin_center", "amu_conditional_bp", "amu_unconditional_bp", "num_has_amu", "num_pairs"]).sort(["market", "tte_bin_center"]).collect(engine="streaming").to_pandas()
 
     fig = _render_amu_bins_figure(
-        curve_df, "tte_bin_center", "Time to Expiration (years, 100 linear bins from 0.0 to 0.7)", "ARP vs TTE (all exchange/ref_sym)"
+        curve_df, "tte_bin_center", "Time to Expiration (years, 100 linear bins from 0.0 to 0.7)", "AMU vs TTE (all exchange/ref_sym)"
     )
 
     output_path = output_dir / "multi_exchange_amu_bps_by_tte.pdf"
@@ -1187,7 +1187,7 @@ def generate_all_statistics(
         to_date=to_date,
         force_recreate_cache=force_recreate_cache,
     )
-    assert _parquet_num_rows(pcpb_parquet_path) > 0, f"No ARP statistics data found for range {from_date}..{to_date}"
+    assert _parquet_num_rows(pcpb_parquet_path) > 0, f"No AMU statistics data found for range {from_date}..{to_date}"
     inspect_pcpb_input_from_parquet(pcpb_parquet_path)
 
     return {
