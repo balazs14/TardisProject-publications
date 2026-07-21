@@ -178,7 +178,7 @@ def filter_analysis_panel(
 # ARP dependent variable for every spec below. The panel carries both explicit
 # flavours; the regressions use the UNCONDITIONAL (per-quote = frequency x
 # conditional) ARP. Switch to "mean_amu_conditional_bp" for the conditional size.
-AMU_DEPENDENT = "mean_amu_uncond_bp_c20"
+AMU_DEPENDENT = "mean_amu_uncond_bp_c30"
 
 # Nested ARP specifications (HC1 SEs):
 #   (1) Post                          -> RQ2 (regime effect)
