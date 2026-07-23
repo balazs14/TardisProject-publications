@@ -122,14 +122,14 @@ $(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/amu_fair_band_synthetic.pdf}
-\caption{No AMU requires each real quote to track its matching synthetic quote within $\pm\mathrm{cost}$. The band centres are the frictionless (no-cost) synthetic prices $P_{bid}+(F_{bid}-K)e^{-rT}$ and $P_{ask}+(F_{ask}-K)e^{-rT}$; the trading cost buys the $\pm\mathrm{cost}$ cushion around each. As costs shrink, the real market is squeezed onto the synthetic market. Schematic, illustrative levels.}
+\caption{No AMU requires each real quote to track its matching synthetic quote within $\pm\mathrm{cost}'$ (the half-width $\mathrm{cost}'\equiv\mathrm{cost}-\tfrac12(F_{ask}-F_{bid})e^{-rT}$). The band centres are the frictionless (no-cost) synthetic prices $P_{bid}+(F_{bid}-K)e^{-rT}$ and $P_{ask}+(F_{ask}-K)e^{-rT}$; the cushion around each is $\pm\mathrm{cost}'$. As frictions shrink, the real market is squeezed onto the synthetic market. Schematic, illustrative levels.}
 \label{fig:amu_fair_band_synthetic}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.82\textwidth]{artifacts/amu_schematic_mma_distribution.pdf}
-\caption{Schematic MMA distribution. The dashed rectangle over $(-2\,\mathrm{cost},0)$ is the no-information benchmark implied by the no-AMU band (uniform quoting). Competitive quoting instead concentrates the mode at $-\mathrm{cost}$, the symmetric equilibrium of the conjugate forward/backward paths; the mass that crosses zero into positive territory is the AMU. Schematic, illustrative levels.}
+\caption{Schematic MMA distribution. The dashed rectangle over $(-2\,\mathrm{cost}',0)$ is the no-information benchmark implied by the no-AMU band (uniform quoting), with $\mathrm{cost}'\equiv\mathrm{cost}-\tfrac12(F_{ask}-F_{bid})e^{-rT}$. Competitive quoting instead concentrates the mode at $-\mathrm{cost}'$, the symmetric equilibrium of the conjugate forward/backward paths; the mass that crosses zero into positive territory is the AMU. Schematic, illustrative levels.}
 \label{fig:amu_schematic_mma_distribution}
 \end{figure}
 
