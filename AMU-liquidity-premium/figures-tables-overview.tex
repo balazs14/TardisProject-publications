@@ -129,7 +129,7 @@ $(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.82\textwidth]{artifacts/amu_schematic_mma_distribution.pdf}
-\caption{Schematic MMA distribution. The dashed rectangle over $(-2\,\mathrm{cost},0)$ is the no-information benchmark implied by the no-AMU band (uniform quoting). Competitive quoting instead concentrates the mode at $-\mathrm{cost}$, the symmetric equilibrium of the conjugate forward/backward paths; the mass that crosses zero into positive territory is the executable AMU. Schematic, illustrative levels.}
+\caption{Schematic MMA distribution. The dashed rectangle over $(-2\,\mathrm{cost},0)$ is the no-information benchmark implied by the no-AMU band (uniform quoting). Competitive quoting instead concentrates the mode at $-\mathrm{cost}$, the symmetric equilibrium of the conjugate forward/backward paths; the mass that crosses zero into positive territory is the AMU. Schematic, illustrative levels.}
 \label{fig:amu_schematic_mma_distribution}
 \end{figure}
 
@@ -162,28 +162,28 @@ Stale-quote filter & \FilterStale{}: when enabled, ticks with a stale call, put,
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.8\textwidth]{artifacts/all_markets_avg_4_spreads.pdf}
-\caption{Average density of the four MMA paths across all markets. The distribution peaks at minus the round-trip cost (dashed line); everything to the left of zero is non-executable for the maker, and only the positive tail to the right of zero contributes to AMU.}
+\caption{Average density of the four MMA paths across all markets. The distribution peaks at minus the round-trip cost (dashed line); everything to the left of zero yields no maker profit, and only the positive tail to the right of zero contributes to AMU.}
 \label{fig:all_markets_avg_4_spreads}
 \end{figure}
 
 \begin{table}[htbp]
 \centering
 {\renewcommand{\arraystretch}{1.3}\normalfont\normalsize\input{artifacts/amu_summary_table.tex}}
-\caption{Global AMU summary across exchanges and underlyings. AMU is the positive-part mean of MMA, in basis points of notional: \emph{cond} averages over the executable (positive-MMA) paths only, \emph{uncond} over all paths (equivalently, \emph{cond} times the fraction of paths that are executable). A \emph{path} is one of the four put--call-parity join paths (forward/backward $\times$ join-call/join-put) evaluated at a single synchronized quote; each matched put--call pair contributes four paths. The last two columns count ticks: \emph{positive MMA} is the number of synchronized ticks with at least one executable path, and \emph{num pairs} the number of matched put--call pair ticks.}
+\caption{Global AMU summary across exchanges and underlyings. AMU is the positive-part mean of MMA, in basis points of notional: \emph{cond} averages over the positive-MMA paths only, \emph{uncond} over all paths (equivalently, \emph{cond} times the fraction of paths with positive MMA). A \emph{path} is one of the four put--call-parity join paths (forward/backward $\times$ join-call/join-put) evaluated at a single synchronized quote; each matched put--call pair contributes four paths. The last two columns count ticks: \emph{positive MMA} is the number of synchronized ticks with at least one positive-MMA path, and \emph{num pairs} the number of matched put--call pair ticks.}
 \label{tab:amu_summary}
 \end{table}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_rel_strike.pdf}
-\caption{AMU by relative strike across exchanges and underlyings, decomposed into its two margins: the conditional size (upper panel, comparatively flat) and the executable frequency $\phi$ (lower panel, a deep V minimized at the money). Their product, the unconditional AMU, is minimized at the money and rises sharply into the wings.}
+\caption{AMU by relative strike across exchanges and underlyings, decomposed into its two margins: the conditional size (upper panel, comparatively flat) and the positive MMA quote frequency $\phi$ (lower panel, a deep V minimized at the money). Their product, the unconditional AMU, is minimized at the money and rises sharply into the wings.}
 \label{fig:multi_exchange_amu_by_strike}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.9\textwidth]{artifacts/multi_exchange_amu_bps_by_tte.pdf}
-\caption{AMU by time to expiry across exchanges and underlyings: the conditional size (upper panel, comparatively flat) and the executable frequency $\phi$ (lower panel). The frequency---and hence the unconditional AMU---is U-shaped: elevated at the shortest and longest maturities, lowest around one month.}
+\caption{AMU by time to expiry across exchanges and underlyings: the conditional size (upper panel, comparatively flat) and the positive MMA quote frequency $\phi$ (lower panel). The frequency---and hence the unconditional AMU---is U-shaped: elevated at the shortest and longest maturities, lowest around one month.}
 \label{fig:multi_exchange_amu_by_tte}
 \end{figure}
 
