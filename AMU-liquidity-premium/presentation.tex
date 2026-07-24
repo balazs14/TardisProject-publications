@@ -1,0 +1,256 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+
+% ---------------------------------------------------------------------------
+% AMU conference deck. Figures/tables are pulled dynamically from artifacts/
+% (same mechanism as liquidity-premium.tex): \maybeincludegraphics and
+% \IfFileExists so the deck always reflects the latest rebuild.
+% Background: Corvinus branded PNG in the parent publications/ folder.
+% ---------------------------------------------------------------------------
+
+\usetheme{default}
+\setbeamertemplate{navigation symbols}{}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{ragged2e}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{multirow}
+\usepackage{adjustbox}
+
+% --- dynamic figure inclusion (mirrors the article) -------------------------
+\newcommand{\maybeincludegraphics}[2][]{%
+  \IfFileExists{#2}{\includegraphics[#1]{#2}}%
+  {\fbox{\parbox{0.9\linewidth}{\centering Placeholder: \texttt{\detokenize{#2}}}}}%
+}
+
+% --- dynamic scalar macros (mirrors the article) ----------------------------
+\IfFileExists{artifacts/regression_cutoffs.tex}{%
+  \input{artifacts/regression_cutoffs.tex}%
+}{%
+  \newcommand{\RegNonAtmCutoff}{0.05}%
+  \newcommand{\RegShortTteCutoff}{0.35}%
+  \newcommand{\CostPerNotional}{0.003}%
+  \newcommand{\MaxAmuBps}{100}%
+  \newcommand{\MaxMmaBps}{500}%
+  \newcommand{\SampleFreqDefault}{5min}%
+  \newcommand{\MinQuoteSizeDollar}{5000}%
+  \newcommand{\SpreadBpMax}{1000}%
+  \newcommand{\RelStrikeMin}{0.79}%
+  \newcommand{\RelStrikeMax}{1.21}%
+  \newcommand{\FilterStale}{disabled}%
+}
+\providecommand{\RegSEdesc}{HC1}
+\IfFileExists{artifacts/text_numbers.tex}{\input{artifacts/text_numbers.tex}}{%
+  \newcommand{\CostBp}{30}\newcommand{\AmuMeanBp}{N/A}%
+  \newcommand{\AmuPreBp}{N/A}\newcommand{\AmuPostBp}{N/A}%
+}
+
+% --- branded background + colours ------------------------------------------
+\usebackgroundtemplate{%
+  \includegraphics[width=\paperwidth,height=\paperheight]{../Online_Conference_background_04.png}}
+\setbeamercolor{frametitle}{fg=white}
+\setbeamercolor{title}{fg=white}
+\setbeamercolor{subtitle}{fg=white}
+\setbeamercolor{author}{fg=white}
+\setbeamercolor{institute}{fg=white}
+\setbeamercolor{date}{fg=white}
+\setbeamercolor{normal text}{fg=white}
+\setbeamerfont{frametitle}{series=\bfseries,size=\large}
+% centred frame title (clears the logo in the top-left of the background)
+\setbeamertemplate{frametitle}{%
+  \vspace{0.30cm}\centering
+  \usebeamercolor[fg]{frametitle}\usebeamerfont{frametitle}\insertframetitle\par}
+\setlength{\fboxsep}{6pt}
+
+% --- helper frames ----------------------------------------------------------
+% \figframe{title}{artifacts/....}
+\newcommand{\figframe}[2]{%
+  \begin{frame}{#1}%
+    \vfill\centering
+    \colorbox{white}{\maybeincludegraphics[width=0.86\textwidth,height=0.74\textheight,keepaspectratio]{#2}}%
+    \vfill
+  \end{frame}%
+}
+% \tabframe{title}{artifacts/....tex}  (generated tables)
+\newcommand{\tabframe}[2]{%
+  \begin{frame}{#1}%
+    \vfill\centering
+    \IfFileExists{#2}{%
+      \colorbox{white}{\color{black}\adjustbox{max width=0.92\textwidth,max totalheight=0.74\textheight}{\input{#2}}}%
+    }{\textit{(missing: \texttt{\detokenize{#2}})}}%
+    \vfill
+  \end{frame}%
+}
+
+\title{\textbf{Absolute Market Unfairness and the Compression of\\ Bid--Ask Spreads in Cryptocurrency Option Markets}}
+\author{Bal\'azs Kr\'alik \and N\'ora Felf\"oldi-Sz\H{u}cs \and Tam\'as Rutai \and Kata V\'aradi}
+\institute{Corvinus University of Budapest, Institute of Finance}
+\date{}
+
+\begin{document}
+
+% ===== 1. Title =====
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% ===== 2. Table 1 =====
+\begin{frame}{Table 1 --- The four arbitrage paths}
+  \vfill\centering
+  \colorbox{white}{\color{black}\adjustbox{max width=0.96\textwidth,max totalheight=0.68\textheight}{\footnotesize
+  \begin{tabular}{@{}lll@{}}
+  \toprule
+  Path & Linear contracts & Inverse contracts \\
+  \midrule
+  bck, join call & $C_{bid}-P_{bid}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ & $(C_{bid}-P_{bid})S_{bid}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ \\
+  bck, join put  & $C_{ask}-P_{ask}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ & $(C_{ask}-P_{ask})S_{ask}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ \\
+  fwd, join call & $P_{ask}-C_{ask}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ & $(P_{ask}-C_{ask})S_{ask}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
+  fwd, join put  & $P_{bid}-C_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ & $(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
+  \bottomrule
+  \end{tabular}}}
+  \vfill
+\end{frame}
+
+% ===== 3. Figure 1 =====
+\figframe{Figure 1 --- Real vs.\ synthetic market: three configurations}{artifacts/arbitrage_paths_crossed_noncrossed.pdf}
+
+% ===== 4. Figure 4 =====
+\figframe{Figure 4 --- The MMA distribution across markets}{artifacts/all_markets_avg_4_spreads.pdf}
+
+% ===== 5. Table 4 =====
+\tabframe{Table 4 --- AMU across venues and underlyings}{artifacts/amu_summary_table.tex}
+
+% ===== 6. Figures 5--6 =====
+\begin{frame}{Figures 5--6 --- AMU over the surface: moneyness and maturity}
+  \vfill
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}\centering
+      \colorbox{white}{\maybeincludegraphics[width=0.96\linewidth,height=0.74\textheight,keepaspectratio]{artifacts/multi_exchange_amu_bps_by_rel_strike.pdf}}
+    \end{column}
+    \begin{column}{0.5\textwidth}\centering
+      \colorbox{white}{\maybeincludegraphics[width=0.96\linewidth,height=0.74\textheight,keepaspectratio]{artifacts/multi_exchange_amu_bps_by_tte.pdf}}
+    \end{column}
+  \end{columns}
+  \vfill
+\end{frame}
+
+% ===== 7. Figure 7 =====
+\figframe{Figure 7 --- AMU over time, by market}{artifacts/multi_exchange_amu_bps_by_date.pdf}
+
+% ===== 8. Figure 10 =====
+\figframe{Figure 10 --- MMA distribution: pre vs.\ post 2024}{artifacts/total_mma_hist_pre_post_btc_etp.pdf}
+
+% ===== 9. Table 6 =====
+\tabframe{Table 6 --- Regression results}{artifacts/regression_coefficients_table.tex}
+
+% ===== 10. End =====
+\begin{frame}[plain]
+  \vfill\centering
+  {\Huge\bfseries Thank you!}\\[0.8em]
+  {\Large Questions \& comments welcome}\\[1.6em]
+  {\normalsize Bal\'azs Kr\'alik \;---\; \texttt{balazs.kralik@uni-corvinus.hu}}
+  \vfill
+\end{frame}
+
+% =========================================================================
+%  IN RESERVE  (everything not in the main deck)
+% =========================================================================
+\begin{frame}[plain]
+  \vfill\centering
+  {\Huge\bfseries In reserve}\\[0.6em]
+  {\large Additional figures and tables}
+  \vfill
+\end{frame}
+
+% Table 2
+\tabframe{Table 2 --- Daily option-market coverage}{artifacts/summary_daily_option_coverage_table.tex}
+
+% Figure 2
+\figframe{Figure 2 --- The no-AMU band}{artifacts/amu_fair_band_synthetic.pdf}
+
+% Figure 3
+\figframe{Figure 3 --- Schematic MMA distribution}{artifacts/amu_schematic_mma_distribution.pdf}
+
+% Table 3
+\begin{frame}{Table 3 --- Data-processing assumptions}
+  \vfill\centering
+  \colorbox{white}{\color{black}\adjustbox{max width=0.96\textwidth,max totalheight=0.78\textheight}{\footnotesize
+  \begin{tabular}{@{}l p{8.6cm}@{}}
+  \toprule
+  Component & Assumption \\
+  \midrule
+  AMU clipping rule & MMA series clipped to $[0,\MaxAmuBps]$ bp before positive-part averaging. \\
+  MMA clipping rule & MMA series clipped to $[-\MaxMmaBps,+\MaxMmaBps]$ bp. \\
+  Spread filter & Call and put spreads capped at $\SpreadBpMax$ bp. \\
+  Relative-strike filter & Allowed range $[\RelStrikeMin,\RelStrikeMax]$. \\
+  Minimum quote size & \texttt{min\_quote\_size\_dollar} at least \MinQuoteSizeDollar. \\
+  Subsampling & Last observation carried forward to the interval (default \texttt{\SampleFreqDefault}); a missing/non-updated leg is marked stale. \\
+  Stale-quote filter & \FilterStale{}: when on, ticks with a stale leg are dropped before aggregation. \\
+  Discount rate & $r=5\%$, entering only through $e^{-rT}$. Not crucial (see sensitivity analysis). \\
+  Trading cost & \CostBp~bp of notional (\texttt{cost\_per\_notional}$=\CostPerNotional$). Not crucial (see sensitivity analysis). \\
+  \bottomrule
+  \end{tabular}}}
+  \vfill
+\end{frame}
+
+% Figure 8
+\figframe{Figure 8 --- AMU by date, with the 2024 events}{artifacts/multi_exchange_amu_bps_by_date_2023_2024_avg_events.pdf}
+
+% Figure 9
+\figframe{Figure 9 --- Liquidity event study}{artifacts/liquidity_event_study.png}
+
+% Figure 11
+\figframe{Figure 11 --- AMU versus assumed cost, pre/post}{artifacts/amu_bps_by_cost_pre_post.pdf}
+
+% Figure 12
+\figframe{Figure 12 --- Liquidity heatmap, pre/post}{artifacts/liquidity_pre_post_heatmap.png}
+
+% Figure 13
+\figframe{Figure 13 --- Liquidity compression decomposition}{artifacts/liquidity_compression_decomposition.png}
+
+% Table 5
+\begin{frame}{Table 5 --- Regression variable definitions}
+  \vfill\centering
+  \colorbox{white}{\color{black}\adjustbox{max width=0.96\textwidth,max totalheight=0.80\textheight}{\footnotesize
+  \begin{tabular}{@{}l p{9cm}@{}}
+  \toprule
+  Abbreviation & Definition \\
+  \midrule
+  $\mathrm{Post}_t$ & Post-2024 regime indicator (1 on/after 2024-01-10, else 0). \\
+  \midrule
+  \multicolumn{2}{@{}l}{\textit{Liquidity-friction variables}} \\
+  $\mathrm{Spr}_{g,t}$ & Average put--call spread (bp). \\
+  $\mathrm{Depth}_{g,t}$ & Log quote-depth proxy, $\log(\texttt{mean\_min\_quote\_size\_dollar})$. \\
+  $\mathrm{Stale}_{g,t}$ & Mean stale-quote fraction (update intensity, not quote validity). \\
+  \midrule
+  \multicolumn{2}{@{}l}{\textit{Segment dummies (components of $\gamma_g$)}} \\
+  $\mathrm{OKX}_g$ & OKX indicator. \\
+  $\mathrm{ETH}_g$ & ETH-underlying indicator. \\
+  $\mathrm{ATM}_g$ & At-the-money, $|\texttt{rel\_strike\_bucket}-1|\le\RegNonAtmCutoff$. \\
+  $\mathrm{NearExp}_g$ & Near-expiry, $\texttt{tte\_bucket}\le\RegShortTteCutoff$ yr. \\
+  \midrule
+  $\gamma_g$ & Cell fixed effect (exchange, ref\_sym, strike bucket, tte bucket). \\
+  $\varepsilon_{g,t}$ & Idiosyncratic error. \\
+  \bottomrule
+  \end{tabular}}}
+  \vfill
+\end{frame}
+
+% Figure 14
+\figframe{Figure 14 --- AMU and the friction channels}{artifacts/liquidity_friction_gradient.png}
+
+% Table 7
+\begin{frame}{Table 7 --- Cost and $r$ sensitivity}
+  \vfill\centering
+  \colorbox{white}{\color{black}\adjustbox{max totalheight=0.70\textheight}{\footnotesize
+  \begin{tabular}{c@{\hspace{3em}}c}
+  \IfFileExists{artifacts/cost_sensitivity_table.tex}{\input{artifacts/cost_sensitivity_table.tex}}{\textit{cost table: run rebuild}} &
+  \IfFileExists{artifacts/r_sensitivity_table.tex}{\input{artifacts/r_sensitivity_table.tex}}{\textit{r table: run sweep}} \\
+  \end{tabular}}}
+  \vfill
+\end{frame}
+
+\end{document}
