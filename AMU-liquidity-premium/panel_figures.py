@@ -332,7 +332,7 @@ def _segment_delta(frame: pd.DataFrame, segment: str, groups: dict[str, pd.Serie
 def _finalize_figure(fig: plt.Figure, output_path: str | Path | None) -> plt.Figure:
     fig.tight_layout()
     if output_path is not None:
-        fig.savefig(output_path, dpi=200, bbox_inches="tight")
+        fig.savefig(output_path, dpi=200, bbox_inches="tight", transparent=True)
     return fig
 
 

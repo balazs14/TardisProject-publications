@@ -50,14 +50,18 @@
 
 % --- branded background + colours ------------------------------------------
 \usebackgroundtemplate{%
-  \includegraphics[width=\paperwidth,height=\paperheight]{../Online_Conference_background_04.png}}
-\setbeamercolor{frametitle}{fg=white}
-\setbeamercolor{title}{fg=white}
-\setbeamercolor{subtitle}{fg=white}
-\setbeamercolor{author}{fg=white}
-\setbeamercolor{institute}{fg=white}
-\setbeamercolor{date}{fg=white}
-\setbeamercolor{normal text}{fg=white}
+  \includegraphics[width=\paperwidth,height=\paperheight]{../Online_Conference_background_04_white.png}}
+\setbeamercolor{frametitle}{fg=black}
+\setbeamercolor{title}{fg=black}
+\setbeamercolor{subtitle}{fg=black}
+\setbeamercolor{author}{fg=black}
+\setbeamercolor{institute}{fg=black}
+\setbeamercolor{date}{fg=black}
+\setbeamercolor{normal text}{fg=black}
+% Make the white cards transparent so the blue background shows through.
+% (Figures also need transparent-background image files -- regenerate the
+% figure scripts with transparent=True; see the note in the chat.)
+\renewcommand{\colorbox}[2]{#2}
 \setbeamerfont{frametitle}{series=\bfseries,size=\large}
 % centred frame title (clears the logo in the top-left of the background)
 \setbeamertemplate{frametitle}{%
@@ -100,7 +104,7 @@
 \end{frame}
 
 % ===== 2. Table 1 =====
-\begin{frame}{Table 1 --- The four arbitrage paths}
+\begin{frame}{The four arbitrage paths}
   \vfill\centering
   \colorbox{white}{\color{black}\adjustbox{width=\linewidth,totalheight=0.50\textheight,keepaspectratio}{\footnotesize
   \begin{tabular}{@{}lll@{}}
@@ -121,16 +125,16 @@
 \end{frame}
 
 % ===== 3. Figure 1 =====
-\figframe{Figure 1 --- Real vs.\ synthetic market: three configurations}{artifacts/arbitrage_paths_crossed_noncrossed.pdf}
+\figframe{Real vs.\ synthetic market: three configurations}{artifacts/arbitrage_paths_crossed_noncrossed.pdf}
 
 % ===== 4. Figure 4 =====
-\figframe{Figure 4 --- The MMA distribution across markets}{artifacts/all_markets_avg_4_spreads.pdf}
+\figframe{The MMA distribution across markets}{artifacts/all_markets_avg_4_spreads.pdf}
 
 % ===== 5. Table 4 =====
-\tabframe{Table 4 --- AMU across venues and underlyings}{artifacts/amu_summary_table.tex}
+\tabframe{AMU across venues and underlyings}{artifacts/amu_summary_table.tex}
 
 % ===== 6. Figures 5--6 =====
-\begin{frame}{Figures 5--6 --- AMU over the surface: moneyness and maturity}
+\begin{frame}{AMU over the surface: moneyness and maturity}
   \vfill
   \begin{columns}[c]
     \begin{column}{0.5\textwidth}\centering
@@ -144,13 +148,13 @@
 \end{frame}
 
 % ===== 7. Figure 7 =====
-\figframe{Figure 7 --- AMU over time, by market}{artifacts/multi_exchange_amu_bps_by_date.pdf}
+\figframe{AMU over time, by market}{artifacts/multi_exchange_amu_bps_by_date.pdf}
 
 % ===== 8. Figure 10 =====
-\figframe{Figure 10 --- MMA distribution: pre vs.\ post 2024}{artifacts/total_mma_hist_pre_post_btc_etp.pdf}
+\figframe{MMA distribution: pre vs.\ post 2024}{artifacts/total_mma_hist_pre_post_btc_etp.pdf}
 
 % ===== 9. Table 6 (compact: standardized effects) =====
-\begin{frame}{Table 6 --- Regression results (standardized effects)}
+\begin{frame}{Regression results (standardized effects)}
   \vfill\centering
   \IfFileExists{artifacts/regression_effects_table.tex}{%
     \colorbox{white}{\color{black}\adjustbox{width=\linewidth,totalheight=0.62\textheight,keepaspectratio}{\input{artifacts/regression_effects_table.tex}}}%
@@ -180,16 +184,16 @@
 \end{frame}
 
 % Table 2
-\tabframe{Table 2 --- Daily option-market coverage}{artifacts/summary_daily_option_coverage_table.tex}
+\tabframe{Daily option-market coverage}{artifacts/summary_daily_option_coverage_table.tex}
 
 % Figure 2
-\figframe{Figure 2 --- The no-AMU band}{artifacts/amu_fair_band_synthetic.pdf}
+\figframe{The no-AMU band}{artifacts/amu_fair_band_synthetic.pdf}
 
 % Figure 3
-\figframe{Figure 3 --- Schematic MMA distribution}{artifacts/amu_schematic_mma_distribution.pdf}
+\figframe{Schematic MMA distribution}{artifacts/amu_schematic_mma_distribution.pdf}
 
 % Table 3
-\begin{frame}{Table 3 --- Data-processing assumptions}
+\begin{frame}{Data-processing assumptions}
   \vfill\centering
   \colorbox{white}{\color{black}\adjustbox{width=\linewidth,totalheight=0.82\textheight,keepaspectratio}{\footnotesize
   \begin{tabular}{@{}l p{8.6cm}@{}}
@@ -211,22 +215,22 @@
 \end{frame}
 
 % Figure 8
-\figframe{Figure 8 --- AMU by date, with the 2024 events}{artifacts/multi_exchange_amu_bps_by_date_2023_2024_avg_events.pdf}
+\figframe{AMU by date, with the 2024 events}{artifacts/multi_exchange_amu_bps_by_date_2023_2024_avg_events.pdf}
 
 % Figure 9
-\figframe{Figure 9 --- Liquidity event study}{artifacts/liquidity_event_study.png}
+\figframe{Liquidity event study}{artifacts/liquidity_event_study.png}
 
 % Figure 11
-\figframe{Figure 11 --- AMU versus assumed cost, pre/post}{artifacts/amu_bps_by_cost_pre_post.pdf}
+\figframe{AMU versus assumed cost, pre/post}{artifacts/amu_bps_by_cost_pre_post.pdf}
 
 % Figure 12
-\figframe{Figure 12 --- Liquidity heatmap, pre/post}{artifacts/liquidity_pre_post_heatmap.png}
+\figframe{Liquidity heatmap, pre/post}{artifacts/liquidity_pre_post_heatmap.png}
 
 % Figure 13
-\figframe{Figure 13 --- Liquidity compression decomposition}{artifacts/liquidity_compression_decomposition.png}
+\figframe{Liquidity compression decomposition}{artifacts/liquidity_compression_decomposition.png}
 
 % Table 5
-\begin{frame}{Table 5 --- Regression variable definitions}
+\begin{frame}{Regression variable definitions}
   \vfill\centering
   \colorbox{white}{\color{black}\adjustbox{width=\linewidth,totalheight=0.82\textheight,keepaspectratio}{\footnotesize
   \begin{tabular}{@{}l p{9cm}@{}}
@@ -254,13 +258,13 @@
 \end{frame}
 
 % Table 6 (full coefficient table)
-\tabframe{Table 6 (full) --- Regression coefficients, SEs, and effects}{artifacts/regression_coefficients_table.tex}
+\tabframe{Regression coefficients, SEs, and effects}{artifacts/regression_coefficients_table.tex}
 
 % Figure 14
-\figframe{Figure 14 --- AMU and the friction channels}{artifacts/liquidity_friction_gradient.png}
+\figframe{AMU and the friction channels}{artifacts/liquidity_friction_gradient.png}
 
 % Table 7
-\begin{frame}{Table 7 --- Cost and $r$ sensitivity}
+\begin{frame}{Cost and $r$ sensitivity}
   \vfill\centering
   \colorbox{white}{\color{black}\adjustbox{width=\linewidth,totalheight=0.82\textheight,keepaspectratio}{\footnotesize
   \begin{tabular}{c@{\hspace{6em}}c}

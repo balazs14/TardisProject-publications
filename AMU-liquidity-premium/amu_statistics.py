@@ -546,7 +546,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
             f"{str(ref_sym).strip().lower().replace('-', '_').replace('/', '_')}_4_spreads.pdf"
         )
         fig.tight_layout()
-        fig.savefig(output_path, dpi=220, bbox_inches="tight")
+        fig.savefig(output_path, dpi=220, bbox_inches="tight", transparent=True)
         plt.close(fig)
         output_paths.append(output_path)
         logger.debug(
@@ -653,7 +653,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
     )
     output_path_avg = output_dir / "all_markets_avg_4_spreads.pdf"
     fig.tight_layout()
-    fig.savefig(output_path_avg, dpi=220, bbox_inches="tight")
+    fig.savefig(output_path_avg, dpi=220, bbox_inches="tight", transparent=True)
     plt.close(fig)
     output_paths.append(output_path_avg)
     logger.debug("Saved aggregate spread figure %s", output_path_avg)
@@ -772,7 +772,7 @@ def plot_total_mma_hist_pre_post_btc_etp_from_parquet(parquet_path: str | Path, 
 
     output_path = output_dir / "total_mma_hist_pre_post_btc_etp.pdf"
     fig.tight_layout()
-    fig.savefig(output_path, dpi=220, bbox_inches="tight")
+    fig.savefig(output_path, dpi=220, bbox_inches="tight", transparent=True)
     plt.close(fig)
     logger.debug(
         "Saved pre/post MMA histogram %s pre_count=%d post_count=%d",
@@ -855,7 +855,7 @@ def plot_amu_bps_by_cost_pre_post_from_parquet(parquet_path: str | Path, *, outp
 
     output_path = output_dir / "amu_bps_by_cost_pre_post.pdf"
     fig.tight_layout()
-    fig.savefig(output_path, dpi=220, bbox_inches="tight")
+    fig.savefig(output_path, dpi=220, bbox_inches="tight", transparent=True)
     plt.close(fig)
     logger.debug("Saved AMU-by-cost figure %s pre=%.0f post=%.0f", output_path, hist_pre.sum(), hist_post.sum())
     return output_path
@@ -990,7 +990,7 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
         output_path,
     )
     fig.tight_layout()
-    fig.savefig(output_path, dpi=220, bbox_inches="tight")
+    fig.savefig(output_path, dpi=220, bbox_inches="tight", transparent=True)
     plt.close(fig)
     return output_path
 
@@ -1081,7 +1081,7 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
         output_path,
     )
     fig.tight_layout()
-    fig.savefig(output_path, dpi=220, bbox_inches="tight")
+    fig.savefig(output_path, dpi=220, bbox_inches="tight", transparent=True)
     plt.close(fig)
     return output_path
 
@@ -1177,7 +1177,7 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
         output_path,
     )
     fig.tight_layout()
-    fig.savefig(output_path, dpi=220, bbox_inches="tight")
+    fig.savefig(output_path, dpi=220, bbox_inches="tight", transparent=True)
     plt.close(fig)
     return output_path
 
@@ -1227,7 +1227,7 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
         output_path,
     )
     fig.tight_layout()
-    fig.savefig(output_path, dpi=220, bbox_inches="tight")
+    fig.savefig(output_path, dpi=220, bbox_inches="tight", transparent=True)
     plt.close(fig)
     return output_path
 

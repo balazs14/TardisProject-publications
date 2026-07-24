@@ -153,7 +153,7 @@ def _synthetic_tracking_figure(art: Path) -> Path:
         ax.spines[s].set_visible(False)
     fig.subplots_adjust(left=0.02, right=0.99, top=0.87, bottom=0.05)
     path = art / "amu_fair_band_synthetic.pdf"
-    fig.savefig(path, bbox_inches="tight")
+    fig.savefig(path, bbox_inches="tight", transparent=True)
     plt.close(fig)
     return path
 
@@ -199,7 +199,7 @@ def _schematic_mma_distribution_figure(art: Path) -> Path:
         ax.spines[s].set_visible(False)
     fig.subplots_adjust(left=0.04, right=0.98, top=0.90, bottom=0.13)
     path = art / "amu_schematic_mma_distribution.pdf"
-    fig.savefig(path, bbox_inches="tight")
+    fig.savefig(path, bbox_inches="tight", transparent=True)
     plt.close(fig)
     return path
 
@@ -216,7 +216,7 @@ def write_arbitrage_paths_figures(artifacts_dir: str | Path) -> list[Path]:
     figA.suptitle(SUP, y=1.00, fontsize=18, fontweight="bold")
     figA.subplots_adjust(left=0.05, right=0.99, top=0.85, bottom=0.04, wspace=0.20)
     path_a = art / "arbitrage_paths_crossed_noncrossed.pdf"
-    figA.savefig(path_a, bbox_inches="tight")
+    figA.savefig(path_a, bbox_inches="tight", transparent=True)
     plt.close(figA)
     outputs.append(path_a)
 
@@ -227,7 +227,7 @@ def write_arbitrage_paths_figures(artifacts_dir: str | Path) -> list[Path]:
     figB.suptitle(SUP, y=0.995, fontsize=13, fontweight="bold")
     figB.subplots_adjust(left=0.10, right=0.98, top=0.94, bottom=0.02, hspace=0.42)
     path_b = art / "arbitrage_paths_stacked.pdf"
-    figB.savefig(path_b, bbox_inches="tight")
+    figB.savefig(path_b, bbox_inches="tight", transparent=True)
     plt.close(figB)
     outputs.append(path_b)
 
@@ -237,7 +237,7 @@ def write_arbitrage_paths_figures(artifacts_dir: str | Path) -> list[Path]:
         draw_case(axC, key, fs=9.5, title_fs=13)
         figC.subplots_adjust(left=0.11, right=0.98, top=0.85, bottom=0.04)
         path_c = art / f"arbitrage_paths_{_SEPARATE_NAMES[key]}.pdf"
-        figC.savefig(path_c, bbox_inches="tight")
+        figC.savefig(path_c, bbox_inches="tight", transparent=True)
         plt.close(figC)
         outputs.append(path_c)
 
