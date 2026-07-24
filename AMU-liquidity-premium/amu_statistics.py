@@ -168,7 +168,7 @@ def filter_ticks(
             mask = mask & pd.to_numeric(df["rel_strike"], errors="coerce").between(rel_strike_min, rel_strike_max)
         mma_columns = [
             column
-            for column in ("fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp", "mma_fwd_bp", "mma_bck_bp")
+            for column in ("bck_joincall_bp", "bck_joinput_bp", "fwd_joincall_bp", "fwd_joinput_bp", "mma_bck_bp", "mma_fwd_bp")
             if column in df.columns
         ]
         for column in mma_columns:
@@ -190,7 +190,7 @@ def filter_ticks(
             expr = expr & pl.col("rel_strike").is_between(rel_strike_min, rel_strike_max)
         mma_columns = [
             column
-            for column in ("fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp", "mma_fwd_bp", "mma_bck_bp")
+            for column in ("bck_joincall_bp", "bck_joinput_bp", "fwd_joincall_bp", "fwd_joinput_bp", "mma_bck_bp", "mma_fwd_bp")
             if column in column_names
         ]
         for column in mma_columns:
@@ -465,10 +465,10 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
         "call_opt_spread_bp",
         "put_opt_spread_bp",
         "min_quote_size_dollar",
-        "fwd_joincall_bp",
-        "fwd_joinput_bp",
         "bck_joincall_bp",
         "bck_joinput_bp",
+        "fwd_joincall_bp",
+        "fwd_joinput_bp",
     ]
     bin_edges = np.linspace(-rng, rng, 101)
     bin_width = float(bin_edges[1] - bin_edges[0])
@@ -486,7 +486,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
             continue
         for (exchange, ref_sym), subset in chunk.group_by(["exchange", "ref_sym"], maintain_order=False):
             market = (str(exchange), str(ref_sym))
-            for column in ["fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp"]:
+            for column in ["bck_joincall_bp", "bck_joinput_bp", "fwd_joincall_bp", "fwd_joinput_bp"]:
                 values = subset.get_column(column).cast(pl.Float64, strict=False).to_numpy()
                 values = values[np.isfinite(values)]
                 if values.size == 0:
@@ -512,7 +512,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
         fig, ax = plt.subplots(figsize=(10, 6))
         visible_max = 0.0
         amu_parts: list[tuple[float, int]] = []
-        for column, color in zip(["fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp"], sns.color_palette("deep", n_colors=4), strict=False):
+        for column, color in zip(["bck_joincall_bp", "bck_joinput_bp", "fwd_joincall_bp", "fwd_joinput_bp"], sns.color_palette("deep", n_colors=4), strict=False):
             key = (exchange, ref_sym, column)
             if key not in hist_counts or sample_sizes[key] == 0:
                 continue
@@ -574,8 +574,8 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
     ]
     fig, ax = plt.subplots(figsize=(10, 6))
     visible_max = 0.0
-    spread_columns = ["fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp"]
-    for column, color in zip(["fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp"], sns.color_palette("deep", n_colors=4), strict=False):
+    spread_columns = ["bck_joincall_bp", "bck_joinput_bp", "fwd_joincall_bp", "fwd_joinput_bp"]
+    for column, color in zip(["bck_joincall_bp", "bck_joinput_bp", "fwd_joincall_bp", "fwd_joinput_bp"], sns.color_palette("deep", n_colors=4), strict=False):
         curves: list[np.ndarray] = []
         for exchange, ref_sym in target_markets:
             key = (exchange, ref_sym, column)
@@ -670,12 +670,12 @@ def plot_total_mma_hist_pre_post_btc_etp_from_parquet(parquet_path: str | Path, 
         "call_opt_spread_bp",
         "put_opt_spread_bp",
         "min_quote_size_dollar",
-        "fwd_joincall_bp",
-        "fwd_joinput_bp",
         "bck_joincall_bp",
         "bck_joinput_bp",
+        "fwd_joincall_bp",
+        "fwd_joinput_bp",
     ]
-    spread_columns = ["fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp"]
+    spread_columns = ["bck_joincall_bp", "bck_joinput_bp", "fwd_joincall_bp", "fwd_joinput_bp"]
     bin_edges = np.linspace(-rng, rng, 101)
     bin_width = float(bin_edges[1] - bin_edges[0])
     cost_per_notional_bp = -float(pcp_cfg["cost_per_notional"]) * 10_000.0
@@ -790,7 +790,7 @@ def plot_amu_bps_by_cost_pre_post_from_parquet(parquet_path: str | Path, *, outp
     read off the pooled MMA histogram at offset delta = c - c0 (c0 = cost_per_notional),
     so the x-axis is the absolute cost in bp."""
     parquet = pq.ParquetFile(str(parquet_path))
-    spread_columns = ["fwd_joincall_bp", "fwd_joinput_bp", "bck_joincall_bp", "bck_joinput_bp"]
+    spread_columns = ["bck_joincall_bp", "bck_joinput_bp", "fwd_joincall_bp", "fwd_joinput_bp"]
     columns = ["mdy", "rel_strike", "call_opt_spread_bp", "put_opt_spread_bp", "min_quote_size_dollar"] + spread_columns
     lo, hi = -300, 300
     edges = np.arange(lo, hi + 1)

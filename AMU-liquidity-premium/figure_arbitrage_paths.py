@@ -4,12 +4,12 @@ Real quoted vs parity-implied (synthetic) option market, three configurations:
 
   (1) Crossed / disjoint : C_ask < C^syn_bid -> one guaranteed riskless arbitrage.
   (2) Nested (syn inside real): two potential MMA paths
-          forward-joincall  = C^syn_bid - C_bid   (left gap)
-          backward-joincall = C_ask - C^syn_ask   (right gap)
+          backward-joincall  = C^syn_bid - C_bid   (left gap)
+          forward-joincall = C_ask - C^syn_ask   (right gap)
       (the two join-put payoffs are the negatives of these).
   (3) Straddling (partial overlap): two potential MMA paths
-          forward-joincall  = C^syn_bid - C_bid   (left gap)
-          forward-joinput   = C^syn_ask - C_ask   (right gap)
+          backward-joincall  = C^syn_bid - C_bid   (left gap)
+          backward-joinput   = C^syn_ask - C_ask   (right gap)
 
 Nested/straddling carry no guaranteed profit: a path pays only if the maker is
 joined and then hit. This is a hand-built conceptual figure (illustrative levels),
@@ -51,14 +51,14 @@ CASES = {
     "nested": dict(
         title="(2) Nested", tag=r"synthetic inside real",
         real=(7, 21), syn=(12, 16),
-        bands=[(7, 12, "pot", "fwd, join call", r"$C^{\mathrm{syn}}_{bid}-C_{bid}$"),
-               (16, 21, "pot", "bck, join call", r"$C_{ask}-C^{\mathrm{syn}}_{ask}$")],
+        bands=[(7, 12, "pot", "bck, join call", r"$C^{\mathrm{syn}}_{bid}-C_{bid}$"),
+               (16, 21, "pot", "fwd, join call", r"$C_{ask}-C^{\mathrm{syn}}_{ask}$")],
     ),
     "straddling": dict(
         title="(3) Straddling", tag=r"partial overlap",
         real=(7, 16), syn=(12, 21),
-        bands=[(7, 12, "pot", "fwd, join call", r"$C^{\mathrm{syn}}_{bid}-C_{bid}$"),
-               (16, 21, "pot", "fwd, join put", r"$C^{\mathrm{syn}}_{ask}-C_{ask}$")],
+        bands=[(7, 12, "pot", "bck, join call", r"$C^{\mathrm{syn}}_{bid}-C_{bid}$"),
+               (16, 21, "pot", "bck, join put", r"$C^{\mathrm{syn}}_{ask}-C_{ask}$")],
     ),
 }
 

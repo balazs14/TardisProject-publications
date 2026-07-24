@@ -5,7 +5,7 @@ aggregations (`amu_statistics.py`) can never drift apart.
 
 A *tickpath* is one (tick, path) pair. Each synchronized quote ("tick") for a
 matched put--call pair contributes four tickpaths, one per join path
-(`fwd_joincall`, `fwd_joinput`, `bck_joincall`, `bck_joinput`).
+(`bck_joincall`, `bck_joinput`, `fwd_joincall`, `fwd_joinput`).
 
 For any bucket:
 
@@ -31,10 +31,10 @@ import operator
 import polars as pl
 
 JOIN_PATH_COLUMNS: tuple[str, ...] = (
-    "fwd_joincall_bp",
-    "fwd_joinput_bp",
     "bck_joincall_bp",
     "bck_joinput_bp",
+    "fwd_joincall_bp",
+    "fwd_joinput_bp",
 )
 
 

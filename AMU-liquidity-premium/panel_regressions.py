@@ -30,17 +30,20 @@ SPEC_DISPLAY_NAMES = {
     "amu_spec1fe": "(2)",
     "amu_spec2": "(3)",
     "amu_spec3": "(4)",
+    "amu_specpca": "(5)",
 }
 
 # Column order in the combined coefficient table: (1) Post, (2) Post+cell FE,
-# (3) Post+segment dummies (pooled OLS), (4) Post+frictions+cell FE.
-MAIN_SPEC_ORDER = ("amu_spec1", "amu_spec1fe", "amu_spec2", "amu_spec3")
+# (3) Post+segment dummies (pooled OLS), (4) Post+frictions+cell FE,
+# (5) Post+liquidity PC1+cell FE (the three frictions collapsed to one index).
+MAIN_SPEC_ORDER = ("amu_spec1", "amu_spec1fe", "amu_spec2", "amu_spec3", "amu_specpca")
 
 TERM_DISPLAY_NAMES = {
     "post_2024": "$\\mathrm{Post}_t$",
     "average_put_call_spread_bp": "$\\mathrm{Spr}_{g,t}$",
     "log_mean_min_quote_size_dollar": "$\\mathrm{Depth}_{g,t}$",
     "stale_proxy": "$\\mathrm{Stale}_{g,t}$",
+    "liquidity_pc": "$\\mathrm{Liq}_{g,t}$",
     "okx": "$\\mathrm{OKX}_g$",
     "eth": "$\\mathrm{ETH}_g$",
     "atm": "$\\mathrm{ATM}_g$",
@@ -88,8 +91,8 @@ def build_liquidity_analysis_panel(
 
     frame = panel.to_pandas().copy()
     frame["day"] = pd.to_datetime(frame["day"])
-    frame["mean_mma_bp"] = 0.5 * (frame["mean_mma_fwd_bp"] + frame["mean_mma_bck_bp"])
-    frame["std_mma_bp"] = frame[["mean_mma_fwd_bp", "mean_mma_bck_bp"]].std(axis=1, ddof=0)
+    frame["mean_mma_bp"] = 0.5 * (frame["mean_mma_bck_bp"] + frame["mean_mma_fwd_bp"])
+    frame["std_mma_bp"] = frame[["mean_mma_bck_bp", "mean_mma_fwd_bp"]].std(axis=1, ddof=0)
     frame["post_2024"] = (frame["day"].dt.date >= post_2024_start).astype(float)
     frame["average_put_call_spread_bp"] = 0.5 * (
         frame["mean_call_spread_bp"] + frame["mean_put_spread_bp"]
@@ -125,6 +128,7 @@ def build_liquidity_analysis_panel(
         sorted(frame["exchange"].dropna().unique().tolist()) if "exchange" in frame else [],
         sorted(frame["ref_sym"].dropna().unique().tolist()) if "ref_sym" in frame else [],
     )
+    frame = add_liquidity_pc(frame)
     return frame.sort_values(["day", "exchange", "ref_sym", "rel_strike_bucket", "tte_bucket"])
 
 
@@ -175,6 +179,94 @@ def filter_analysis_panel(
     return filtered
 
 
+# The three correlated liquidity/friction descriptors summarized by the PCA
+# control below (spec (5)). Order matters for the reported loadings table.
+LIQUIDITY_PCA_INPUTS: tuple[str, ...] = (
+    "log_mean_min_quote_size_dollar",
+    "average_put_call_spread_bp",
+    "stale_proxy",
+)
+LIQUIDITY_PCA_INPUT_LABELS = {
+    "log_mean_min_quote_size_dollar": "Depth",
+    "average_put_call_spread_bp": "Spread",
+    "stale_proxy": "Stale",
+}
+# Populated by add_liquidity_pc(): per-regime PC1 loadings and variance share,
+# consumed by write_liquidity_pca_table() for the manuscript.
+_LIQUIDITY_PC_LOADINGS: dict[str, dict[str, float]] = {}
+
+
+def add_liquidity_pc(frame: pd.DataFrame) -> pd.DataFrame:
+    """Attach ``liquidity_pc``: the first principal component of the three
+    standardized liquidity descriptors (Depth, Spread, Stale), fit *separately*
+    on the pre- and post-2024 analysis samples.
+
+    The three controls are strongly collinear; the leading component is a single
+    synthetic liquidity index. It is oriented so higher values mean *worse*
+    liquidity (positive loading on Spread) and z-scored within each regime, so
+    the pooled column is comparable across the break. Rows outside the analysis
+    filter get NaN and drop out of the regression exactly like the other specs.
+    """
+    frame = frame.copy()
+    frame["liquidity_pc"] = np.nan
+    analysis_index = filter_analysis_panel(frame).index
+    _LIQUIDITY_PC_LOADINGS.clear()
+    for regime, label in ((0.0, "pre"), (1.0, "post")):
+        idx = frame.index[(frame.index.isin(analysis_index)) & (frame["post_2024"] == regime)]
+        block = frame.loc[idx, list(LIQUIDITY_PCA_INPUTS)].apply(pd.to_numeric, errors="coerce")
+        idx = block.dropna().index
+        x = frame.loc[idx, list(LIQUIDITY_PCA_INPUTS)].to_numpy(dtype=float)
+        if len(idx) < len(LIQUIDITY_PCA_INPUTS) + 1:
+            logger.warning("add_liquidity_pc regime=%s has too few rows (%d)", label, len(idx))
+            continue
+        mu = x.mean(axis=0)
+        sd = x.std(axis=0, ddof=0)
+        sd[sd == 0.0] = 1.0
+        z = (x - mu) / sd
+        _, singular, vt = np.linalg.svd(z, full_matrices=False)
+        loading = vt[0]
+        # Orient so the component rises with illiquidity (positive on Spread).
+        spread_pos = LIQUIDITY_PCA_INPUTS.index("average_put_call_spread_bp")
+        if loading[spread_pos] < 0:
+            loading = -loading
+        score = z @ loading
+        score_sd = score.std(ddof=0)
+        frame.loc[idx, "liquidity_pc"] = score / (score_sd if score_sd > 0 else 1.0)
+        var_ratio = float(singular[0] ** 2 / np.sum(singular ** 2))
+        _LIQUIDITY_PC_LOADINGS[label] = {
+            **{name: float(loading[i]) for i, name in enumerate(LIQUIDITY_PCA_INPUTS)},
+            "var_explained": var_ratio,
+            "nobs": float(len(idx)),
+        }
+    logger.debug("add_liquidity_pc loadings=%s", _LIQUIDITY_PC_LOADINGS)
+    return frame
+
+
+def write_liquidity_pca_table(output_dir: str | Path) -> Path:
+    """Emit the PC1 loadings + variance-explained table (pre vs post 2024)."""
+    lines = [
+        r"\begin{tabular}{lrr}",
+        r"\toprule",
+        r" & Pre-2024 & Post-2024 \\",
+        r"\midrule",
+    ]
+    for name in LIQUIDITY_PCA_INPUTS:
+        label = LIQUIDITY_PCA_INPUT_LABELS[name]
+        pre = _LIQUIDITY_PC_LOADINGS.get("pre", {}).get(name, float("nan"))
+        post = _LIQUIDITY_PC_LOADINGS.get("post", {}).get(name, float("nan"))
+        lines.append(rf"{label} & {pre:.3f} & {post:.3f} \\")
+    lines.append(r"\midrule")
+    pre_v = _LIQUIDITY_PC_LOADINGS.get("pre", {}).get("var_explained", float("nan"))
+    post_v = _LIQUIDITY_PC_LOADINGS.get("post", {}).get("var_explained", float("nan"))
+    lines.append(rf"Var.\ explained & {pre_v:.0%} & {post_v:.0%} \\".replace("%", r"\%"))
+    lines.append(r"\bottomrule")
+    lines.append(r"\end{tabular}")
+    path = Path(output_dir) / "regression_liquidity_pca_table.tex"
+    path.write_text("\n".join(lines) + "\n")
+    logger.debug("write_liquidity_pca_table wrote %s loadings=%s", path, _LIQUIDITY_PC_LOADINGS)
+    return path
+
+
 # AMU dependent variable for every spec below. The panel carries both explicit
 # flavours; the regressions use the UNCONDITIONAL (per-quote = frequency x
 # conditional) AMU. Switch to "mean_amu_conditional_bp" for the conditional size.
@@ -207,6 +299,19 @@ def amu_spec2_regression_spec() -> RegressionSpec:
 
 def amu_spec3_regression_spec() -> RegressionSpec:
     return RegressionSpec(name="amu_spec3", dependent=AMU_DEPENDENT, regressors=_SPEC3_REGRESSORS, fixed_effects=("cell_id",))
+
+
+# Column (5): the three collinear frictions of spec (4) replaced by their first
+# principal component (a single synthetic liquidity index), with cell FE.
+_SPECPCA_REGRESSORS = ("post_2024", "liquidity_pc")
+
+
+def amu_specpca_regression_spec() -> RegressionSpec:
+    return RegressionSpec(name="amu_specpca", dependent=AMU_DEPENDENT, regressors=_SPECPCA_REGRESSORS, fixed_effects=("cell_id",))
+
+
+def run_amu_specpca_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
+    return _run_regression(amu_specpca_regression_spec(), panel=panel, **build_kwargs)
 
 
 def amu_spec1fe_regression_spec() -> RegressionSpec:
@@ -278,6 +383,7 @@ def write_regression_tables(output_dir: str | Path, **build_kwargs) -> dict[str,
         run_amu_spec1fe_regression,
         run_amu_spec2_regression,
         run_amu_spec3_regression,
+        run_amu_specpca_regression,
     ):
         result = runner(panel=panel)
         combined_results.append(result)
@@ -299,6 +405,7 @@ def write_regression_tables(output_dir: str | Path, **build_kwargs) -> dict[str,
     paths["regression_model_summary_table"] = summary_path
     paths["regression_coefficients_table"] = coefficient_path
     paths["text_numbers"] = write_text_macros(filter_analysis_panel(panel), output_root)
+    paths["regression_liquidity_pca_table"] = write_liquidity_pca_table(output_root)
     logger.debug(
         "write_regression_tables wrote summary_tex=%s coefficient_tex=%s combined_rows=%d",
         summary_path,
@@ -441,6 +548,7 @@ def _regression_coefficient_table(results: pd.DataFrame) -> pd.DataFrame:
         "log_mean_min_quote_size_dollar",
         "average_put_call_spread_bp",
         "stale_proxy",
+        "liquidity_pc",
     ]
 
     columns = pd.MultiIndex.from_tuples(

@@ -36,6 +36,15 @@ def _load_config() -> dict[str, Any]:
 
 CONFIG = _load_config()
 
+# Optional environment override for the discount rate, used by the r-sensitivity
+# sweep (see run_r_sensitivity.sh). Injected into the shared CONFIG so every
+# consumer -- PCP_R below and the pcp_metric_kwargs built in amu_panel /
+# amu_statistics from CONFIG["pcp"]["r"] -- sees the same value. Everything else
+# is untouched, so a run with PCP_R_OVERRIDE differs only in e^{-rT}.
+_R_OVERRIDE = os.environ.get("PCP_R_OVERRIDE")
+if _R_OVERRIDE is not None:
+    CONFIG["pcp"]["r"] = float(_R_OVERRIDE)
+
 PARQUET_BATCH_ROWS = int(CONFIG["cache"]["parquet_batch_rows"])
 
 REL_STRIKE_MIN = float(CONFIG["filters"]["rel_strike_min"])

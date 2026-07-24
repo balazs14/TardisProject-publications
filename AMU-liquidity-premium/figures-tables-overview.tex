@@ -96,16 +96,16 @@
 \toprule
 Path & Linear contracts & Inverse contracts \\
 \midrule
-fwd, join call &
+bck, join call &
 $C_{bid}-P_{bid}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ &
 $(C_{bid}-P_{bid})S_{bid}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ \\
-fwd, join put &
+bck, join put &
 $C_{ask}-P_{ask}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ &
 $(C_{ask}-P_{ask})S_{ask}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ \\
-bck, join call &
+fwd, join call &
 $P_{ask}-C_{ask}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ &
 $(P_{ask}-C_{ask})S_{ask}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
-bck, join put &
+fwd, join put &
 $P_{bid}-C_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ &
 $(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \bottomrule
@@ -115,7 +115,7 @@ $(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.98\textwidth]{artifacts/arbitrage_paths_crossed_noncrossed.pdf}
-\caption{Real quoted versus parity-implied (synthetic) option market. When the markets are crossed and disjoint ($C_{ask}<C^{\mathrm{syn}}_{bid}$, or the symmetric case), there is a single guaranteed riskless arbitrage. When one market is nested inside the other, or when the two straddle each other, there is no guaranteed profit but two paths carry a \emph{potential} market-maker advantage, realized only if the maker's quote is joined and then hit. In the nested case these are the forward and backward join-call paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C_{ask}-C^{\mathrm{syn}}_{ask}$), with the join-put payoffs equal to their negatives (exactly so when the futures market has zero spread; the trading cost need not be zero); in the straddling case they are the forward join-call and forward join-put paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C^{\mathrm{syn}}_{ask}-C_{ask}$). The latter two configurations are what AMU aggregates. Schematic, illustrative levels.}
+\caption{Real quoted versus parity-implied (synthetic) option market. When the markets are crossed and disjoint ($C_{ask}<C^{\mathrm{syn}}_{bid}$, or the symmetric case), there is a single guaranteed riskless arbitrage. When one market is nested inside the other, or when the two straddle each other, there is no guaranteed profit but two paths carry a \emph{potential} market-maker advantage, realized only if the maker's quote is joined and then hit. In the nested case these are the backward and forward join-call paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C_{ask}-C^{\mathrm{syn}}_{ask}$), with the join-put payoffs equal to their negatives (exactly so when the futures market has zero spread; the trading cost need not be zero); in the straddling case they are the backward join-call and backward join-put paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C^{\mathrm{syn}}_{ask}-C_{ask}$). The latter two configurations are what AMU aggregates. Schematic, illustrative levels.}
 \label{fig:arb_paths_crossed_noncrossed}
 \end{figure}
 
@@ -129,7 +129,7 @@ $(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.82\textwidth]{artifacts/amu_schematic_mma_distribution.pdf}
-\caption{Schematic MMA distribution. The dashed rectangle over $(-2\,\mathrm{cost}',0)$ is the no-information benchmark implied by the no-AMU band (uniform quoting), with $\mathrm{cost}'\equiv\mathrm{cost}-\tfrac12(F_{ask}-F_{bid})e^{-rT}$. Competitive quoting instead concentrates the mode at $-\mathrm{cost}'$, the symmetric equilibrium of the conjugate forward/backward paths; the mass that crosses zero into positive territory is the AMU. Schematic, illustrative levels.}
+\caption{Schematic MMA distribution. The dashed rectangle over $(-2\,\mathrm{cost}',0)$ is the no-information benchmark implied by the no-AMU band (uniform quoting), with $\mathrm{cost}'\equiv\mathrm{cost}-\tfrac12(F_{ask}-F_{bid})e^{-rT}$. Competitive quoting instead concentrates the mode at $-\mathrm{cost}'$, the symmetric equilibrium of the conjugate backward/forward paths; the mass that crosses zero into positive territory is the AMU. Schematic, illustrative levels.}
 \label{fig:amu_schematic_mma_distribution}
 \end{figure}
 
@@ -169,7 +169,7 @@ Stale-quote filter & \FilterStale{}: when enabled, ticks with a stale call, put,
 \begin{table}[htbp]
 \centering
 {\renewcommand{\arraystretch}{1.3}\normalfont\normalsize\input{artifacts/amu_summary_table.tex}}
-\caption{Global AMU summary across exchanges and underlyings. AMU is the positive-part mean of MMA, in basis points of notional: \emph{cond} averages over the positive-MMA paths only, \emph{uncond} over all paths (equivalently, \emph{cond} times the fraction of paths with positive MMA). A \emph{path} is one of the four put--call-parity join paths (forward/backward $\times$ join-call/join-put) evaluated at a single synchronized quote; each matched put--call pair contributes four paths. The last two columns count ticks: \emph{positive MMA} is the number of synchronized ticks with at least one positive-MMA path, and \emph{num pairs} the number of matched put--call pair ticks.}
+\caption{Global AMU summary across exchanges and underlyings. AMU is the positive-part mean of MMA, in basis points of notional: \emph{cond} averages over the positive-MMA paths only, \emph{uncond} over all paths (equivalently, \emph{cond} times the fraction of paths with positive MMA). A \emph{path} is one of the four put--call-parity join paths (backward/forward $\times$ join-call/join-put) evaluated at a single synchronized quote; each matched put--call pair contributes four paths. The last two columns count ticks: \emph{positive MMA} is the number of synchronized ticks with at least one positive-MMA path, and \emph{num pairs} the number of matched put--call pair ticks.}
 \label{tab:amu_summary}
 \end{table}
 
@@ -222,6 +222,13 @@ Stale-quote filter & \FilterStale{}: when enabled, ticks with a stale call, put,
 \label{fig:amu_by_cost_pre_post}
 \end{figure}
 
+\begin{table}[htbp]
+\centering
+\caption{AMU pre- and post-2024 recomputed from ticks across discount rates $r$ (baseline $r=0.05$), in basis points. Because $e^{-rT}$ multiplies only the small futures terms, both the level and the pre/post difference are essentially flat in $r$.}
+\label{tab:r_sensitivity}
+\IfFileExists{artifacts/r_sensitivity_table.tex}{{\normalfont\small\input{artifacts/r_sensitivity_table.tex}}}{\emph{Populate by running \texttt{run\_r\_sensitivity.sh}.}}
+\end{table}
+
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_pre_post_heatmap.png}
@@ -250,6 +257,7 @@ $\mathrm{Post}_t$ & Post-2024 regime indicator (1 for dates on/after 2024-01-10,
 $\mathrm{Spr}_{g,t}$ & Average put--call spread in basis points, $0.5\times(\texttt{mean\_call\_spread\_bp}+\texttt{mean\_put\_spread\_bp})$. \\
 $\mathrm{Depth}_{g,t}$ & Log quote-depth proxy, $\log(\texttt{mean\_min\_quote\_size\_dollar})$, min taken over put/call bid/ask quote sizes. \\
 $\mathrm{Stale}_{g,t}$ & Mean stale-quote fraction across call, put, and spot legs. \\
+$\mathrm{Liq}_{g,t}$ & First principal component of the standardized $(\mathrm{Depth}_{g,t},\mathrm{Spr}_{g,t},\mathrm{Stale}_{g,t})$, fit separately pre/post 2024, oriented so higher means less liquid and z-scored within regime (Table~\ref{tab:liquidity_pca_loadings}). \\
 \midrule
 \multicolumn{2}{@{}l}{\textit{Segment dummies (components of the cell fixed effect $\gamma_g$)}} \\
 $\mathrm{OKX}_g$ & OKX indicator (1 for OKX, 0 for Deribit). \\
@@ -265,8 +273,15 @@ $\varepsilon_{g,t}$ & Idiosyncratic error. \\
 
 \begin{table}[htbp]
 \centering
+\caption{First principal component of the three standardized liquidity frictions (Depth, Spread, Stale), fit separately on the pre- and post-2024 samples. Entries are PC1 loadings and the share of joint variance the component explains. It is oriented so higher values mean less liquid (positive on Spread) and z-scored within each regime; it is the $\mathrm{Liq}_{g,t}$ control in column (5) of Table~\ref{tab:regression_coefficients}.}
+\label{tab:liquidity_pca_loadings}
+{\normalfont\small\input{artifacts/regression_liquidity_pca_table.tex}}
+\end{table}
+
+\begin{table}[htbp]
+\centering
 {\renewcommand{\arraystretch}{1.2}\normalfont\small\input{artifacts/regression_coefficients_table.tex}}
-\caption{Regressions of the cell-level unconditional AMU. Column (1) regresses AMU on the post-2024 indicator; (2) adds cell fixed effects to (1), isolating the within-cell regime effect; (3) instead adds the exchange, underlying, moneyness, and maturity dummies (pooled OLS); (4) adds the depth, spread, and staleness controls with cell fixed effects. HC1 standard errors in parentheses; stars denote $p$-value bands from the $t$-statistic. The columns headed \emph{Eff} report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$: the change in AMU, in standard deviations of AMU, per one-standard-deviation increase in the regressor.}
+\caption{Regressions of the cell-level unconditional AMU. Column (1) regresses AMU on the post-2024 indicator; (2) adds cell fixed effects to (1), isolating the within-cell regime effect; (3) instead adds the exchange, underlying, moneyness, and maturity dummies (pooled OLS); (4) adds the depth, spread, and staleness controls with cell fixed effects; (5) replaces those three frictions with their first principal component (a single liquidity index), keeping cell fixed effects. HC1 standard errors in parentheses; stars denote $p$-value bands from the $t$-statistic. The columns headed \emph{Eff} report the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$: the change in AMU, in standard deviations of AMU, per one-standard-deviation increase in the regressor.}
 \label{tab:regression_coefficients}
 \end{table}
 
