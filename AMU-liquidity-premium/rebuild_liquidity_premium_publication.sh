@@ -160,4 +160,14 @@ if [[ "$BUILD_PDF" == "1" ]]; then
 	  -outdir=build/ \
 	  figures-tables-overview.tex
 	cp build/figures-tables-overview.pdf figures-tables-overview.pdf
+
+	# Presentation deck (built and copied in the same way as figures/tables overview).
+	latexmk \
+	  -pdf \
+	  -synctex=1 \
+	  -interaction=nonstopmode \
+	  -file-line-error \
+	  -outdir=build/ \
+	  presentation.tex
+	cp build/presentation.pdf presentation.pdf
 fi

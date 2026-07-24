@@ -63,23 +63,25 @@
 \setbeamertemplate{frametitle}{%
   \vspace{0.30cm}\centering
   \usebeamercolor[fg]{frametitle}\usebeamerfont{frametitle}\insertframetitle\par}
-\setlength{\fboxsep}{6pt}
+% Maximise usable width: shrink frame margins and card padding.
+\setbeamersize{text margin left=2.5mm,text margin right=2.5mm}
+\setlength{\fboxsep}{2pt}
 
 % --- helper frames ----------------------------------------------------------
-% \figframe{title}{artifacts/....}
+% \figframe{title}{artifacts/....}   -- fills the slide edge to edge
 \newcommand{\figframe}[2]{%
   \begin{frame}{#1}%
     \vfill\centering
-    \colorbox{white}{\maybeincludegraphics[width=0.86\textwidth,height=0.74\textheight,keepaspectratio]{#2}}%
+    \colorbox{white}{\maybeincludegraphics[width=0.99\linewidth,height=0.82\textheight,keepaspectratio]{#2}}%
     \vfill
   \end{frame}%
 }
-% \tabframe{title}{artifacts/....tex}  (generated tables)
+% \tabframe{title}{artifacts/....tex}  (generated tables) -- scaled to fill
 \newcommand{\tabframe}[2]{%
   \begin{frame}{#1}%
     \vfill\centering
     \IfFileExists{#2}{%
-      \colorbox{white}{\color{black}\adjustbox{max width=0.92\textwidth,max totalheight=0.74\textheight}{\input{#2}}}%
+      \colorbox{white}{\color{black}\adjustbox{width=\linewidth,totalheight=0.82\textheight,keepaspectratio}{\input{#2}}}%
     }{\textit{(missing: \texttt{\detokenize{#2}})}}%
     \vfill
   \end{frame}%
@@ -100,7 +102,7 @@
 % ===== 2. Table 1 =====
 \begin{frame}{Table 1 --- The four arbitrage paths}
   \vfill\centering
-  \colorbox{white}{\color{black}\adjustbox{max width=0.96\textwidth,max totalheight=0.68\textheight}{\footnotesize
+  \colorbox{white}{\color{black}\adjustbox{width=\linewidth,totalheight=0.50\textheight,keepaspectratio}{\footnotesize
   \begin{tabular}{@{}lll@{}}
   \toprule
   Path & Linear contracts & Inverse contracts \\
@@ -110,7 +112,11 @@
   fwd, join call & $P_{ask}-C_{ask}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ & $(P_{ask}-C_{ask})S_{ask}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
   fwd, join put  & $P_{bid}-C_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ & $(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
   \bottomrule
-  \end{tabular}}}
+  \end{tabular}}}\\[1.6ex]
+  \colorbox{white}{\color{black}\parbox{0.985\linewidth}{\centering
+    \textbf{Arbitrage profit: bck, join call}\\[0.8ex]
+    Linear:\; \adjustbox{width=0.86\linewidth}{$C_{bid}-P_{bid}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$}\\[1.0ex]
+    Inverse:\; \adjustbox{width=0.86\linewidth}{$(C_{bid}-P_{bid})\,S_{bid}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$}}}%
   \vfill
 \end{frame}
 
@@ -143,8 +149,16 @@
 % ===== 8. Figure 10 =====
 \figframe{Figure 10 --- MMA distribution: pre vs.\ post 2024}{artifacts/total_mma_hist_pre_post_btc_etp.pdf}
 
-% ===== 9. Table 6 =====
-\tabframe{Table 6 --- Regression results}{artifacts/regression_coefficients_table.tex}
+% ===== 9. Table 6 (compact: standardized effects) =====
+\begin{frame}{Table 6 --- Regression results (standardized effects)}
+  \vfill\centering
+  \IfFileExists{artifacts/regression_effects_table.tex}{%
+    \colorbox{white}{\color{black}\adjustbox{width=\linewidth,totalheight=0.62\textheight,keepaspectratio}{\input{artifacts/regression_effects_table.tex}}}%
+  }{\textit{(missing: \texttt{regression\_effects\_table.tex})}}\\[1.4ex]
+  \colorbox{white}{\color{black}\parbox{0.985\linewidth}{\centering
+    Standardized effect $=\beta\,\dfrac{\mathrm{std}(X)}{\mathrm{std}(Y)}$:\; the change in AMU, in standard deviations of AMU, per one-standard-deviation increase in the regressor.}}%
+  \vfill
+\end{frame}
 
 % ===== 10. End =====
 \begin{frame}[plain]
@@ -177,7 +191,7 @@
 % Table 3
 \begin{frame}{Table 3 --- Data-processing assumptions}
   \vfill\centering
-  \colorbox{white}{\color{black}\adjustbox{max width=0.96\textwidth,max totalheight=0.78\textheight}{\footnotesize
+  \colorbox{white}{\color{black}\adjustbox{width=\linewidth,totalheight=0.82\textheight,keepaspectratio}{\footnotesize
   \begin{tabular}{@{}l p{8.6cm}@{}}
   \toprule
   Component & Assumption \\
@@ -214,7 +228,7 @@
 % Table 5
 \begin{frame}{Table 5 --- Regression variable definitions}
   \vfill\centering
-  \colorbox{white}{\color{black}\adjustbox{max width=0.96\textwidth,max totalheight=0.80\textheight}{\footnotesize
+  \colorbox{white}{\color{black}\adjustbox{width=\linewidth,totalheight=0.82\textheight,keepaspectratio}{\footnotesize
   \begin{tabular}{@{}l p{9cm}@{}}
   \toprule
   Abbreviation & Definition \\
@@ -239,14 +253,17 @@
   \vfill
 \end{frame}
 
+% Table 6 (full coefficient table)
+\tabframe{Table 6 (full) --- Regression coefficients, SEs, and effects}{artifacts/regression_coefficients_table.tex}
+
 % Figure 14
 \figframe{Figure 14 --- AMU and the friction channels}{artifacts/liquidity_friction_gradient.png}
 
 % Table 7
 \begin{frame}{Table 7 --- Cost and $r$ sensitivity}
   \vfill\centering
-  \colorbox{white}{\color{black}\adjustbox{max totalheight=0.70\textheight}{\footnotesize
-  \begin{tabular}{c@{\hspace{3em}}c}
+  \colorbox{white}{\color{black}\adjustbox{width=\linewidth,totalheight=0.82\textheight,keepaspectratio}{\footnotesize
+  \begin{tabular}{c@{\hspace{6em}}c}
   \IfFileExists{artifacts/cost_sensitivity_table.tex}{\input{artifacts/cost_sensitivity_table.tex}}{\textit{cost table: run rebuild}} &
   \IfFileExists{artifacts/r_sensitivity_table.tex}{\input{artifacts/r_sensitivity_table.tex}}{\textit{r table: run sweep}} \\
   \end{tabular}}}

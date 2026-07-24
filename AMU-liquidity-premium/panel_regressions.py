@@ -426,10 +426,13 @@ def write_regression_tables(output_dir: str | Path, **build_kwargs) -> dict[str,
 
     summary_path = output_root / "regression_model_summary_table.tex"
     coefficient_path = output_root / "regression_coefficients_table.tex"
+    effects_path = output_root / "regression_effects_table.tex"
     dataframe_to_tabular_tex(summary_table, summary_path)
     dataframe_to_tabular_tex(coefficient_table, coefficient_path)
+    dataframe_to_tabular_tex(_regression_effects_table(results), effects_path)
     paths["regression_model_summary_table"] = summary_path
     paths["regression_coefficients_table"] = coefficient_path
+    paths["regression_effects_table"] = effects_path
     paths["text_numbers"] = write_text_macros(filter_analysis_panel(panel), output_root)
     logger.debug(
         "write_regression_tables wrote summary_tex=%s coefficient_tex=%s combined_rows=%d",
@@ -631,6 +634,46 @@ def _regression_coefficient_table(results: pd.DataFrame) -> pd.DataFrame:
     return table
 
 
+def _regression_effects_table(results: pd.DataFrame) -> pd.DataFrame:
+    """Compact one-row-per-term table showing only the standardized (percent)
+    effect with significance stars, plus the R^2 and fixed-effects rows. A slide
+    -friendly digest of the full coefficient table."""
+    results = results.copy()
+    spec_order = [spec for spec in MAIN_SPEC_ORDER if spec in results["specification"].unique()]
+    spec_labels = [SPEC_DISPLAY_NAMES.get(spec, spec) for spec in spec_order]
+    term_order = [
+        "post_2024", "okx", "eth", "atm", "short_tte",
+        "log_mean_min_quote_size_dollar", "average_put_call_spread_bp", "stale_proxy",
+    ]
+    rows: list[dict[str, str]] = []
+    index: list[str] = []
+    for term in term_order:
+        if term not in results["term"].values:
+            continue
+        row = {label: "" for label in spec_labels}
+        for spec, label in zip(spec_order, spec_labels):
+            spec_slice = results.loc[(results["specification"] == spec) & (results["term"] == term)]
+            if spec_slice.empty:
+                continue
+            r = spec_slice.iloc[0]
+            row[label] = _format_pct_effect(r["economic_significance"], r["t_stat"])
+        rows.append(row)
+        index.append(TERM_DISPLAY_NAMES.get(term, term))
+    for summary_label, key in (("Total $R^2$", "r2"), ("Fixed effects", "fixed_effects")):
+        row = {label: "" for label in spec_labels}
+        for spec, label in zip(spec_order, spec_labels):
+            spec_slice = results.loc[results["specification"] == spec]
+            if spec_slice.empty:
+                continue
+            r = spec_slice.iloc[0]
+            row[label] = f"{float(r['r2']):.3f}" if key == "r2" else ", ".join(_fixed_effects_components_from_results(results, spec))
+        rows.append(row)
+        index.append(summary_label)
+    table = pd.DataFrame(rows, index=index, columns=spec_labels)
+    table.index.name = "Std.\\ effect"
+    return table
+
+
 def _write_single_spec_coefficient_table(
     results: pd.DataFrame,
     spec_name: str,
@@ -702,6 +745,17 @@ def _format_bracket_bold_percent(value: float) -> str:
     if rounded == 0:
         return ""
     return rf"[\textbf{{{rounded:d}\%}}]"
+
+
+def _format_pct_effect(value: float, t_stat: float) -> str:
+    """Bold signed percentage effect with significance stars, for the compact
+    effects-only table (e.g. ``\\textbf{-30\\%}***``)."""
+    if pd.isna(value):
+        return ""
+    rounded = int(np.rint(float(value) * 100.0))
+    if rounded == 0:
+        return "0\\%"
+    return rf"\textbf{{{rounded:d}\%}}{_significance_stars(float(t_stat))}"
 
 
 def _fixed_effects_components_for_spec(spec: RegressionSpec) -> list[str]:
