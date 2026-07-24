@@ -89,18 +89,18 @@ def draw_case(ax, key, fs=8.0, title_fs=11.0):
         ax.annotate("", xy=(x1, Y_ARROW), xytext=(x0, Y_ARROW),
                     arrowprops=dict(arrowstyle="<->", color=col, lw=1.6))
         xc = (x0 + x1) / 2.0
-        ax.text(xc, Y_ARROW - 0.05, lab, ha="center", va="top",
-                fontsize=fs, color=col, fontweight="bold")
-        ax.text(xc, Y_ARROW - 0.135, formula, ha="center", va="top",
-                fontsize=fs - 0.8, color=col)
+        ax.text(xc, Y_ARROW - 0.05, lab.replace(", ", ",\n"), ha="center", va="top",
+                fontsize=fs, color=col, fontweight="bold", linespacing=1.05)
+        ax.text(xc, Y_ARROW - 0.155, formula, ha="center", va="top",
+                fontsize=fs - 2.5, color=col)
     ax.text(0.5, 1.02, c["title"], transform=ax.transAxes, ha="center",
             va="bottom", fontsize=title_fs, fontweight="bold")
     ax.text(0.5, 0.92, c["tag"], transform=ax.transAxes, ha="center",
             va="bottom", fontsize=title_fs - 2.6, style="italic", color="#444")
-    ax.annotate("", xy=(24.3, 0.045), xytext=(3.8, 0.045),
+    ax.annotate("", xy=(24.3, 0.065), xytext=(3.8, 0.065),
                 arrowprops=dict(arrowstyle="->", color="#777", lw=0.9))
-    ax.text(24.3, 0.075, "option value", ha="right", va="bottom",
-            fontsize=fs - 1.2, color="#777")
+    ax.text(24.3, 0.05, "option value", ha="right", va="top",
+            fontsize=fs - 2.0, color="#777")
     ax.set_xlim(2.5, 25)
     ax.set_ylim(0, 0.92)
     ax.set_xticks([]); ax.set_yticks([])
@@ -115,7 +115,7 @@ def _synthetic_tracking_figure(art: Path) -> Path:
     P +/- (F -/+ K) e^{-rT} to stress that the centre is the frictionless
     synthetic market and the +/- cost cushion is what the trading cost buys.
     """
-    fig, ax = plt.subplots(figsize=(11.6, 3.9))
+    fig, ax = plt.subplots(figsize=(11.6, 5.2))
     cost = 3.0
     syn_bid, syn_ask = 10.0, 22.0
     c_bid, c_ask = 11.6, 20.4
@@ -130,24 +130,24 @@ def _synthetic_tracking_figure(art: Path) -> Path:
         ax.plot([x, x], [y - 0.02, y + h + 0.02], color="black", lw=0.9, zorder=4)
         ax.text(x, y + h + dy, lab, ha="center", va="bottom", fontsize=fs)
 
-    tick(syn_bid, y_syn, r"$P_{bid}+(F_{bid}-K)e^{-rT}$", 8.5)
-    tick(syn_ask, y_syn, r"$P_{ask}+(F_{ask}-K)e^{-rT}$", 8.5)
-    tick(c_bid, y_real, r"$C_{bid}$", 9.5)
-    tick(c_ask, y_real, r"$C_{ask}$", 9.5)
-    ax.text(2.2, y_syn + h / 2, "synthetic\n(no-cost)", ha="right", va="center", color="#8a6d0b", fontweight="bold", fontsize=9)
-    ax.text(2.2, y_real + h / 2, "real", ha="right", va="center", color=C_REAL, fontweight="bold", fontsize=9)
+    tick(syn_bid, y_syn, r"$P_{bid}+(F_{bid}-K)e^{-rT}$", 14.0)
+    tick(syn_ask, y_syn, r"$P_{ask}+(F_{ask}-K)e^{-rT}$", 14.0)
+    tick(c_bid, y_real, r"$C_{bid}$", 15.0)
+    tick(c_ask, y_real, r"$C_{ask}$", 15.0)
+    ax.text(2.0, y_syn + h / 2, "synthetic\n(no-cost)", ha="right", va="center", color="#8a6d0b", fontweight="bold", fontsize=14)
+    ax.text(2.0, y_real + h / 2, "real", ha="right", va="center", color=C_REAL, fontweight="bold", fontsize=14)
 
     for xc, col in ((syn_bid, C_REAL), (syn_ask, C_ARB)):
         ax.annotate("", xy=(xc + cost, 0.10), xytext=(xc - cost, 0.10), arrowprops=dict(arrowstyle="<->", color=col, lw=1.4))
-        ax.text(xc, 0.055, r"$\pm\,\mathrm{cost}$", ha="center", va="top", color=col, fontsize=8.5)
-    ax.text(syn_bid, 0.78, "fair " + r"$C_{bid}$", ha="center", va="bottom", color=C_REAL, fontsize=8.5)
-    ax.text(syn_ask, 0.78, "fair " + r"$C_{ask}$", ha="center", va="bottom", color="#1B7A3D", fontsize=8.5)
+        ax.text(xc, 0.055, r"$\pm\,\mathrm{cost}$", ha="center", va="top", color=col, fontsize=14)
+    ax.text(syn_bid, 0.80, "fair " + r"$C_{bid}$", ha="center", va="bottom", color=C_REAL, fontsize=14)
+    ax.text(syn_ask, 0.80, "fair " + r"$C_{ask}$", ha="center", va="bottom", color="#1B7A3D", fontsize=14)
 
     ax.annotate("", xy=(33.5, 0.02), xytext=(3.0, 0.02), arrowprops=dict(arrowstyle="->", color="#777", lw=0.9))
-    ax.text(33.5, 0.05, "option value", ha="right", va="bottom", fontsize=8, color="#777")
-    ax.set_title(r"Fair quotes track the synthetic market within $\pm$cost", fontsize=11.5, fontweight="bold")
+    ax.text(33.5, 0.05, "option value", ha="right", va="bottom", fontsize=12, color="#777")
+    ax.set_title(r"Fair quotes track the synthetic market within $\pm$cost", fontsize=17, fontweight="bold")
     ax.set_xlim(1.5, 34)
-    ax.set_ylim(0, 0.90)
+    ax.set_ylim(0, 0.92)
     ax.set_xticks([]); ax.set_yticks([])
     for s in ("top", "right", "left", "bottom"):
         ax.spines[s].set_visible(False)
@@ -171,28 +171,29 @@ def _schematic_mma_distribution_figure(art: Path) -> Path:
     dens /= dens.sum() * 4.0  # normalise to unit area
     peak = dens.max()
 
-    fig, ax = plt.subplots(figsize=(9.4, 4.3))
+    fig, ax = plt.subplots(figsize=(9.4, 5.2))
     # uniform benchmark (same unit area): height 1/(2 cost) over (-2 cost, 0)
     h_bench = 1.0 / (2.0 * cost)
     ax.add_patch(Rectangle((-2 * cost, 0.0), 2 * cost, h_bench, fill=False, edgecolor="#8E44AD", lw=1.4, ls="--", zorder=4))
-    ax.text(-2 * cost + 1.0, h_bench + peak * 0.05, r"uniform benchmark (width $2\,$cost)", ha="left", va="bottom", fontsize=8.2, color="#8E44AD")
+    ax.text(-2 * cost + 1.0, h_bench + peak * 0.05, r"uniform benchmark (width $2\,$cost)", ha="left", va="bottom", fontsize=13, color="#8E44AD")
 
     colors = [C_POT if c > 0 else C_REAL for c in centers]
     ax.bar(centers, dens, width=3.6, color=colors, alpha=0.80, edgecolor="white", lw=0.3, zorder=2)
 
     ax.axvline(0.0, color="black", lw=1.0, zorder=3)
     ax.plot([-cost, -cost], [0.0, peak * 1.04], color="#333", ls="--", lw=1.1, zorder=3)
-    ax.text(-cost, peak * 1.07, r"$-\,$cost", ha="center", va="bottom", fontsize=9)
-    ax.text(0.0, peak * 1.07, "0", ha="center", va="bottom", fontsize=9)
-    ax.annotate("no maker arbitrage", xy=(-58, peak * 0.42), xytext=(-92, peak * 0.86),
-                fontsize=8.5, color="#333", arrowprops=dict(arrowstyle="->", color="#333", lw=0.8))
-    ax.text(26, peak * 0.30, "AMU\n(executable)", ha="center", va="center", color=C_POT, fontsize=9, fontweight="bold")
+    ax.text(-cost, peak * 1.07, r"$-\,$cost", ha="center", va="bottom", fontsize=14)
+    ax.text(0.0, peak * 1.07, "0", ha="center", va="bottom", fontsize=14)
+    ax.annotate("no maker arbitrage", xy=(-58, peak * 0.42), xytext=(-96, peak * 0.88),
+                fontsize=13, color="#333", arrowprops=dict(arrowstyle="->", color="#333", lw=0.8))
+    ax.text(26, peak * 0.30, "AMU\n(executable)", ha="center", va="center", color=C_POT, fontsize=14, fontweight="bold")
 
     ax.set_xlim(-100, 60)
     ax.set_ylim(0, peak * 1.22)
-    ax.set_xlabel("MMA (bp)")
-    ax.set_ylabel("density")
-    ax.set_title("Schematic MMA distribution", fontsize=11.5, fontweight="bold")
+    ax.set_xlabel("MMA (bp)", fontsize=15)
+    ax.set_ylabel("density", fontsize=15)
+    ax.set_title("Schematic MMA distribution", fontsize=17, fontweight="bold")
+    ax.tick_params(axis="x", labelsize=13)
     ax.set_yticks([])
     for s in ("top", "right", "left"):
         ax.spines[s].set_visible(False)
@@ -209,11 +210,11 @@ def write_arbitrage_paths_figures(artifacts_dir: str | Path) -> list[Path]:
     outputs: list[Path] = []
 
     # A) side by side (1x3) -- the version referenced by the paper.
-    figA, axesA = plt.subplots(1, 3, figsize=(13.2, 4.3))
+    figA, axesA = plt.subplots(1, 3, figsize=(13.4, 5.8))
     for ax, key in zip(axesA, KEYS):
-        draw_case(ax, key, fs=8.0)
-    figA.suptitle(SUP, y=1.00, fontsize=12.5, fontweight="bold")
-    figA.subplots_adjust(left=0.055, right=0.99, top=0.83, bottom=0.04, wspace=0.28)
+        draw_case(ax, key, fs=14.0, title_fs=17.0)
+    figA.suptitle(SUP, y=1.00, fontsize=18, fontweight="bold")
+    figA.subplots_adjust(left=0.05, right=0.99, top=0.85, bottom=0.04, wspace=0.20)
     path_a = art / "arbitrage_paths_crossed_noncrossed.pdf"
     figA.savefig(path_a, bbox_inches="tight")
     plt.close(figA)

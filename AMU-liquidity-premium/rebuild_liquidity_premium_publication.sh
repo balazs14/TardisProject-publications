@@ -15,6 +15,13 @@ LOG_LEVEL=${LOG_LEVEL:-INFO}
 #   RECREATE_PANEL_CACHE -> the aggregated panel (drives the regressions)
 RECREATE_STAT_CACHE=${RECREATE_STAT_CACHE:-0}
 RECREATE_PANEL_CACHE=${RECREATE_PANEL_CACHE:-0}
+# RECREATE_R_SENSITIVITY -> re-run the full r-sensitivity sweep via
+# run_r_sensitivity.sh (recomputes AMU across discount rates and rewrites the
+# r-dependence table + plot). VERY expensive: one full ~18 GB tick-frame rebuild
+# per r value. OFF by default; set to 1 only when you explicitly want to refresh
+# it. Optionally set R_SENSITIVITY_VALUES="0.00 0.025 0.05 0.075 0.10".
+RECREATE_R_SENSITIVITY=${RECREATE_R_SENSITIVITY:-0}
+R_SENSITIVITY_VALUES=${R_SENSITIVITY_VALUES:-}
 # ARTIFACTS_DIR controls where figures and tables are written.
 # Use e.g. ARTIFACTS_DIR=artifacts_short for a 2024-only build and
 # ARTIFACTS_DIR=artifacts_long for the full 2020-2026 build.
@@ -28,6 +35,7 @@ export BUILD_PDF
 export LOG_LEVEL
 export RECREATE_STAT_CACHE
 export RECREATE_PANEL_CACHE
+export RECREATE_R_SENSITIVITY
 export ARTIFACTS_DIR
 
 cd "$PAPER_DIR"
@@ -116,6 +124,18 @@ generate_all_figures(
 	force_recreate_cache=recreate_panel_cache,
 )
 PY
+
+# Optional, very expensive: recompute AMU across discount rates and refresh the
+# r-dependence table + plot. Gated behind RECREATE_R_SENSITIVITY so a normal
+# rebuild never triggers it.
+if [[ "$RECREATE_R_SENSITIVITY" == "1" ]]; then
+	echo "RECREATE_R_SENSITIVITY=1: running the r-sensitivity sweep (expensive)"
+	# shellcheck disable=SC2086
+	FROM_DATE="$FROM_DATE" TO_DATE="$TO_DATE" VENV_PYTHON="$VENV_PYTHON" \
+		bash ./run_r_sensitivity.sh $R_SENSITIVITY_VALUES
+else
+	echo "Skipping r-sensitivity sweep (set RECREATE_R_SENSITIVITY=1 to run it)."
+fi
 
 if [[ "$BUILD_PDF" == "1" ]]; then
     latexmk -C >/dev/null 2>&1 || true

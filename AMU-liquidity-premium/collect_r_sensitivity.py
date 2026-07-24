@@ -1,8 +1,13 @@
 """Collect AMU pre/post across the r-sensitivity runs into a LaTeX table.
 
-Reads artifacts_r<r>/text_numbers.tex (falls back to the baseline artifacts/
-directory for the config r=0.05) and writes artifacts/r_sensitivity_table.tex.
-Usage: python collect_r_sensitivity.py [r1 r2 ...]
+``collect_rows()`` parses each run's ``artifacts_r<r>/text_numbers.tex`` (falls back
+to the baseline ``artifacts/`` directory for the config r=0.05) into a list of
+``(r, pre, post, delta)`` rows, and ``write_table(rows)`` writes
+``artifacts/r_sensitivity_table.tex``. This is the sibling of the cost-sensitivity
+table (``write_cost_sensitivity_table_from_parquet`` in amu_statistics.py); the two
+sit side by side in the paper. Run standalone to refresh from existing runs without
+re-sweeping:
+    python collect_r_sensitivity.py [r1 r2 ...]
 """
 from __future__ import annotations
 
@@ -35,7 +40,22 @@ def find_text_numbers(r: str) -> Path | None:
     return None
 
 
-def main(rvalues: list[str]) -> None:
+def write_table(rows: list[tuple[float, float, float, float]]) -> Path:
+    lines = [
+        r"\begin{tabular}{rrrr}",
+        r"\toprule",
+        r"$r$ & pre & post & $\Delta$ \\",
+        r"\midrule",
+    ]
+    for r, pre, post, delta in rows:
+        lines.append(rf"{r:.3f} & {pre:.2f} & {post:.2f} & {delta:+.2f} \\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    out = Path("artifacts") / "r_sensitivity_table.tex"
+    out.write_text("\n".join(lines) + "\n")
+    return out
+
+
+def collect_rows(rvalues: list[str]) -> list[tuple[float, float, float, float]]:
     rows = []
     for r in rvalues:
         path = find_text_numbers(r)
@@ -46,18 +66,16 @@ def main(rvalues: list[str]) -> None:
         pre, post = float(d["AmuPreBp"]), float(d["AmuPostBp"])
         rows.append((float(r), pre, post, post - pre))
     rows.sort()
-    lines = [
-        r"\begin{tabular}{rrrr}",
-        r"\toprule",
-        r"$r$ & AMU pre & AMU post & $\Delta$ (post$-$pre) \\",
-        r"\midrule",
-    ]
-    for r, pre, post, delta in rows:
-        lines.append(rf"{r:.3f} & {pre:.2f} & {post:.2f} & {delta:+.2f} \\")
-    lines += [r"\bottomrule", r"\end{tabular}"]
-    out = Path("artifacts") / "r_sensitivity_table.tex"
-    out.write_text("\n".join(lines) + "\n")
-    print(f"wrote {out} with {len(rows)} rows")
+    return rows
+
+
+def main(rvalues: list[str]) -> None:
+    rows = collect_rows(rvalues)
+    if not rows:
+        print("no r-sensitivity rows found; nothing written")
+        return
+    table = write_table(rows)
+    print(f"wrote {table} with {len(rows)} rows")
 
 
 if __name__ == "__main__":

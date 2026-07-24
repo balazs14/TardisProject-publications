@@ -861,6 +861,69 @@ def plot_amu_bps_by_cost_pre_post_from_parquet(parquet_path: str | Path, *, outp
     return output_path
 
 
+@debug_runtime("write_cost_sensitivity_table_from_parquet")
+def write_cost_sensitivity_table_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
+    """Unconditional AMU pre/post-2024 across a small grid of round-trip costs, as a
+    LaTeX table (bp of notional). Same pooled-histogram construction as the cost
+    curves; five cost points, to match the r-sensitivity table's size and sit
+    beside it. AMU at cost c is read off the pooled MMA histogram at offset
+    delta = c - c0. Output: cost_sensitivity_table.tex, the sibling of
+    r_sensitivity_table.tex (see collect_r_sensitivity.py)."""
+    parquet = pq.ParquetFile(str(parquet_path))
+    spread_columns = ["bck_joincall_bp", "bck_joinput_bp", "fwd_joincall_bp", "fwd_joinput_bp"]
+    columns = ["mdy", "rel_strike", "call_opt_spread_bp", "put_opt_spread_bp", "min_quote_size_dollar"] + spread_columns
+    lo, hi = -300, 300
+    edges = np.arange(lo, hi + 1)
+    centers = 0.5 * (edges[:-1] + edges[1:])
+    event_day = pd.Timestamp(str(regression_cfg["post_2024_start"])).date()
+    c0_bp = float(pcp_cfg["cost_per_notional"]) * 10_000.0
+    max_amu = float(max_amu_bp_default)
+
+    hist_pre = np.zeros(len(edges) - 1, dtype=float)
+    hist_post = np.zeros(len(edges) - 1, dtype=float)
+    for batch in parquet.iter_batches(batch_size=100_000, columns=columns):
+        chunk = filter_ticks(pl.from_arrow(batch))
+        if chunk.is_empty():
+            continue
+        mdy = pd.to_datetime(chunk.get_column("mdy").to_numpy(), errors="coerce")
+        pre_mask = np.asarray(mdy < pd.Timestamp(event_day))
+        for column in spread_columns:
+            values = chunk.get_column(column).cast(pl.Float64, strict=False).to_numpy()
+            valid = np.isfinite(values)
+            vpre = values[pre_mask & valid]
+            vpost = values[(~pre_mask) & valid]
+            if vpre.size:
+                hist_pre += np.histogram(np.clip(vpre, lo, hi - 1e-9), bins=edges)[0]
+            if vpost.size:
+                hist_post += np.histogram(np.clip(vpost, lo, hi - 1e-9), bins=edges)[0]
+
+    costs = [10.0, 20.0, 30.0, 40.0, 50.0]
+
+    def uncond(hist: np.ndarray, c: float) -> float:
+        total = hist.sum()
+        if total <= 0:
+            return float("nan")
+        delta = c - c0_bp
+        mask = centers > delta
+        weights = np.clip(centers[mask] - delta, 0.0, max_amu)
+        return float((hist[mask] * weights).sum()) / total
+
+    lines = [
+        r"\begin{tabular}{rrrr}",
+        r"\toprule",
+        r"cost (bp) & pre & post & $\Delta$ \\",
+        r"\midrule",
+    ]
+    for c in costs:
+        pre, post = uncond(hist_pre, c), uncond(hist_post, c)
+        lines.append(rf"{int(c)} & {pre:.2f} & {post:.2f} & {post - pre:+.2f} \\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    output_path = output_dir / "cost_sensitivity_table.tex"
+    output_path.write_text("\n".join(lines) + "\n")
+    logger.debug("Saved cost-sensitivity table %s pre=%.0f post=%.0f", output_path, hist_pre.sum(), hist_post.sum())
+    return output_path
+
+
 @debug_runtime("plot_amu_bps_by_date_from_parquet")
 def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
     filtered_lf = filter_ticks(_lazy_pcpb(parquet_path))
@@ -1195,6 +1258,7 @@ def generate_all_statistics(
         "amu_summary_table": write_amu_summary_table_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "spread_figures": plot_4_spreads_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "amu_bps_by_cost_pre_post": plot_amu_bps_by_cost_pre_post_from_parquet(pcpb_parquet_path, output_dir=output_root),
+        "cost_sensitivity_table": write_cost_sensitivity_table_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "total_mma_hist_pre_post_btc_etp": plot_total_mma_hist_pre_post_btc_etp_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "multi_exchange_amu_bps_by_date": plot_amu_bps_by_date_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "multi_exchange_amu_bps_by_date_2023_2024_avg_events": plot_amu_bps_avg_2023_2024_with_events_from_parquet(pcpb_parquet_path, output_dir=output_root),
