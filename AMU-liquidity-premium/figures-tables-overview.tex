@@ -97,18 +97,18 @@
 \toprule
 Path & Linear contracts & Inverse contracts \\
 \midrule
-bck, join call &
+bck, join put ask &
 $C_{bid}-P_{bid}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ &
 $(C_{bid}-P_{bid})S_{bid}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ \\
-bck, join put &
-$C_{ask}-P_{ask}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ &
-$(C_{ask}-P_{ask})S_{ask}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ \\
-fwd, join call &
+bck, join call bid &
+$P_{bid}-C_{bid}+(F_{bid}-K)e^{-rT}-\mathrm{cost}$ &
+$(P_{bid}-C_{bid})S_{bid}+(F_{bid}-K)e^{-rT}-\mathrm{cost}$ \\
+fwd, join put bid &
 $P_{ask}-C_{ask}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ &
 $(P_{ask}-C_{ask})S_{ask}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
-fwd, join put &
-$P_{bid}-C_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ &
-$(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
+fwd, join call ask &
+$C_{ask}-P_{ask}-(F_{ask}-K)e^{-rT}-\mathrm{cost}$ &
+$(C_{ask}-P_{ask})S_{ask}-(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -116,7 +116,7 @@ $(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.98\textwidth]{artifacts/arbitrage_paths_crossed_noncrossed.pdf}
-\caption{Real quoted versus parity-implied (synthetic) option market. When the markets are crossed and disjoint ($C_{ask}<C^{\mathrm{syn}}_{bid}$, or the symmetric case), there is a single guaranteed riskless arbitrage. When one market is nested inside the other, or when the two straddle each other, there is no guaranteed profit but two paths carry a \emph{potential} market-maker advantage, realized only if the maker's quote is joined and then hit. In the nested case these are the backward and forward join-call paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C_{ask}-C^{\mathrm{syn}}_{ask}$), with the join-put payoffs equal to their negatives (exactly so when the futures market has zero spread; the trading cost need not be zero); in the straddling case they are the backward join-call and backward join-put paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C^{\mathrm{syn}}_{ask}-C_{ask}$). The latter two configurations are what AMU aggregates. Schematic, illustrative levels.}
+\caption{Real quoted versus parity-implied (synthetic) option market. When the markets are crossed and disjoint ($C_{ask}<C^{\mathrm{syn}}_{bid}$, or the symmetric case), there is a single guaranteed riskless arbitrage. When one market is nested inside the other, or when the two straddle each other, there is no guaranteed profit but two paths carry a \emph{potential} market-maker advantage, realized only if the maker's quote is joined and then hit. In the nested case these are the backward join-call-bid and forward join-call-ask paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C_{ask}-C^{\mathrm{syn}}_{ask}$), with the join-put payoffs equal to their negatives (exactly so when the futures market has zero spread; the trading cost need not be zero); in the straddling case they are the backward join-call-bid and backward join-put-ask paths ($C^{\mathrm{syn}}_{bid}-C_{bid}$ and $C^{\mathrm{syn}}_{ask}-C_{ask}$). The latter two configurations are what AMU aggregates. Schematic, illustrative levels.}
 \label{fig:arb_paths_crossed_noncrossed}
 \end{figure}
 

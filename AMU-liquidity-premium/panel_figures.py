@@ -9,6 +9,7 @@ import seaborn as sns
 
 from amu_config import CONFIG
 from figure_arbitrage_paths import write_arbitrage_paths_figures
+from figure_backward_joincall import write_backward_joincall_figure
 from panel_regressions import (
     amu_spec1_regression_spec,
     amu_spec2_regression_spec,
@@ -53,6 +54,8 @@ def generate_all_figures(output_dir: str | Path, **build_kwargs) -> dict[str, Pa
     # every figure in the paper, not just the data-driven ones.
     for created in write_arbitrage_paths_figures(output_root):
         paths[created.stem] = created
+    joincall = write_backward_joincall_figure(output_root)
+    paths[joincall.stem] = joincall
     return paths
 
 

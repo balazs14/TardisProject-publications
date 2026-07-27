@@ -103,6 +103,10 @@
   \titlepage
 \end{frame}
 
+
+\figframe{Synthetic markets}{artifacts/backward_joincall_schematic.pdf}
+
+
 % ===== 2. Table 1 =====
 \begin{frame}{The four arbitrage paths}
   \vfill\centering
@@ -111,16 +115,27 @@
   \toprule
   Path & Linear contracts & Inverse contracts \\
   \midrule
-  bck, join call & $C_{bid}-P_{bid}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ & $(C_{bid}-P_{bid})S_{bid}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ \\
-  bck, join put  & $C_{ask}-P_{ask}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ & $(C_{ask}-P_{ask})S_{ask}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$ \\
-  fwd, join call & $P_{ask}-C_{ask}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ & $(P_{ask}-C_{ask})S_{ask}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
-  fwd, join put  & $P_{bid}-C_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ & $(P_{bid}-C_{bid})S_{bid}+(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
+fwd, join put bid &
+$C_{bid}-P_{bid}-(F_{ask}-K)e^{-rT}-\mathrm{cost}$ &
+$(C_{bid}-P_{bid})S_{bid}-(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
+
+bck, join call bid &
+$P_{bid}-C_{bid}+(F_{bid}-K)e^{-rT}-\mathrm{cost}$ &
+$(P_{bid}-C_{bid})S_{bid}+(F_{bid}-K)e^{-rT}-\mathrm{cost}$ \\
+
+bck, join put ask &
+$P_{ask}-C_{ask}+(F_{bid}-K)e^{-rT}-\mathrm{cost}$ &
+$(P_{ask}-C_{ask})S_{ask}+(F_{bid}-K)e^{-rT}-\mathrm{cost}$ \\
+
+fwd, join call ask &
+$C_{ask}-P_{ask}-(F_{ask}-K)e^{-rT}-\mathrm{cost}$ &
+$(C_{ask}-P_{ask})S_{ask}-(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
   \bottomrule
   \end{tabular}}}\\[1.6ex]
   \colorbox{white}{\color{black}\parbox{0.985\linewidth}{\centering
     \textbf{Arbitrage profit: bck, join call}\\[0.8ex]
-    Linear:\; \adjustbox{width=0.86\linewidth}{$C_{bid}-P_{bid}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$}\\[1.0ex]
-    Inverse:\; \adjustbox{width=0.86\linewidth}{$(C_{bid}-P_{bid})\,S_{bid}-(F_{bid}-K)e^{-rT}-\mathrm{cost}$}}}%
+    Linear:\; \adjustbox{width=0.86\linewidth}{$P_{bid}-C_{bid}+(F_{bid}-K)e^{-rT}-\mathrm{cost}$}\\[1.0ex]
+    Inverse:\; \adjustbox{width=0.86\linewidth}{$(P_{bid}-C_{bid})S_{bid}+(F_{bid}-K)e^{-rT}-\mathrm{cost}$}}}%
   \vfill
 \end{frame}
 

@@ -51,14 +51,14 @@ CASES = {
     "nested": dict(
         title="(2) Nested", tag=r"synthetic inside real",
         real=(7, 21), syn=(12, 16),
-        bands=[(7, 12, "pot", "bck, join call", r"$C^{\mathrm{syn}}_{bid}-C_{bid}$"),
-               (16, 21, "pot", "fwd, join call", r"$C_{ask}-C^{\mathrm{syn}}_{ask}$")],
+        bands=[(7, 12, "pot", "bck, join call bid", r"$C^{\mathrm{syn}}_{bid}-C_{bid}$"),
+               (16, 21, "pot", "fwd, join call ask", r"$C_{ask}-C^{\mathrm{syn}}_{ask}$")],
     ),
     "straddling": dict(
         title="(3) Straddling", tag=r"partial overlap",
         real=(7, 16), syn=(12, 21),
-        bands=[(7, 12, "pot", "bck, join call", r"$C^{\mathrm{syn}}_{bid}-C_{bid}$"),
-               (16, 21, "pot", "bck, join put", r"$C^{\mathrm{syn}}_{ask}-C_{ask}$")],
+        bands=[(7, 12, "pot", "bck, join call bid", r"$C^{\mathrm{syn}}_{bid}-C_{bid}$"),
+               (16, 21, "pot", "bck, join put ask", r"$C^{\mathrm{syn}}_{ask}-C_{ask}$")],
     ),
 }
 
