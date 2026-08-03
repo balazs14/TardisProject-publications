@@ -399,12 +399,12 @@ Trading cost & Fixed round-trip cost of \CostBp~bp of notional (\texttt{cost\_pe
 \label{fig:total_mma_hist_pre_post_btc_etp}
 \end{figure}
 
-\lead{The drop does not depend on the cost assumption.} The compression is not an artifact of the cost assumption. Figure~\ref{fig:amu_by_cost_pre_post} recomputes both AMU flavours over a grid of costs, pre and post. The pre-to-post drop in unconditional AMU is approximately independent of the assumed cost; the drop in conditional AMU is not.
+\lead{The drop does not depend on the cost assumption.} The compression is not an artifact of the cost assumption. Figure~\ref{fig:amu_by_cost_pre_post} evaluates both AMU flavours over a grid of costs, pre and post. The pre-to-post drop in unconditional AMU declines only gradually with the assumed cost, staying large across the grid; the drop in conditional AMU falls away much faster.
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.85\textwidth]{artifacts/amu_bps_by_cost_pre_post.pdf}
-\caption{Conditional (solid) and unconditional (dashed) AMU versus the assumed round-trip cost, pre- (blue) versus post-2024 (red), pooled across markets and paths; the dotted line marks the primary cost (\CostBp~bp). The pre-to-post gap in unconditional AMU is approximately flat in cost; the gap in conditional AMU shrinks sharply as cost rises. The unconditional measure is therefore the natural object for the regime comparison.}
+\caption{Conditional (solid) and unconditional (dashed) AMU versus the assumed round-trip cost, pre- (blue) versus post-2024 (red), computed on the same filtered panel as the regressions, so the primary-cost point equals the headline pre/post AMU; the dotted line marks the primary cost (\CostBp~bp). The pre-to-post gap in unconditional AMU declines only gradually with cost and stays large across the grid; the gap in conditional AMU shrinks sharply as cost rises. The unconditional measure is therefore the natural object for the regime comparison.}
 \label{fig:amu_by_cost_pre_post}
 \end{figure}
 
@@ -493,12 +493,21 @@ $\varepsilon_{g,t}$ & Idiosyncratic error. \\
 \label{tab:regression_coefficients}
 \end{table}
 
+\lead{Is the compression fewer wedges, or smaller ones?} The regime effect has two margins. Because the per-quote wedge factors as $\mathrm{AMU}^{\mathrm{u}}=\phi\,\mathrm{AMU}^{\mathrm{c}}$, regressing $\log\phi$ and $\log\mathrm{AMU}^{\mathrm{c}}$ on the post-2024 indicator with cell fixed effects splits the log change in unconditional AMU \emph{exactly} into an extensive margin (how often an executable wedge exists) and an intensive margin (how large it is when it does): the two semi-elasticities sum to the unconditional one. Table~\ref{tab:frequency_size_decomposition} reports the split over the within-cell, positive-wedge sample.
+
+\begin{table}[htbp]
+\centering
+{\renewcommand{\arraystretch}{1.2}\normalfont\small\IfFileExists{artifacts/frequency_size_decomposition_table.tex}{\input{artifacts/frequency_size_decomposition_table.tex}}{\textit{(regenerate artifacts to populate this table)}}}
+\caption{Two-part (extensive/intensive) decomposition of the post-2024 AMU compression. Each column regresses the log of one channel---the positive-wedge frequency $\phi$, the conditional wedge size $\mathrm{AMU}^{\mathrm{c}}$, and their product the unconditional AMU $\mathrm{AMU}^{\mathrm{u}}$---on the post-2024 indicator with cell fixed effects, over the common sample of cell-days that carry a positive wedge. Entries are the Post coefficients (in log points, i.e.\ semi-elasticities: approximately the fractional change in the channel), with significance stars from \RegSEdesc{} $t$-statistics. Because $\log\mathrm{AMU}^{\mathrm{u}}=\log\phi+\log\mathrm{AMU}^{\mathrm{c}}$ row by row, the frequency and size coefficients sum to the unconditional coefficient by construction.}
+\label{tab:frequency_size_decomposition}
+\end{table}
+
 \lead{AMU tracks the spread channel tightly.} Figure~\ref{fig:liquidity_friction_gradient} shows how closely the wedge co-moves with the spread that specification (4) controls for---which is why the part of the drop that survives it is worth noting.
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_friction_gradient.png}
-\caption{Mean MMA against average put--call spread, log quote depth, and stale-quote fraction, and by underlying and exchange. Mean MMA falls almost one-for-one with the spread and moves with staleness, the friction channels that specification (4) controls for.}
+\caption{Unconditional AMU against average put--call spread, log quote depth, and stale-quote fraction, and by underlying and exchange. AMU rises steeply with the spread and with staleness---the friction channels that specification (4) controls for---while its dependence on depth is weak and non-monotone. Cross-sectionally it is slightly higher on OKX than Deribit and for ETH than BTC, echoing the segment dummies in specification (3).}
 \label{fig:liquidity_friction_gradient}
 \end{figure}
 \lead{The regressions corroborate AMU as a market-quality measure.} Taken together: AMU differs modestly across segments; it is much lower after 2024; and most of that drop is within cells and survives the friction controls. Because 2024 is independently known as a period of market improvement, AMU moving the way a market-quality statistic should---down, within cells, beyond the obvious frictions---is what gives us confidence in it as a measure. We do not claim to identify which participants drove the change.
@@ -510,7 +519,7 @@ $\varepsilon_{g,t}$ & Idiosyncratic error. \\
 
 \lead{The friction controls enter jointly, and collinearity does not distort the regime effect.} Spread, depth, and staleness are strongly correlated---a thin book tends to be wide, shallow, and slow to update at once. Collinearity of this kind inflates the variances of the \emph{individual} friction coefficients and makes them hard to read one by one, but it does not bias the coefficient of interest, the post-2024 indicator, which is identified off variation orthogonal to the frictions. We verified this with a principal-component check: because the principal components are an orthogonal rotation of the three standardized frictions, entering all three components reproduces specification (4) exactly, and any full-rank recombination of the frictions leaves the post-2024 coefficient unchanged. (A single component is not a substitute: keeping only the first principal component is a rank-one control that discards the other two friction directions---one of which is strongly related to AMU despite carrying little of the frictions' variance---so it merely under-controls and inflates the apparent regime effect.) We therefore report the three frictions jointly in specification (4).
 
-\lead{The results do not hinge on the cost or the discount rate.} Two auxiliary parameters enter the construction: the round-trip cost (baseline \CostBp~bp) and the discount rate (baseline $r=5\%$). Neither is crucial. The cost only sets AMU's scale---a fixed proportional cost shifts the level, but the pre/post \emph{difference} in unconditional AMU barely moves with it (the conditional form is more cost-sensitive, one reason the headline uses the unconditional measure), and a common cost keeps cross-venue comparisons coherent. The discount rate matters even less, for a structural reason: $r$ enters only through $e^{-rT}$, which multiplies a small quantity---the futures leg $(F-K)$ in each payoff and the futures half-spread $\tfrac12(F_{ask}-F_{bid})$ in $\mathrm{cost}'$. Its effect on a payoff is $\partial\!\left[(F-K)e^{-rT}\right]/\partial r=-T(F-K)e^{-rT}$, of order $T\,(F-K)/\mathrm{index}$; since our strikes sit within $\pm 21\%$ of the forward and most observation mass sits in near-the-money, short-dated cells where $(F-K)$ and $T$ are smallest, plausible changes in $r$ move AMU negligibly---and the pre/post difference more negligibly still, since $r$ shifts both regimes almost identically. Recomputing AMU from ticks across grids of both parameters (Table~\ref{tab:cost_r_sensitivity}) bears this out. A higher assumed cost lowers the AMU level and shrinks the compression somewhat, but the pre/post drop stays large and negative across the whole cost grid; across $r$ it is essentially constant. Under every choice the 2024 compression is present and sizable.
+\lead{The results do not hinge on the cost or the discount rate.} Two auxiliary parameters enter the construction: the round-trip cost (baseline \CostBp~bp) and the discount rate (baseline $r=5\%$). Neither is crucial. The cost only sets AMU's scale---a fixed proportional cost shifts the level, but the pre/post \emph{difference} in unconditional AMU barely moves with it (the conditional form is more cost-sensitive, one reason the headline uses the unconditional measure), and a common cost keeps cross-venue comparisons coherent. The discount rate matters even less, for a structural reason: $r$ enters only through $e^{-rT}$, which multiplies a small quantity---the futures leg $(F-K)$ in each payoff and the futures half-spread $\tfrac12(F_{ask}-F_{bid})$ in $\mathrm{cost}'$. Its effect on a payoff is $\partial\!\left[(F-K)e^{-rT}\right]/\partial r=-T(F-K)e^{-rT}$, of order $T\,(F-K)/\mathrm{index}$; since our strikes sit within $\pm 21\%$ of the forward and most observation mass sits in near-the-money, short-dated cells where $(F-K)$ and $T$ are smallest, plausible changes in $r$ move AMU negligibly---and the pre/post difference more negligibly still, since $r$ shifts both regimes almost identically. Evaluating AMU across grids of both parameters---the cost grid read off the same filtered panel as the regressions, the discount-rate grid recomputed at each $r$ (Table~\ref{tab:cost_r_sensitivity})---bears this out. A higher assumed cost lowers the AMU level and shrinks the compression somewhat, but the pre/post drop stays large and negative across the whole cost grid; across $r$ it is essentially constant. Under every choice the 2024 compression is present and sizable.
 
 \begin{table}[htbp]
 \centering\small
@@ -520,8 +529,17 @@ $\varepsilon_{g,t}$ & Idiosyncratic error. \\
 \IfFileExists{artifacts/r_sensitivity_table.tex}{\input{artifacts/r_sensitivity_table.tex}}{\emph{\texttt{r\_sensitivity\_table.tex}: run \texttt{run\_r\_sensitivity.sh}.}}
 \\
 \end{tabular}
-\caption{AMU pre- and post-2024, in basis points of notional, recomputed from ticks across a grid of round-trip costs (left; baseline \CostBp~bp) and of discount rates $r$ (right; baseline $5\%$). $\Delta$ is the post$-$pre change.}
+\caption{AMU pre- and post-2024, in basis points of notional, across a grid of round-trip costs (left; read off the same filtered panel as the regressions, so the baseline-cost column matches the headline pre/post AMU) and of discount rates $r$ (right; recomputed at each rate; baseline $5\%$). Both grids share one estimand at their baselines. $\Delta$ is the post$-$pre change.}
 \label{tab:cost_r_sensitivity}
+\end{table}
+
+\lead{The compression survives every reasonable filter choice.} A final check varies the construction one choice at a time---the positive-part clip, the stale-quote filter, the spread and size cuts, the moneyness window, and tick- versus notional-weighting---recomputing the pre/post unconditional AMU for each (Table~\ref{tab:robustness_grid}). The level moves with the filters, as it must, but the post-2024 drop is large and negative under every setting; none of the choices manufactures the compression or erases it.
+
+\begin{table}[htbp]
+\centering\small
+{\renewcommand{\arraystretch}{1.15}\IfFileExists{artifacts/robustness_grid_table.tex}{\input{artifacts/robustness_grid_table.tex}}{\emph{\texttt{robustness\_grid\_table.tex}: run the rebuild.}}}
+\caption{Robustness of the pre/post-2024 unconditional AMU (bp of notional) to the filter and aggregation choices, each varied one at a time from the baseline (top row): the positive-part clip, the stale-quote filter, the spread and minimum-size cuts, the moneyness window, and notional- versus tick-weighting. AMU is pooled over ticks and the four paths at the baseline cost, over the same tick-level filtered sample the panel is built from, so the baseline row (top) reproduces the headline pre/post AMU; the invariant of interest is the stability of the pre/post drop across settings. $\Delta$ is the post$-$pre change.}
+\label{tab:robustness_grid}
 \end{table}
 
 \section{Conclusion}

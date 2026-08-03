@@ -8,6 +8,7 @@ import pandas as pd
 import seaborn as sns
 
 from amu_config import CONFIG
+from amu_metrics import PATHS_PER_TICK
 from figure_arbitrage_paths import write_arbitrage_paths_figures
 from figure_backward_joincall import write_backward_joincall_figure
 from panel_regressions import (
@@ -16,6 +17,7 @@ from panel_regressions import (
     amu_spec3_regression_spec,
     build_liquidity_analysis_panel,
     filter_analysis_panel,
+    _panel_pooled_amu,
     run_amu_spec1_regression,
     run_amu_spec2_regression,
     run_amu_spec3_regression,
@@ -43,7 +45,9 @@ def generate_all_figures(output_dir: str | Path, **build_kwargs) -> dict[str, Pa
         "friction_gradient": output_root / "liquidity_friction_gradient.png",
         "compression": output_root / "liquidity_compression_decomposition.png",
         "regression_coefficients": output_root / "regression_coefficients.png",
+        "amu_bps_by_cost_pre_post": output_root / "amu_bps_by_cost_pre_post.pdf",
     }
+    plot_amu_by_cost_pre_post(frame, paths["amu_bps_by_cost_pre_post"])
     plot_daily_amu_timeseries(frame, paths["daily_amu"])
     plot_pre_post_heatmaps(frame, paths["heatmap"])
     plot_event_study(frame, paths["event_study"])
@@ -57,6 +61,39 @@ def generate_all_figures(output_dir: str | Path, **build_kwargs) -> dict[str, Pa
     joincall = write_backward_joincall_figure(output_root)
     paths[joincall.stem] = joincall
     return paths
+
+
+def plot_amu_by_cost_pre_post(frame: pd.DataFrame, output_path: str | Path) -> Path:
+    """Conditional and unconditional AMU versus assumed round-trip cost, split
+    pre/post-2024, computed on the same filtered, n_obs-weighted panel as the
+    regressions (so the baseline-cost point equals the headline pre/post AMU).
+    Replaces the old pooled-tick-histogram figure to keep one estimand paper-wide."""
+    filtered = filter_analysis_panel(frame)
+    pre = filtered[filtered["post_2024"] == 0.0]
+    post = filtered[filtered["post_2024"] == 1.0]
+    costs = list(range(5, 51, 5))
+
+    def series(sub: pd.DataFrame, *, conditional: bool) -> list[float]:
+        return [_panel_pooled_amu(sub, c, conditional=conditional) for c in costs]
+
+    c0_bp = float(CONFIG["pcp"]["cost_per_notional"]) * 10_000.0
+    sns.set_theme(style="whitegrid", context="talk")
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(costs, series(pre, conditional=True), color="#1f77b4", linestyle="-", linewidth=2.2, label="Pre 2024, conditional")
+    ax.plot(costs, series(post, conditional=True), color="#d62728", linestyle="-", linewidth=2.2, label="Post 2024, conditional")
+    ax.plot(costs, series(pre, conditional=False), color="#1f77b4", linestyle="--", linewidth=2.2, label="Pre 2024, unconditional")
+    ax.plot(costs, series(post, conditional=False), color="#d62728", linestyle="--", linewidth=2.2, label="Post 2024, unconditional")
+    ax.axvline(c0_bp, color="black", linestyle=":", linewidth=1.4, alpha=0.7)
+    ax.text(c0_bp, ax.get_ylim()[1], "  primary cost", color="black", fontsize=9, va="top", ha="left")
+    ax.set_xlabel("Round-trip cost (bp)")
+    ax.set_ylabel("AMU (bp)")
+    ax.set_ylim(bottom=0.0)
+    ax.set_title("AMU versus assumed cost, pre/post 2024")
+    ax.legend(title="", fontsize=11)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=220, bbox_inches="tight", transparent=True)
+    plt.close(fig)
+    return Path(output_path)
 
 
 def plot_daily_amu_timeseries(frame: pd.DataFrame, output_path: str | Path | None = None) -> plt.Figure:
@@ -165,46 +202,47 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
 
 
 def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None = None, bins: int = 20) -> plt.Figure:
+    y_col = "mean_amu_unconditional_bp"  # headline AMU, consistent with the rest of the paper
     filtered = filter_analysis_panel(frame)
-    filtered = filtered.loc[filtered["mean_mma_bp"] > -100.0].copy()
-    fig, axes = plt.subplots(1, 4, figsize=(22, 5), sharey=True)
+    filtered = filtered.loc[filtered[y_col].notna()].copy()
+    fig, axes = plt.subplots(1, 4, figsize=(24, 6.2), sharey=True)
     if filtered.empty:
         for ax in axes:
-            _annotate_empty_panel(ax, "No observations with mean_mma_bp > -100")
+            _annotate_empty_panel(ax, "No observations")
         fig.suptitle("Liquidity-friction gradients")
         return _finalize_figure(fig, output_path)
 
     for ax, column, title, xlabel in zip(
         axes[:3],
         ("average_put_call_spread_bp", "log_mean_min_quote_size_dollar", "stale_proxy"),
-        ("MMA versus option spread", "MMA versus log quote depth", "MMA versus staleness"),
+        ("AMU versus option spread", "AMU versus log quote depth", "AMU versus staleness"),
         ("Average put-call spread (bp)", "Log mean minimum quote size (USD)", "Mean stale-quote fraction"),
         strict=False,
     ):
-        binned = _binned_means(filtered, column, bins)
-        sns.scatterplot(data=binned, x=column, y="mean_mma_bp", ax=ax)
-        sns.lineplot(data=binned, x=column, y="mean_mma_bp", ax=ax, legend=False)
+        binned = _binned_means(filtered, column, bins, y_col=y_col)
+        sns.scatterplot(data=binned, x=column, y=y_col, ax=ax)
+        sns.lineplot(data=binned, x=column, y=y_col, ax=ax, legend=False)
         ax.set_title(title)
         ax.set_xlabel(xlabel)
 
     combo = (
-        filtered.groupby(["ref_sym", "exchange"], as_index=False)["mean_mma_bp"]
+        filtered.groupby(["ref_sym", "exchange"], as_index=False)[y_col]
         .mean()
         .sort_values(["ref_sym", "exchange"])
     )
     sns.barplot(
         data=combo,
         x="ref_sym",
-        y="mean_mma_bp",
+        y=y_col,
         hue="exchange",
         ax=axes[3],
     )
-    axes[3].set_title("MMA by underlying and exchange")
+    axes[3].set_title("AMU by underlying and exchange")
     axes[3].set_xlabel("Underlying")
     axes[3].set_ylabel("")
     axes[3].legend(title="Exchange")
 
-    axes[0].set_ylabel("Mean MMA (bp)")
+    axes[0].set_ylabel("Unconditional AMU (bp)")
     fig.suptitle("Liquidity-friction gradients")
     return _finalize_figure(fig, output_path)
 
@@ -314,10 +352,10 @@ def _add_event_markers(ax: plt.Axes) -> None:
         ax.text(event_day, ax.get_ylim()[1], label, rotation=90, va="top", ha="right", fontsize=8)
 
 
-def _binned_means(frame: pd.DataFrame, column: str, bins: int) -> pd.DataFrame:
-    work = frame[[column, "mean_mma_bp"]].dropna().copy()
+def _binned_means(frame: pd.DataFrame, column: str, bins: int, y_col: str = "mean_mma_bp") -> pd.DataFrame:
+    work = frame[[column, y_col]].dropna().copy()
     work["bin"] = pd.qcut(work[column], q=min(bins, work[column].nunique()), duplicates="drop")
-    return work.groupby("bin", as_index=False).agg({column: "mean", "mean_mma_bp": "mean"})
+    return work.groupby("bin", as_index=False).agg({column: "mean", y_col: "mean"})
 
 
 def _segment_delta(frame: pd.DataFrame, segment: str, groups: dict[str, pd.Series]) -> pd.DataFrame:

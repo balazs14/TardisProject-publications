@@ -218,6 +218,13 @@ def _panel_block_from_file(file_path: Path) -> pl.DataFrame:
 
     panel_ready = compute_pcp_metrics(raw, **pcp_metric_kwargs)
     panel_ready = panel_ready.drop_nulls(_required_panel_columns())
+    # Apply the tick-level filters up front, so the aggregated panel (and therefore
+    # the regressions, the cost/r tables, and every panel figure) is built from the
+    # exact same sample as the descriptive tick-frame figures. filter_stale stays at
+    # its config default (off) so the stale-quote fraction remains a usable regressor
+    # and the robustness grid can still toggle it. Deferred import avoids a cycle.
+    from amu_statistics import filter_ticks
+    panel_ready = filter_ticks(panel_ready)
     if filter_stale:
         for column in stale_panel_columns:
             if column in panel_ready.columns:

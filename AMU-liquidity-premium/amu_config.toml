@@ -115,6 +115,8 @@ pcpb_columns = [
   "bck_joinput_bp",
   "fwd_joincall_bp",
   "fwd_joinput_bp",
+  "mma_bck_bp",
+  "mma_fwd_bp",
 ]
 
 [regression]

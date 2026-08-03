@@ -470,6 +470,7 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
         "fwd_joincall_bp",
         "fwd_joinput_bp",
     ]
+    columns += [c for c in ("mma_bck_bp", "mma_fwd_bp") if c in parquet.schema_arrow.names]
     bin_edges = np.linspace(-rng, rng, 101)
     bin_width = float(bin_edges[1] - bin_edges[0])
     cost_per_notional_bp = -float(pcp_cfg["cost_per_notional"]) * 10_000.0
@@ -675,6 +676,7 @@ def plot_total_mma_hist_pre_post_btc_etp_from_parquet(parquet_path: str | Path, 
         "fwd_joincall_bp",
         "fwd_joinput_bp",
     ]
+    columns += [c for c in ("mma_bck_bp", "mma_fwd_bp") if c in parquet.schema_arrow.names]
     spread_columns = ["bck_joincall_bp", "bck_joinput_bp", "fwd_joincall_bp", "fwd_joinput_bp"]
     bin_edges = np.linspace(-rng, rng, 101)
     bin_width = float(bin_edges[1] - bin_edges[0])
@@ -921,6 +923,92 @@ def write_cost_sensitivity_table_from_parquet(parquet_path: str | Path, *, outpu
     output_path = output_dir / "cost_sensitivity_table.tex"
     output_path.write_text("\n".join(lines) + "\n")
     logger.debug("Saved cost-sensitivity table %s pre=%.0f post=%.0f", output_path, hist_pre.sum(), hist_post.sum())
+    return output_path
+
+
+@debug_runtime("write_robustness_grid_table_from_parquet")
+def write_robustness_grid_table_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
+    """Pre/post-2024 unconditional AMU under one-at-a-time perturbations of the
+    filter and aggregation choices (a robustness grid). Every setting is evaluated
+    in a single streaming pass over the tick frame; AMU is pooled over ticks and the
+    four paths at the baseline cost, so the levels sit a little below the cell
+    -weighted headline---the object of interest is the stability of the pre->post
+    drop across settings. Output: robustness_grid_table.tex."""
+    parquet = pq.ParquetFile(str(parquet_path))
+    schema_names = set(parquet.schema_arrow.names)
+    path_cols = ["bck_joincall_bp", "bck_joinput_bp", "fwd_joincall_bp", "fwd_joinput_bp"]
+    base_cols = ["mdy", "rel_strike", "call_opt_spread_bp", "put_opt_spread_bp", "min_quote_size_dollar"]
+    # Read the raw MMA columns when the (rebuilt) frame carries them, so filter_ticks
+    # applies the same [-500, 500] MMA cut as the panel and the baseline row matches
+    # the cost table exactly.
+    mma_present = [c for c in ("mma_bck_bp", "mma_fwd_bp") if c in schema_names]
+    stale_present = [c for c in STALE_LEG_COLUMNS if c in schema_names]
+    read_cols = base_cols + path_cols + mma_present + stale_present
+    event_ts = pd.Timestamp(str(regression_cfg["post_2024_start"]))
+    base = dict(
+        rel_strike_min=rel_strike_min_default,
+        rel_strike_max=rel_strike_max_default,
+        spread_bp_max=spread_bp_max_default,
+        min_quote_size_dollar=min_quote_size_dollar_default,
+        min_mma_bp=min_mma_bp_default,
+        max_mma_bp=max_mma_bp_default,
+        apply_rel_strike=True,
+        filter_stale=False,
+    )
+    cap0 = float(max_amu_bp_default)
+    # (label, filter overrides, positive-part clip cap (bp), weight-by-notional?)
+    settings: list[tuple[str, dict, float, bool]] = [
+        ("baseline", {}, cap0, False),
+        (rf"clip {int(cap0 / 2)}~bp", {}, cap0 / 2.0, False),
+        (rf"clip {int(cap0 * 2)}~bp", {}, cap0 * 2.0, False),
+        ("no clip", {}, 1e12, False),
+        ("spread cap 500~bp", dict(spread_bp_max=500), cap0, False),
+        ("spread cap 200~bp", dict(spread_bp_max=200), cap0, False),
+        ("min size \\$25k", dict(min_quote_size_dollar=25_000.0), cap0, False),
+        ("moneyness $\\pm10\\%$", dict(rel_strike_min=0.9, rel_strike_max=1.1), cap0, False),
+        ("all strikes", dict(apply_rel_strike=False), cap0, False),
+        ("notional-weighted", {}, cap0, True),
+    ]
+    if stale_present:
+        settings.insert(4, ("drop stale quotes", dict(filter_stale=True), cap0, False))
+
+    acc = {label: [0.0, 0.0, 0.0, 0.0] for label, *_ in settings}  # pre_sum, pre_den, post_sum, post_den
+    for batch in parquet.iter_batches(batch_size=200_000, columns=read_cols):
+        frame = pl.from_arrow(batch)
+        for label, overrides, cap, weighted in settings:
+            chunk = filter_ticks(frame, **{**base, **overrides})
+            if chunk.is_empty():
+                continue
+            mdy = pd.to_datetime(chunk.get_column("mdy").to_numpy(), errors="coerce")
+            pre = np.asarray(mdy < event_ts)
+            possum = np.zeros(chunk.height, dtype=float)
+            for col in path_cols:
+                values = chunk.get_column(col).cast(pl.Float64, strict=False).to_numpy()
+                possum += np.clip(np.nan_to_num(values, nan=0.0), 0.0, cap)
+            if weighted:
+                weight = np.nan_to_num(
+                    chunk.get_column("min_quote_size_dollar").cast(pl.Float64, strict=False).to_numpy(), nan=0.0
+                )
+            else:
+                weight = np.ones(chunk.height, dtype=float)
+            a = acc[label]
+            a[0] += float((weight * possum)[pre].sum())
+            a[1] += float(4.0 * weight[pre].sum())
+            a[2] += float((weight * possum)[~pre].sum())
+            a[3] += float(4.0 * weight[~pre].sum())
+
+    lines = [r"\begin{tabular}{lrrr}", r"\toprule", r"setting & pre & post & $\Delta$ \\", r"\midrule"]
+    for label, *_ in settings:
+        a = acc[label]
+        pre_v = a[0] / a[1] if a[1] > 0 else float("nan")
+        post_v = a[2] / a[3] if a[3] > 0 else float("nan")
+        lines.append(rf"{label} & {pre_v:.2f} & {post_v:.2f} & {post_v - pre_v:+.2f} \\")
+        if label == "baseline":
+            lines.append(r"\midrule")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    output_path = Path(output_dir) / "robustness_grid_table.tex"
+    output_path.write_text("\n".join(lines) + "\n")
+    logger.debug("Saved robustness grid table %s settings=%d", output_path, len(settings))
     return output_path
 
 
@@ -1257,8 +1345,11 @@ def generate_all_statistics(
         "summary_daily_option_coverage_table": write_summary_daily_table_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "amu_summary_table": write_amu_summary_table_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "spread_figures": plot_4_spreads_from_parquet(pcpb_parquet_path, output_dir=output_root),
-        "amu_bps_by_cost_pre_post": plot_amu_bps_by_cost_pre_post_from_parquet(pcpb_parquet_path, output_dir=output_root),
-        "cost_sensitivity_table": write_cost_sensitivity_table_from_parquet(pcpb_parquet_path, output_dir=output_root),
+        # cost_sensitivity_table and amu_bps_by_cost_pre_post now come from the
+        # aggregated panel (see panel_regressions.write_cost_sensitivity_table_from_panel
+        # and panel_figures.plot_amu_by_cost_pre_post), so all pre/post AMU numbers
+        # share one estimand with the regressions and the conclusion.
+        "robustness_grid_table": write_robustness_grid_table_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "total_mma_hist_pre_post_btc_etp": plot_total_mma_hist_pre_post_btc_etp_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "multi_exchange_amu_bps_by_date": plot_amu_bps_by_date_from_parquet(pcpb_parquet_path, output_dir=output_root),
         "multi_exchange_amu_bps_by_date_2023_2024_avg_events": plot_amu_bps_avg_2023_2024_with_events_from_parquet(pcpb_parquet_path, output_dir=output_root),
