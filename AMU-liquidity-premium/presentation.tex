@@ -1,7 +1,7 @@
 \documentclass[aspectratio=169,10pt]{beamer}
 
 % ---------------------------------------------------------------------------
-% AMU conference deck. Figures/tables are pulled dynamically from artifacts/
+% Market unfairness conference deck. Figures/tables are pulled dynamically from artifacts/
 % (same mechanism as liquidity-premium.tex): \maybeincludegraphics and
 % \IfFileExists so the deck always reflects the latest rebuild.
 % Background: Corvinus branded PNG in the parent publications/ folder.
@@ -146,10 +146,10 @@ $(C_{ask}-P_{ask})S_{ask}-(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \figframe{The MMA distribution across markets}{artifacts/all_markets_avg_4_spreads.pdf}
 
 % ===== 5. Table 4 =====
-\tabframe{AMU across venues and underlyings}{artifacts/amu_summary_table.tex}
+\tabframe{Market unfairness across venues and underlyings}{artifacts/amu_summary_table.tex}
 
 % ===== 6. Figures 5--6 =====
-\begin{frame}{AMU over the surface: moneyness and maturity}
+\begin{frame}{Market unfairness over the surface: moneyness and maturity}
   \vfill
   \begin{columns}[c]
     \begin{column}{0.5\textwidth}\centering
@@ -163,7 +163,7 @@ $(C_{ask}-P_{ask})S_{ask}-(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \end{frame}
 
 % ===== 7. Figure 7 =====
-\figframe{AMU over time, by market}{artifacts/multi_exchange_amu_bps_by_date.pdf}
+\figframe{Market unfairness over time, by market}{artifacts/multi_exchange_amu_bps_by_date.pdf}
 
 % ===== 8. Figure 10 =====
 \figframe{MMA distribution: pre vs.\ post 2024}{artifacts/total_mma_hist_pre_post_btc_etp.pdf}
@@ -175,7 +175,7 @@ $(C_{ask}-P_{ask})S_{ask}-(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
     \colorbox{white}{\color{black}\adjustbox{width=\linewidth,totalheight=0.62\textheight,keepaspectratio}{\input{artifacts/regression_effects_table.tex}}}%
   }{\textit{(missing: \texttt{regression\_effects\_table.tex})}}\\[1.4ex]
   \colorbox{white}{\color{black}\parbox{0.985\linewidth}{\centering
-    Standardized effect $=\beta\,\dfrac{\mathrm{std}(X)}{\mathrm{std}(Y)}$:\; the change in AMU, in standard deviations of AMU, per one-standard-deviation increase in the regressor.}}%
+    Standardized effect $=\beta\,\dfrac{\mathrm{std}(X)}{\mathrm{std}(Y)}$:\; the change in $U_u$, in standard deviations of $U_u$, per one-standard-deviation increase in the regressor.}}%
   \vfill
 \end{frame}
 
@@ -202,7 +202,7 @@ $(C_{ask}-P_{ask})S_{ask}-(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \tabframe{Daily option-market coverage}{artifacts/summary_daily_option_coverage_table.tex}
 
 % Figure 2
-\figframe{The no-AMU band}{artifacts/amu_fair_band_synthetic.pdf}
+\figframe{The no-unfairness band}{artifacts/amu_fair_band_synthetic.pdf}
 
 % Figure 3
 \figframe{Schematic MMA distribution}{artifacts/amu_schematic_mma_distribution.pdf}
@@ -215,7 +215,7 @@ $(C_{ask}-P_{ask})S_{ask}-(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
   \toprule
   Component & Assumption \\
   \midrule
-  AMU clipping rule & MMA series clipped to $[0,\MaxAmuBps]$ bp before positive-part averaging. \\
+  MU clipping rule & MMA series clipped to $[0,\MaxAmuBps]$ bp before positive-part averaging. \\
   MMA clipping rule & MMA series clipped to $[-\MaxMmaBps,+\MaxMmaBps]$ bp. \\
   Spread filter & Call and put spreads capped at $\SpreadBpMax$ bp. \\
   Relative-strike filter & Allowed range $[\RelStrikeMin,\RelStrikeMax]$. \\
@@ -230,13 +230,13 @@ $(C_{ask}-P_{ask})S_{ask}-(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \end{frame}
 
 % Figure 8
-\figframe{AMU by date, with the 2024 events}{artifacts/multi_exchange_amu_bps_by_date_2023_2024_avg_events.pdf}
+\figframe{Market unfairness by date, with the 2024 events}{artifacts/multi_exchange_amu_bps_by_date_2023_2024_avg_events.pdf}
 
 % Figure 9
 \figframe{Liquidity event study}{artifacts/liquidity_event_study.png}
 
 % Figure 11
-\figframe{AMU versus assumed cost, pre/post}{artifacts/amu_bps_by_cost_pre_post.pdf}
+\figframe{Market unfairness versus assumed cost, pre/post}{artifacts/amu_bps_by_cost_pre_post.pdf}
 
 % Figure 12
 \figframe{Liquidity heatmap, pre/post}{artifacts/liquidity_pre_post_heatmap.png}
@@ -276,7 +276,7 @@ $(C_{ask}-P_{ask})S_{ask}-(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \tabframe{Regression coefficients, SEs, and effects}{artifacts/regression_coefficients_table.tex}
 
 % Figure 14
-\figframe{AMU and the friction channels}{artifacts/liquidity_friction_gradient.png}
+\figframe{Market unfairness and the friction channels}{artifacts/liquidity_friction_gradient.png}
 
 % Table 7
 \begin{frame}{Cost and $r$ sensitivity}

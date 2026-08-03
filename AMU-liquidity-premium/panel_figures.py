@@ -86,9 +86,9 @@ def plot_amu_by_cost_pre_post(frame: pd.DataFrame, output_path: str | Path) -> P
     ax.axvline(c0_bp, color="black", linestyle=":", linewidth=1.4, alpha=0.7)
     ax.text(c0_bp, ax.get_ylim()[1], "  primary cost", color="black", fontsize=9, va="top", ha="left")
     ax.set_xlabel("Round-trip cost (bp)")
-    ax.set_ylabel("AMU (bp)")
+    ax.set_ylabel("$U_u$ (bp)")
     ax.set_ylim(bottom=0.0)
-    ax.set_title("AMU versus assumed cost, pre/post 2024")
+    ax.set_title("$U_u$ versus assumed cost, pre/post 2024")
     ax.legend(title="", fontsize=11)
     fig.tight_layout()
     fig.savefig(output_path, dpi=220, bbox_inches="tight", transparent=True)
@@ -106,9 +106,9 @@ def plot_daily_amu_timeseries(frame: pd.DataFrame, output_path: str | Path | Non
     fig, ax = plt.subplots(figsize=(11, 5))
     sns.lineplot(data=plot_frame, x="day", y=PANEL_AMU_COLUMN, hue="series", ax=ax)
     _add_event_markers(ax)
-    ax.set_ylabel("Mean AMU (bp)")
+    ax.set_ylabel("$U_u$ (bp)")
     ax.set_xlabel("Day")
-    ax.set_title("AMU by date")
+    ax.set_title("$U_u$ by date")
     return _finalize_figure(fig, output_path)
 
 
@@ -146,12 +146,12 @@ def plot_pre_post_heatmaps(frame: pd.DataFrame, output_path: str | Path | None =
             vmin=shared_vmin,
             vmax=shared_vmax,
             ax=ax,
-            cbar_kws={"label": "conditional AMU (bp)"},
+            cbar_kws={"label": "$U_c$ (bp)"},
         )
         ax.set_title(title)
         ax.set_xlabel("Relative strike bucket")
     axes[0].set_ylabel("TTE bucket")
-    fig.suptitle("Mean conditional AMU across strike and maturity buckets")
+    fig.suptitle("$U_c$ across strike and maturity buckets")
     return _finalize_figure(fig, output_path)
 
 
@@ -178,7 +178,7 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
     
     sns.lineplot(data=plot_frame, x="rel_day", y=event_amu_col, hue="event", ax=ax, linewidth=2.0, marker=None)
     ax.axvline(0, color="black", linestyle="--", linewidth=1)
-    ax.set_ylabel("Mean unconditional AMU (bp)")
+    ax.set_ylabel("$U_u$ (bp)")
     ax.set_xlabel("Days relative to event")
     
     # Add event dates to legend labels
@@ -215,7 +215,7 @@ def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None =
     for ax, column, title, xlabel in zip(
         axes[:3],
         ("average_put_call_spread_bp", "log_mean_min_quote_size_dollar", "stale_proxy"),
-        ("AMU versus option spread", "AMU versus log quote depth", "AMU versus staleness"),
+        ("$U_u$ versus option spread", "$U_u$ versus log quote depth", "$U_u$ versus staleness"),
         ("Average put-call spread (bp)", "Log mean minimum quote size (USD)", "Mean stale-quote fraction"),
         strict=False,
     ):
@@ -237,12 +237,12 @@ def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None =
         hue="exchange",
         ax=axes[3],
     )
-    axes[3].set_title("AMU by underlying and exchange")
+    axes[3].set_title("$U_u$ by underlying and exchange")
     axes[3].set_xlabel("Underlying")
     axes[3].set_ylabel("")
     axes[3].legend(title="Exchange")
 
-    axes[0].set_ylabel("Unconditional AMU (bp)")
+    axes[0].set_ylabel("$U_u$ (bp)")
     fig.suptitle("Liquidity-friction gradients")
     return _finalize_figure(fig, output_path)
 
@@ -285,10 +285,10 @@ def plot_compression_decomposition(frame: pd.DataFrame, output_path: str | Path 
         ax.set_xlabel("")
         ax.tick_params(axis="x", rotation=0)
 
-    axes_flat[0].set_ylabel("Post-Pre 2024 conditional AMU (bps)")
+    axes_flat[0].set_ylabel("Post-Pre 2024 $U_c$ (bp)")
     for ax in axes_flat[1:]:
         ax.set_ylabel("")
-    fig.suptitle("Conditional AMU compression by segment")
+    fig.suptitle("$U_c$ compression by segment")
     return _finalize_figure(fig, output_path)
 
 
@@ -342,7 +342,7 @@ def plot_regression_coefficients(
         ax.set_title(pretty_titles[spec_name], fontsize=11)
         ax.set_xlabel("Coefficient with 95% CI")
 
-    fig.suptitle("Nested AMU regressions: coefficient estimates with 95\\% CI")
+    fig.suptitle("Nested $U_u$ regressions: coefficient estimates with 95\\% CI")
     return _finalize_figure(fig, output_path)
 
 

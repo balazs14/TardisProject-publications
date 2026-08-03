@@ -13,7 +13,7 @@ import pandas as pd
 import polars as pl
 import pyarrow.parquet as pq
 import seaborn as sns
-from matplotlib.ticker import EngFormatter
+from matplotlib.ticker import EngFormatter, PercentFormatter
 
 from amu_config import CONFIG, bootstrap_repo_root
 
@@ -850,9 +850,9 @@ def plot_amu_bps_by_cost_pre_post_from_parquet(parquet_path: str | Path, *, outp
     ax.axvline(c0_bp, color="black", linestyle=":", linewidth=1.4, alpha=0.7)
     ax.text(c0_bp, ax.get_ylim()[1], "  primary cost", color="black", fontsize=9, va="top", ha="left")
     ax.set_xlabel("Round-trip cost (bp)")
-    ax.set_ylabel("AMU (bp)")
+    ax.set_ylabel("$U_u$ (bp)")
     ax.set_ylim(bottom=0.0)
-    ax.set_title("AMU versus assumed cost, pre/post 2024")
+    ax.set_title("$U_u$ versus assumed cost, pre/post 2024")
     ax.legend(title="", fontsize=11)
 
     output_path = output_dir / "amu_bps_by_cost_pre_post.pdf"
@@ -1123,7 +1123,7 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
         ax.text(
             0.5,
             0.5,
-            "No AMU observations for 2023-01-01 to 2024-12-31 in the target markets",
+            "No observations for 2023-01-01 to 2024-12-31 in the target markets",
             ha="center",
             va="center",
             wrap=True,
@@ -1142,7 +1142,7 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
             ax.axvline(event_ts, color=event_color, linestyle="-", linewidth=2.2, alpha=0.95)
             event_handles.append(Line2D([0], [0], color=event_color, linestyle="-", linewidth=2.2, label=label))
 
-    avg_handle = Line2D([0], [0], color="#1f77b4", linestyle="-", linewidth=2.6, label="Avg AMU (all markets)")
+    avg_handle = Line2D([0], [0], color="#1f77b4", linestyle="-", linewidth=2.6, label="Avg $U_u$ (all markets)")
     handles = [avg_handle, *event_handles]
     if handles:
         ax.legend(
@@ -1188,7 +1188,7 @@ def _render_amu_bins_figure(curve_df, x_col: str, x_label: str, title: str):
 
     # Top: AMU conditional size, raw (unsmoothed), y-axis anchored at 0.
     sns.lineplot(data=curve_df, x=x_col, y="amu_conditional_bp", hue="market", linewidth=2.0, palette="deep", ax=ax_top)
-    ax_top.set_ylabel("AMU conditional size (bp)")
+    ax_top.set_ylabel("$U_c$ (bp)")
     ax_top.set_ylim(bottom=0.0)
     ax_top.set_title(title)
     ax_top.legend(title="", loc="best")
@@ -1222,8 +1222,11 @@ def _render_amu_bins_figure(curve_df, x_col: str, x_label: str, title: str):
         )
     else:  # frequency (default)
         sns.lineplot(data=curve_df, x=x_col, y="amu_freq", hue="market", linewidth=1.8, palette="deep", legend=False, ax=ax_bottom)
-        ax_bottom.set_ylabel("AMU>0 frequency")
+        ax_bottom.set_ylabel("$R$")
         ax_bottom.set_ylim(bottom=0.0)
+        # R is stored as a fraction; display the axis as a percent (0.2 -> 20%)
+        # without touching the underlying values.
+        ax_bottom.yaxis.set_major_formatter(PercentFormatter(xmax=1.0))
 
     ax_bottom.set_xlabel(x_label)
     return fig
@@ -1249,7 +1252,7 @@ def plot_amu_bps_by_rel_strike_from_parquet(parquet_path: str | Path, *, output_
     ).select(["market", "rel_strike_bin", "amu_conditional_bp", "amu_unconditional_bp", "num_has_amu", "num_pairs"]).sort(["market", "rel_strike_bin"]).collect(engine="streaming").to_pandas()
 
     fig = _render_amu_bins_figure(
-        curve_df, "rel_strike_bin", "Relative strike (1% bins)", "AMU vs Relative Strike (all exchange/ref_sym)"
+        curve_df, "rel_strike_bin", "Relative strike (1% bins)", "$U_u$ vs relative strike"
     )
 
     output_path = output_dir / "multi_exchange_amu_bps_by_rel_strike.pdf"
@@ -1299,7 +1302,7 @@ def plot_amu_bps_by_tte_from_parquet(parquet_path: str | Path, *, output_dir: Pa
     ).select(["market", "tte_bin_center", "amu_conditional_bp", "amu_unconditional_bp", "num_has_amu", "num_pairs"]).sort(["market", "tte_bin_center"]).collect(engine="streaming").to_pandas()
 
     fig = _render_amu_bins_figure(
-        curve_df, "tte_bin_center", "Time to Expiration (years, 100 linear bins from 0.0 to 0.7)", "AMU vs TTE (all exchange/ref_sym)"
+        curve_df, "tte_bin_center", "Time to Expiration (years, 100 linear bins from 0.0 to 0.7)", "$U_u$ vs TTE"
     )
 
     output_path = output_dir / "multi_exchange_amu_bps_by_tte.pdf"

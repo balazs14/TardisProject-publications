@@ -31,6 +31,9 @@ SPEC_DISPLAY_NAMES = {
     "amu_spec1fe": "(2)",
     "amu_spec2": "(3)",
     "amu_spec3": "(4)",
+    "amu_spec_depth": "(5)",
+    "amu_spec_spread": "(6)",
+    "amu_spec_stale": "(7)",
 }
 
 # Column order in the combined coefficient table: (1) Post, (2) Post+cell FE,
@@ -39,7 +42,7 @@ SPEC_DISPLAY_NAMES = {
 # is an orthogonal rotation, all three components span the same space as the raw
 # frictions and reproduce (4) exactly, while PC1 alone is a rank-1 control that
 # merely under-controls. The amu_specpca helpers below are retained but unwired.
-MAIN_SPEC_ORDER = ("amu_spec1", "amu_spec1fe", "amu_spec2", "amu_spec3")
+MAIN_SPEC_ORDER = ("amu_spec1", "amu_spec1fe", "amu_spec2", "amu_spec3", "amu_spec_depth", "amu_spec_spread", "amu_spec_stale")
 
 TERM_DISPLAY_NAMES = {
     "post_2024": "$\\mathrm{Post}_t$",
@@ -360,6 +363,36 @@ def run_amu_spec3_regression(panel: pd.DataFrame | pl.DataFrame | None = None, *
     return _run_regression(amu_spec3_regression_spec(), panel=panel, **build_kwargs)
 
 
+# Single-friction specs (5)-(7): Post plus ONE friction, with cell fixed effects.
+# They show how much of the Post effect each friction absorbs on its own. Post
+# stays large with any single friction; only all three together (spec (4)) remove it.
+def amu_spec_depth_regression_spec() -> RegressionSpec:
+    return RegressionSpec(name="amu_spec_depth", dependent=AMU_DEPENDENT,
+                          regressors=("post_2024", "log_mean_min_quote_size_dollar"), fixed_effects=("cell_id",))
+
+
+def amu_spec_spread_regression_spec() -> RegressionSpec:
+    return RegressionSpec(name="amu_spec_spread", dependent=AMU_DEPENDENT,
+                          regressors=("post_2024", "average_put_call_spread_bp"), fixed_effects=("cell_id",))
+
+
+def amu_spec_stale_regression_spec() -> RegressionSpec:
+    return RegressionSpec(name="amu_spec_stale", dependent=AMU_DEPENDENT,
+                          regressors=("post_2024", "stale_proxy"), fixed_effects=("cell_id",))
+
+
+def run_amu_spec_depth_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
+    return _run_regression(amu_spec_depth_regression_spec(), panel=panel, **build_kwargs)
+
+
+def run_amu_spec_spread_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
+    return _run_regression(amu_spec_spread_regression_spec(), panel=panel, **build_kwargs)
+
+
+def run_amu_spec_stale_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
+    return _run_regression(amu_spec_stale_regression_spec(), panel=panel, **build_kwargs)
+
+
 def write_text_macros(frame: pd.DataFrame, output_dir: str | Path) -> Path:
     """Emit scalar numbers used in the manuscript prose as LaTeX \\newcommand macros.
 
@@ -398,9 +431,9 @@ def write_text_macros(frame: pd.DataFrame, output_dir: str | Path) -> Path:
 _AMU_COST_TAG = AMU_DEPENDENT.rsplit("_", 1)[-1]
 
 _FREQ_SIZE_CHANNELS = (
-    ("log_amu_freq", "Frequency $\\phi$"),
-    ("log_amu_condsize", "Cond.\\ size"),
-    ("log_amu_uncond", "AMU (uncond)"),
+    ("log_amu_freq", "Unfairness rate $R$"),
+    ("log_amu_condsize", "Cond.\\ size $U_c$"),
+    ("log_amu_uncond", "$U_u$"),
 )
 
 
@@ -522,6 +555,9 @@ def write_regression_tables(output_dir: str | Path, **build_kwargs) -> dict[str,
         run_amu_spec1fe_regression,
         run_amu_spec2_regression,
         run_amu_spec3_regression,
+        run_amu_spec_depth_regression,
+        run_amu_spec_spread_regression,
+        run_amu_spec_stale_regression,
     ):
         result = runner(panel=panel)
         combined_results.append(result)
@@ -676,8 +712,8 @@ def _regression_summary_table(results: pd.DataFrame) -> pd.DataFrame:
     summary["r2"] = summary["r2"].map(lambda value: f"{value:.3f}")
     summary["dependent"] = summary["dependent"].map({
         "mean_mma_bp": "MMA",
-        "mean_amu_conditional_bp": "AMU (cond)",
-        "mean_amu_unconditional_bp": "AMU (uncond)",
+        "mean_amu_conditional_bp": "$U_c$",
+        "mean_amu_unconditional_bp": "$U_u$",
         "std_mma_bp": "Std MMA",
     }).fillna(summary["dependent"])
     return summary.set_index("specification")
