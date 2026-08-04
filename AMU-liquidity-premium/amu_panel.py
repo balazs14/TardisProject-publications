@@ -210,6 +210,163 @@ def _panel_metrics() -> list[pl.Expr]:
     return metrics
 
 
+# Cell-day liquidity measures, computed directly on the cell's intraday series
+# (cell = exchange x underlying x strike bucket x maturity bucket, per day). Within a
+# cell-day we aggregate ticks to one observation per 5-min timestamp -- the "cell-tick":
+# mean call mid, mean put mid, mean quoted spread (over pairs and both sides), and the
+# summed call and put traded size -- giving a ~288-long (12 per hour x 24 h) intraday
+# series per cell-day, plus the mean index. From these we build four measures:
+#   * amihud_shares / amihud_dollar -- |return| per unit traded, averaged over the pooled
+#     call and put cell-tick series, with volume measured in traded contracts (shares) or
+#     in dollars (contracts x index; the *index*, not the option price);
+#   * spread_bp_recovery / spread_dollar_recovery -- the event-conditioned resiliency
+#     (Kyle's third dimension of liquidity) of the bp spread and of the dollar spread
+#     (bp spread x index / 1e4): the AR(1) decay half-life of the spread's deviation from
+#     a rolling ~1-hour baseline, fit only on the windows after a large widening, so it
+#     captures how fast the book heals rather than the near-unit-root drift of the level
+#     (see _spread_resiliency; cf. Degryse et al. 2005, Large 2007).
+# Robust to missing trade columns: without trades the two Amihud measures are null and
+# only the recoveries are produced.
+_CELL_DAY_LIQ_COLUMNS = ("amihud_shares", "amihud_dollar", "spread_bp_recovery", "spread_dollar_recovery")
+_LN2 = 0.6931471805599453
+_BIN_MINUTES = 5.0  # cell-tick spacing; spread recovery is reported in minutes
+_RECOVERY_BASELINE_BINS = 12  # centered rolling-baseline window (~1 hour) for the deviation
+_MAD_TO_STD = 1.4826  # MAD -> robust standard-deviation scaling
+_EVENT_K = 2.0  # a widening = deviation above k robust-std of the local baseline
+_EVENT_HORIZON_BINS = 12  # post-widening decay window (~1 hour) the AR(1) is fit on
+_EVENT_MIN = 3  # min widening events per cell-day for a recovery estimate
+_EVENT_MIN_PAIRS = 10  # min post-widening AR pairs for a recovery estimate
+
+
+def _cell_day_liquidity(panel_ready: pl.DataFrame) -> pl.DataFrame:
+    cell_keys = ["day", "exchange", "ref_sym", "rel_strike_bucket", "tte_bucket"]
+    cols = set(panel_ready.columns)
+    need = {
+        "call_bid_price_xS", "call_ask_price_xS", "put_bid_price_xS", "put_ask_price_xS",
+        "call_opt_spread_bp", "put_opt_spread_bp", "timestamp",
+    } | set(cell_keys)
+    if not need <= cols:
+        base = panel_ready.select(cell_keys).unique()
+        return base.with_columns([pl.lit(None, dtype=pl.Float64).alias(c) for c in _CELL_DAY_LIQ_COLUMNS])
+
+    have_trades = {"call_trade_amount", "put_trade_amount"} <= cols
+    cvol = pl.col("call_trade_amount").cast(pl.Float64).fill_null(0.0) if have_trades else pl.lit(0.0)
+    pvol = pl.col("put_trade_amount").cast(pl.Float64).fill_null(0.0) if have_trades else pl.lit(0.0)
+    df = panel_ready.with_columns(
+        (0.5 * (pl.col("call_bid_price_xS") + pl.col("call_ask_price_xS"))).alias("_cmid"),
+        (0.5 * (pl.col("put_bid_price_xS") + pl.col("put_ask_price_xS"))).alias("_pmid"),
+        (0.5 * (pl.col("call_opt_spread_bp").cast(pl.Float64) + pl.col("put_opt_spread_bp").cast(pl.Float64))).alias("_spr"),
+        cvol.alias("_cvol"),
+        pvol.alias("_pvol"),
+    )
+    # Cell-tick: one observation per (cell, 5-min timestamp).
+    bins = df.group_by(cell_keys + ["timestamp"]).agg(
+        pl.col("_cmid").mean().alias("cmid"),
+        pl.col("_pmid").mean().alias("pmid"),
+        pl.col("_spr").mean().alias("spr"),
+        pl.col("index").mean().alias("index"),
+        pl.col("_cvol").sum().alias("cvol"),
+        pl.col("_pvol").sum().alias("pvol"),
+    ).sort(cell_keys + ["timestamp"])
+    # Reindex each cell-day onto a strict 5-min grid, so a one-step lag is exactly one
+    # 5-min slot: intraday gaps become null rows and are dropped pairwise below (no
+    # spurious persistence or multi-bin returns across a gap). Missing slots carry no
+    # volume. This makes both the Amihud returns and the AR(1) spread lag true 5-min steps.
+    bins = bins.upsample(time_column="timestamp", every=f"{int(_BIN_MINUTES)}m", group_by=cell_keys, maintain_order=True)
+    bins = bins.with_columns(
+        pl.col("cvol").fill_null(0.0),
+        pl.col("pvol").fill_null(0.0),
+    ).with_columns(
+        (pl.col("cmid") / pl.col("cmid").shift(1).over(cell_keys) - 1.0).alias("cret"),
+        (pl.col("pmid") / pl.col("pmid").shift(1).over(cell_keys) - 1.0).alias("pret"),
+        # Dollar spread cell-tick series: the bp spread rescaled by the index level
+        # (spread_bp = (ask-bid)/index * 1e4, so this recovers the quoted dollar width).
+        (pl.col("spr") / 10000.0 * pl.col("index")).alias("spr_dollar"),
+    )
+    # Amihud, pooled over call and put, in two units: per traded contract (shares) and
+    # per dollar of volume (contracts x index -- multiplied by the *index*, not the
+    # option price). amihud_dollar = amihud_shares / index up to within-bin variation.
+    call_ok = (pl.col("cvol") > 0) & pl.col("cret").is_not_null()
+    put_ok = (pl.col("pvol") > 0) & pl.col("pret").is_not_null()
+    amihud = bins.group_by(cell_keys).agg(
+        (pl.col("cret").abs() / pl.col("cvol")).filter(call_ok).sum().alias("_as_c"),
+        (pl.col("pret").abs() / pl.col("pvol")).filter(put_ok).sum().alias("_as_p"),
+        (pl.col("cret").abs() / (pl.col("cvol") * pl.col("index"))).filter(call_ok).sum().alias("_ad_c"),
+        (pl.col("pret").abs() / (pl.col("pvol") * pl.col("index"))).filter(put_ok).sum().alias("_ad_p"),
+        call_ok.sum().alias("_n_c"),
+        put_ok.sum().alias("_n_p"),
+    ).with_columns(
+        pl.when((pl.col("_n_c") + pl.col("_n_p")) > 0)
+        .then((pl.col("_as_c") + pl.col("_as_p")) / (pl.col("_n_c") + pl.col("_n_p")))
+        .otherwise(None).alias("amihud_shares"),
+        pl.when((pl.col("_n_c") + pl.col("_n_p")) > 0)
+        .then((pl.col("_ad_c") + pl.col("_ad_p")) / (pl.col("_n_c") + pl.col("_n_p")))
+        .otherwise(None).alias("amihud_dollar"),
+    ).select(cell_keys + ["amihud_shares", "amihud_dollar"])
+
+    return (
+        amihud
+        .join(_spread_resiliency(bins, cell_keys, "spr", "spread_bp_recovery"), on=cell_keys, how="left")
+        .join(_spread_resiliency(bins, cell_keys, "spr_dollar", "spread_dollar_recovery"), on=cell_keys, how="left")
+    )
+
+
+def _spread_resiliency(bins: pl.DataFrame, cell_keys: list[str], spread_col: str, out_name: str) -> pl.DataFrame:
+    """Event-conditioned resiliency of ``spread_col``: the AR(1) decay half-life (minutes)
+    of its deviation from a centered rolling ~1-hour baseline, fit only on the windows
+    that follow a *large* widening -- a deviation up-crossing beyond ``_EVENT_K`` robust
+    standard deviations (from the daily MAD) of the baseline. This keys on genuine shocks
+    and ignores the small idiosyncratic wiggles that make an unconditional AR(1) near
+    unit-root (cf. Degryse et al. 2005; Large 2007)."""
+    b = bins.with_columns(
+        (
+            pl.col(spread_col)
+            - pl.col(spread_col).rolling_median(window_size=_RECOVERY_BASELINE_BINS, min_samples=3, center=True).over(cell_keys)
+        ).alias("_dev")
+    ).with_columns(
+        pl.col("_dev").shift(1).over(cell_keys).alias("_devlag"),
+    )
+    sigma = b.group_by(cell_keys).agg(
+        (_MAD_TO_STD * (pl.col("_dev") - pl.col("_dev").median()).abs().median()).alias("_sigma")
+    )
+    b = b.join(sigma, on=cell_keys, how="left").with_columns(
+        (pl.col("_dev") > _EVENT_K * pl.col("_sigma")).fill_null(False).alias("_above"),
+    ).with_columns(
+        # A widening *onset*: the deviation crosses up through the +k*sigma band.
+        (pl.col("_above") & ~pl.col("_above").shift(1).over(cell_keys).fill_null(False)).alias("_event"),
+    ).with_columns(
+        # In a post-widening decay window if a widening began within the last H slots.
+        (
+            pl.col("_event").cast(pl.Int32)
+            .rolling_sum(window_size=_EVENT_HORIZON_BINS + 1, min_samples=1).over(cell_keys) >= 1
+        ).alias("_active"),
+    )
+    m = pl.col("_active") & pl.col("_dev").is_not_null() & pl.col("_devlag").is_not_null()
+    res = b.group_by(cell_keys).agg(
+        pl.col("_event").sum().alias("_n_ev"),
+        m.sum().alias("_n"),
+        pl.col("_devlag").filter(m).sum().alias("_sx"),
+        pl.col("_dev").filter(m).sum().alias("_sy"),
+        (pl.col("_devlag") ** 2).filter(m).sum().alias("_sxx"),
+        (pl.col("_dev") * pl.col("_devlag")).filter(m).sum().alias("_sxy"),
+    ).with_columns(
+        # OLS AR(1) decay slope rho on the post-widening bins (cov/var of the deviation).
+        (
+            (pl.col("_sxy") - pl.col("_sx") * pl.col("_sy") / pl.col("_n"))
+            / (pl.col("_sxx") - pl.col("_sx") ** 2 / pl.col("_n"))
+        ).alias("_rho")
+    ).with_columns(
+        # Half-life = -ln2/ln(rho) in 5-min steps -> minutes; rho clipped into (0, 1).
+        # rho<=0 (immediate reversion) maps to a near-zero recovery. Null unless the cell
+        # has enough widenings and post-widening pairs to fit the decay.
+        pl.when((pl.col("_n_ev") >= _EVENT_MIN) & (pl.col("_n") >= _EVENT_MIN_PAIRS))
+        .then((-_LN2 * _BIN_MINUTES) / pl.col("_rho").clip(1e-6, 0.999999).log())
+        .otherwise(None)
+        .alias(out_name)
+    )
+    return res.select(cell_keys + [out_name])
+
+
 def _panel_block_from_file(file_path: Path) -> pl.DataFrame:
     raw = pl.read_parquet(file_path)
     if raw.is_empty():
@@ -250,7 +407,12 @@ def _panel_block_from_file(file_path: Path) -> pl.DataFrame:
         possum, poscount = f"amu_possum_bp_c{c:02d}", f"amu_poscount_c{c:02d}"
         ratio_columns.append(amu_conditional_bp_expr(possum, poscount).alias(f"mean_amu_cond_bp_c{c:02d}"))
         ratio_columns.append(amu_unconditional_bp_expr(possum, "n_obs").alias(f"mean_amu_uncond_bp_c{c:02d}"))
-    return block.with_columns(ratio_columns)
+    block = block.with_columns(ratio_columns)
+    # Attach the cell-day liquidity measures (Amihud, spread recovery).
+    liquidity = _cell_day_liquidity(panel_ready)
+    return block.join(
+        liquidity, on=["day", "exchange", "ref_sym", "rel_strike_bucket", "tte_bucket"], how="left"
+    )
 
 
 def _append_block(panel: pl.DataFrame, block: pl.DataFrame) -> pl.DataFrame:

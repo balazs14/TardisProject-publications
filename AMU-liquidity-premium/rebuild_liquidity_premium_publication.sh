@@ -54,6 +54,11 @@ fi
 ln -sfn "$ARTIFACTS_DIR" artifacts
 echo "artifacts -> $ARTIFACTS_DIR"
 
+if [[ -n "${ONLY_RECREATE_ARTIFACTS:-}" ]]; then
+	echo "ONLY_RECREATE_ARTIFACTS=$ONLY_RECREATE_ARTIFACTS"
+	echo "  -> regenerating only those artifacts (tags = figures-tables-overview.tex \\label strings, e.g. fig:friction_timeseries, or file stems). Everything else is left as-is."
+fi
+
 "$VENV_PYTHON" - <<'PY'
 import os
 import logging

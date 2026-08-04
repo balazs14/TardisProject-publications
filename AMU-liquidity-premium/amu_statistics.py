@@ -15,6 +15,7 @@ import pyarrow.parquet as pq
 import seaborn as sns
 from matplotlib.ticker import EngFormatter, PercentFormatter
 
+import artifact_filter as art_filter
 from amu_config import CONFIG, bootstrap_repo_root
 
 PROJECT_ROOT = bootstrap_repo_root(Path(__file__).resolve())
@@ -23,15 +24,37 @@ from tardis.utils import debug_runtime
 from tardis.process_pcp import compute_pcp_metrics
 from amu_cache import get_cached_frame_parquet_path, put_cached_frame_parquet_path
 from amu_metrics import (
+    PATHS_PER_TICK,
     amu_conditional_bp_expr,
     amu_unconditional_bp_expr,
     any_positive_count_expr,
     tickpath_amu_agg_exprs,
 )
 
+# Which AMU flavour the single-series tick figures (by date, avg-events) plot.
+# Set to "amu_rate" to regenerate them on the extensive margin (fraction of
+# positive tickpaths); see build_R_overview.py.
+AMU_STAT_METRIC = "amu_unconditional_bp"
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel('DEBUG')
+
+
+def _rolling_by_date(frame, value_cols, *, window: str = "30D", date_col: str = "mdy", group_col: str | None = None):
+    """Trailing calendar-time rolling mean of ``value_cols`` (per ``group_col`` if
+    given), used to smooth the vs-date plots for readability."""
+    frame = frame.copy()
+    frame[date_col] = pd.to_datetime(frame[date_col])
+    if group_col is None:
+        frame = frame.sort_values(date_col).set_index(date_col)
+        frame[value_cols] = frame[value_cols].rolling(window, min_periods=1).mean()
+    else:
+        frame = frame.sort_values([group_col, date_col]).set_index(date_col)
+        frame[value_cols] = frame.groupby(group_col)[value_cols].transform(
+            lambda s: s.rolling(window, min_periods=1).mean()
+        )
+    return frame.reset_index()
 
 PUBLICATION_DIR = Path(__file__).resolve().parent
 
@@ -263,6 +286,12 @@ def build_amu_statistics_frame_cached_path(
                 block = compute_pcp_metrics(raw, **pcp_metric_kwargs)
                 if block.is_empty():
                     continue
+                # Tolerant projection: any pcpb column absent from this block (e.g.
+                # exchange IV before the aligned parquets are re-aligned to carry it)
+                # is filled with a Float64 null so the schema stays stable across days.
+                _missing = [c for c in pcpb_columns if c not in block.columns]
+                if _missing:
+                    block = block.with_columns([pl.lit(None, dtype=pl.Float64).alias(c) for c in _missing])
                 block = block.select(pcpb_columns)
 
                 table = block.to_arrow()
@@ -357,6 +386,11 @@ def _add_amu_bp_columns(frame: pl.LazyFrame) -> pl.LazyFrame:
     return frame.with_columns(
         amu_conditional_bp_expr("amu_possum", "num_amu").alias("amu_conditional_bp"),
         amu_unconditional_bp_expr("amu_possum", "num_pairs").alias("amu_unconditional_bp"),
+        # Rate R = positive tickpaths / total tickpaths = uncond / cond (bp cancels).
+        pl.when(pl.col("num_pairs") > 0)
+        .then(pl.col("num_amu") / (PATHS_PER_TICK * pl.col("num_pairs")))
+        .otherwise(None)
+        .alias("amu_rate"),
     )
 
 
@@ -1018,13 +1052,15 @@ def plot_amu_bps_by_date_from_parquet(parquet_path: str | Path, *, output_dir: P
     lf = filtered_lf.with_columns(
         (pl.col("exchange").cast(pl.Utf8) + pl.lit(" | ") + pl.col("ref_sym").cast(pl.Utf8)).alias("market")
     )
-    # Which AMU flavour this figure plots. Switch to "amu_unconditional_bp" to show
-    # the per-quote (frequency x conditional) wedge instead of the conditional size.
-    amu_col = "amu_unconditional_bp"
-    amu_label = "AMU conditional (bp)" if amu_col == "amu_conditional_bp" else "AMU unconditional (bp)"
+    # Which AMU flavour this figure plots (module-level AMU_STAT_METRIC; "amu_rate"
+    # in R mode). Switch to "amu_unconditional_bp"/"amu_conditional_bp" for bp wedges.
+    amu_col = AMU_STAT_METRIC
+    amu_label = {"amu_conditional_bp": "AMU conditional (bp)", "amu_rate": "$R$"}.get(amu_col, "AMU unconditional (bp)")
     daily_amu = _add_amu_bp_columns(
         lf.group_by(["mdy", "exchange", "ref_sym", "market"]).agg(_amu_agg_exprs())
     ).select(["mdy", "market", amu_col]).sort(["market", "mdy"]).collect(engine="streaming").to_pandas()
+    # Smooth each market's series with a trailing 1-month rolling mean for clarity.
+    daily_amu = _rolling_by_date(daily_amu, [amu_col], group_col="market")
 
     btc_index = (
         filtered_lf
@@ -1089,9 +1125,9 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
     lf = filtered_lf.with_columns(
         (pl.col("exchange").cast(pl.Utf8) + pl.lit(" | ") + pl.col("ref_sym").cast(pl.Utf8)).alias("market")
     )
-    # Switch to "amu_unconditional_bp" for the per-quote (frequency x conditional) wedge.
-    amu_col = "amu_unconditional_bp"
-    amu_label = "AMU conditional (bp)" if amu_col == "amu_conditional_bp" else "AMU unconditional (bp)"
+    # Module-level AMU_STAT_METRIC ("amu_rate" in R mode); switch to a bp column otherwise.
+    amu_col = AMU_STAT_METRIC
+    amu_label = {"amu_conditional_bp": "AMU conditional (bp)", "amu_rate": "$R$"}.get(amu_col, "AMU unconditional (bp)")
     daily_amu = _add_amu_bp_columns(
         lf.group_by(["mdy", "exchange", "ref_sym", "market"]).agg(_amu_agg_exprs())
     ).select(["mdy", "exchange", "ref_sym", "market", amu_col]).sort(["market", "mdy"]).collect(engine="streaming").to_pandas()
@@ -1115,6 +1151,8 @@ def plot_amu_bps_avg_2023_2024_with_events_from_parquet(parquet_path: str | Path
         .mean()
         .sort_values("mdy")
     )
+    # Trailing 1-month rolling mean of the all-market average for clarity.
+    avg_daily = _rolling_by_date(avg_daily, [amu_col])
 
     sns.set_theme(style="whitegrid", context="talk")
     fig, ax = plt.subplots(figsize=(11, 6))
@@ -1334,6 +1372,27 @@ def generate_all_statistics(
 ) -> dict[str, Path | list[Path]]:
     output_root = Path(output_dir)
     output_root.mkdir(parents=True, exist_ok=True)
+
+    # (result-key, overview LaTeX label, plotting/writing fn). cost_sensitivity_table
+    # and amu_bps_by_cost_pre_post come from the aggregated panel instead, so all
+    # pre/post AMU numbers share one estimand with the regressions.
+    jobs = [
+        ("summary_daily_option_coverage_table", "tab:summary_daily_option_coverage", write_summary_daily_table_from_parquet),
+        ("amu_summary_table", "tab:amu_summary", write_amu_summary_table_from_parquet),
+        ("spread_figures", "fig:all_markets_avg_4_spreads", plot_4_spreads_from_parquet),
+        ("robustness_grid_table", "tab:robustness_grid", write_robustness_grid_table_from_parquet),
+        ("total_mma_hist_pre_post_btc_etp", "fig:total_mma_hist_pre_post_btc_etp", plot_total_mma_hist_pre_post_btc_etp_from_parquet),
+        ("multi_exchange_amu_bps_by_date", "fig:multi_exchange_amu_by_date", plot_amu_bps_by_date_from_parquet),
+        ("multi_exchange_amu_bps_by_date_2023_2024_avg_events", "fig:multi_exchange_amu_by_date_2023_2024_avg_events", plot_amu_bps_avg_2023_2024_with_events_from_parquet),
+        ("multi_exchange_amu_bps_by_rel_strike", "fig:multi_exchange_amu_by_strike", plot_amu_bps_by_rel_strike_from_parquet),
+        ("multi_exchange_amu_bps_by_tte", "fig:multi_exchange_amu_by_tte", plot_amu_bps_by_tte_from_parquet),
+    ]
+    # Under a selective run, if nothing tick-based was requested, skip the (18 GB)
+    # tick-frame load entirely.
+    all_tags = [t for key, tag, _ in jobs for t in (tag, key)]
+    if not art_filter.any_wanted(*all_tags):
+        return {}
+
     active_cache_path = cache_path or (output_root / f"amu_frames_{from_date}_to_{to_date}_meta.pkl")
     pcpb_parquet_path = build_amu_statistics_frame_cached_path(
         cache_path=active_cache_path,
@@ -1344,21 +1403,11 @@ def generate_all_statistics(
     assert _parquet_num_rows(pcpb_parquet_path) > 0, f"No AMU statistics data found for range {from_date}..{to_date}"
     inspect_pcpb_input_from_parquet(pcpb_parquet_path)
 
-    return {
-        "summary_daily_option_coverage_table": write_summary_daily_table_from_parquet(pcpb_parquet_path, output_dir=output_root),
-        "amu_summary_table": write_amu_summary_table_from_parquet(pcpb_parquet_path, output_dir=output_root),
-        "spread_figures": plot_4_spreads_from_parquet(pcpb_parquet_path, output_dir=output_root),
-        # cost_sensitivity_table and amu_bps_by_cost_pre_post now come from the
-        # aggregated panel (see panel_regressions.write_cost_sensitivity_table_from_panel
-        # and panel_figures.plot_amu_by_cost_pre_post), so all pre/post AMU numbers
-        # share one estimand with the regressions and the conclusion.
-        "robustness_grid_table": write_robustness_grid_table_from_parquet(pcpb_parquet_path, output_dir=output_root),
-        "total_mma_hist_pre_post_btc_etp": plot_total_mma_hist_pre_post_btc_etp_from_parquet(pcpb_parquet_path, output_dir=output_root),
-        "multi_exchange_amu_bps_by_date": plot_amu_bps_by_date_from_parquet(pcpb_parquet_path, output_dir=output_root),
-        "multi_exchange_amu_bps_by_date_2023_2024_avg_events": plot_amu_bps_avg_2023_2024_with_events_from_parquet(pcpb_parquet_path, output_dir=output_root),
-        "multi_exchange_amu_bps_by_rel_strike": plot_amu_bps_by_rel_strike_from_parquet(pcpb_parquet_path, output_dir=output_root),
-        "multi_exchange_amu_bps_by_tte": plot_amu_bps_by_tte_from_parquet(pcpb_parquet_path, output_dir=output_root),
-    }
+    results: dict[str, Path | list[Path]] = {}
+    for key, tag, fn in jobs:
+        if art_filter.wanted(tag, key):
+            results[key] = fn(pcpb_parquet_path, output_dir=output_root)
+    return results
 
 
 def main() -> None:

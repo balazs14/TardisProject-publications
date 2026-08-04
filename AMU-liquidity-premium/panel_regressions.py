@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
+import os
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +12,7 @@ import polars as pl
 from amu_config import CONFIG, bootstrap_repo_root
 REPO_ROOT = bootstrap_repo_root(Path(__file__).resolve())
 
+import artifact_filter as art_filter
 from amu_panel import build_amu_panel
 from amu_metrics import PATHS_PER_TICK
 from amu_statistics import dataframe_to_tabular_tex
@@ -34,6 +36,7 @@ SPEC_DISPLAY_NAMES = {
     "amu_spec_depth": "(5)",
     "amu_spec_spread": "(6)",
     "amu_spec_stale": "(7)",
+    "amu_spec_nopost": "(8)",
 }
 
 # Column order in the combined coefficient table: (1) Post, (2) Post+cell FE,
@@ -42,7 +45,7 @@ SPEC_DISPLAY_NAMES = {
 # is an orthogonal rotation, all three components span the same space as the raw
 # frictions and reproduce (4) exactly, while PC1 alone is a rank-1 control that
 # merely under-controls. The amu_specpca helpers below are retained but unwired.
-MAIN_SPEC_ORDER = ("amu_spec1", "amu_spec1fe", "amu_spec2", "amu_spec3", "amu_spec_depth", "amu_spec_spread", "amu_spec_stale")
+MAIN_SPEC_ORDER = ("amu_spec1", "amu_spec1fe", "amu_spec2", "amu_spec3", "amu_spec_depth", "amu_spec_spread", "amu_spec_stale", "amu_spec_nopost")
 
 TERM_DISPLAY_NAMES = {
     "post_2024": "$\\mathrm{Post}_t$",
@@ -103,6 +106,18 @@ def build_liquidity_analysis_panel(
     frame["average_put_call_spread_bp"] = 0.5 * (
         frame["mean_call_spread_bp"] + frame["mean_put_spread_bp"]
     )
+    # Dollar spread: the bp spread is (ask-bid)/index * 1e4, so multiplying back by the
+    # index recovers the quoted dollar bid-ask width exactly. Rising underlying prices
+    # shrink the bp spread mechanically, so the dollar spread checks whether the
+    # compression is a real tightening or a price artifact.
+    if "mean_index" in frame.columns:
+        frame["average_put_call_spread_dollar"] = (
+            frame["average_put_call_spread_bp"] / 10000.0 * frame["mean_index"]
+        )
+    # Quote depth in underlying units ("shares"): the dollar depth divided back by the
+    # index, so a depth rise driven purely by higher prices shows up as flat shares.
+    if {"mean_min_quote_size_dollar", "mean_index"} <= set(frame.columns):
+        frame["min_quote_size_shares"] = frame["mean_min_quote_size_dollar"] / frame["mean_index"]
     frame["log_mean_min_quote_size_dollar"] = np.log(frame["mean_min_quote_size_dollar"].clip(lower=1.0))
     frame["stale_proxy"] = frame[["frac_call_stale", "frac_put_stale", "frac_spot_stale"]].mean(axis=1)
     frame["eth"] = frame["ref_sym"].str.contains("ETH", na=False).astype(float)
@@ -113,6 +128,22 @@ def build_liquidity_analysis_panel(
     frame["post_2024_x_eth"] = frame["post_2024"] * frame["eth"]
     frame["post_2024_x_atm"] = frame["post_2024"] * frame["atm"]
     frame["post_2024_x_short_tte"] = frame["post_2024"] * frame["short_tte"]
+    # Rate R = unconditional / conditional (share of positive tickpaths); the bp
+    # units cancel, leaving a fraction in [0, 1]. Materialized at the baseline and
+    # at each cost tag so figures/regressions can plot the extensive margin just by
+    # pointing the metric column at "mean_amu_rate*" (see panel_figures.set_amu_metric
+    # and the rate-aware AMU_DEPENDENT switch used by build_R_overview.py).
+    def _rate_col(uncond: str, cond: str) -> pd.Series:
+        u = pd.to_numeric(frame[uncond], errors="coerce")
+        c = pd.to_numeric(frame[cond], errors="coerce")
+        return u / c.where(c > 0)
+
+    if {"mean_amu_unconditional_bp", "mean_amu_conditional_bp"} <= set(frame.columns):
+        frame["mean_amu_rate"] = _rate_col("mean_amu_unconditional_bp", "mean_amu_conditional_bp")
+    for _c in range(5, 51, 5):
+        _u, _cc = f"mean_amu_uncond_bp_c{_c:02d}", f"mean_amu_cond_bp_c{_c:02d}"
+        if {_u, _cc} <= set(frame.columns):
+            frame[f"mean_amu_rate_c{_c:02d}"] = _rate_col(_u, _cc)
     assert AMU_DEPENDENT in frame.columns, (
         f"Expected {AMU_DEPENDENT} in panel. Recreate cached amu_panel parquet files "
         "(they now carry mean_amu_conditional_bp and mean_amu_unconditional_bp)."
@@ -169,6 +200,25 @@ def filter_analysis_panel(
     if apply_rel_strike:
         mask = mask & pd.to_numeric(frame["mean_rel_strike"], errors="coerce").between(rel_strike_min, rel_strike_max)
     filtered = frame.loc[mask].copy()
+    # Optional "most liquid options" restriction (short tenor, near-ATM), toggled by
+    # LIQUID_ONLY=1. Bounds overridable via LIQUID_TTE_MAX / LIQUID_RS_MIN /
+    # LIQUID_RS_MAX. Applied on top of the standard filter so every panel figure and
+    # the regressions share the same subset -- a one-flag robustness check.
+    if os.environ.get("LIQUID_ONLY", "0") == "1":
+        tte_max = float(os.environ.get("LIQUID_TTE_MAX", "0.25"))
+        rs_lo = float(os.environ.get("LIQUID_RS_MIN", "0.9"))
+        rs_hi = float(os.environ.get("LIQUID_RS_MAX", "1.1"))
+        liq = pd.Series(True, index=filtered.index)
+        if "tte_bucket" in filtered.columns:
+            liq &= pd.to_numeric(filtered["tte_bucket"], errors="coerce").between(0.0, tte_max)
+        if "mean_rel_strike" in filtered.columns:
+            liq &= pd.to_numeric(filtered["mean_rel_strike"], errors="coerce").between(rs_lo, rs_hi)
+        n_before = len(filtered)
+        filtered = filtered.loc[liq].copy()
+        logger.info(
+            "LIQUID_ONLY: tte<=%.3f, rel_strike in [%.2f, %.2f] -> kept %d/%d rows",
+            tte_max, rs_lo, rs_hi, len(filtered), n_before,
+        )
     logger.debug(
         "filter_analysis_panel input_rows=%d output_rows=%d apply_rel_strike=%s rel_strike=[%s, %s] spread_bp_max=%s min_quote_size_dollar=%s mma_bp=[%s, %s]",
         len(frame),
@@ -381,6 +431,15 @@ def amu_spec_stale_regression_spec() -> RegressionSpec:
                           regressors=("post_2024", "stale_proxy"), fixed_effects=("cell_id",))
 
 
+# Spec (8): spec (4)'s three frictions with cell fixed effects but WITHOUT Post --
+# how much of the within-cell variation the frictions explain on their own, with no
+# regime dummy to soak up the trend.
+def amu_spec_nopost_regression_spec() -> RegressionSpec:
+    return RegressionSpec(name="amu_spec_nopost", dependent=AMU_DEPENDENT,
+                          regressors=("log_mean_min_quote_size_dollar", "average_put_call_spread_bp", "stale_proxy"),
+                          fixed_effects=("cell_id",))
+
+
 def run_amu_spec_depth_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
     return _run_regression(amu_spec_depth_regression_spec(), panel=panel, **build_kwargs)
 
@@ -391,6 +450,10 @@ def run_amu_spec_spread_regression(panel: pd.DataFrame | pl.DataFrame | None = N
 
 def run_amu_spec_stale_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
     return _run_regression(amu_spec_stale_regression_spec(), panel=panel, **build_kwargs)
+
+
+def run_amu_spec_nopost_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
+    return _run_regression(amu_spec_nopost_regression_spec(), panel=panel, **build_kwargs)
 
 
 def write_text_macros(frame: pd.DataFrame, output_dir: str | Path) -> Path:
@@ -503,18 +566,28 @@ def write_frequency_size_table(panel: pd.DataFrame, output_dir: str | Path) -> P
 _COST_TABLE_BP = (10, 20, 30, 40, 50)
 
 
-def _panel_pooled_amu(sub: pd.DataFrame, cost_bp: int, *, conditional: bool) -> float:
-    """n_obs-pooled AMU (bp) over a panel subset at round-trip cost ``cost_bp``.
+def _pool_metric() -> str:
+    """Cost-curve/table metric inferred from the active dependent: 'rate' when
+    AMU_DEPENDENT points at a rate column, else 'amu' (bp)."""
+    return "rate" if "rate" in AMU_DEPENDENT else "amu"
+
+
+def _panel_pooled_amu(sub: pd.DataFrame, cost_bp: int, *, conditional: bool, metric: str | None = None) -> float:
+    """n_obs-pooled AMU (bp) -- or the pooled rate (fraction) when ``metric='rate'``
+    -- over a panel subset at round-trip cost ``cost_bp``.
 
     Built from the same accumulators (positive-part sum, positive count, tick
     count) as the headline regression dependent, so the unconditional value at the
     baseline cost reproduces the cell-weighted panel mean exactly:
-    ``sum(possum) / (4 * sum(n_obs))``."""
+    ``sum(possum) / (4 * sum(n_obs))``. The pooled rate is
+    ``sum(poscount) / (4 * sum(n_obs))``."""
+    metric = metric or _pool_metric()
+    poscount = pd.to_numeric(sub[f"amu_poscount_c{cost_bp:02d}"], errors="coerce").sum()
+    total_paths = PATHS_PER_TICK * pd.to_numeric(sub["n_obs"], errors="coerce").sum()
+    if metric == "rate":
+        return float(poscount / total_paths) if total_paths > 0 else float("nan")
     possum = pd.to_numeric(sub[f"amu_possum_bp_c{cost_bp:02d}"], errors="coerce").sum()
-    if conditional:
-        denom = pd.to_numeric(sub[f"amu_poscount_c{cost_bp:02d}"], errors="coerce").sum()
-    else:
-        denom = PATHS_PER_TICK * pd.to_numeric(sub["n_obs"], errors="coerce").sum()
+    denom = poscount if conditional else total_paths
     return float(possum / denom) if denom > 0 else float("nan")
 
 
@@ -539,11 +612,19 @@ def write_cost_sensitivity_table_from_panel(panel: pd.DataFrame, output_dir: str
 
 
 @debug_runtime("write_regression_tables")
-def write_regression_tables(output_dir: str | Path, **build_kwargs) -> dict[str, Path]:
+def write_regression_tables(output_dir: str | Path, *, frame: pd.DataFrame | None = None, **build_kwargs):
     output_root = Path(output_dir)
     output_root.mkdir(parents=True, exist_ok=True)
     paths: dict[str, Path] = {}
-    panel = build_liquidity_analysis_panel(**build_kwargs)
+    # Under a selective run, skip the (slow) regressions unless a table they produce
+    # was requested. Tags are the overview LaTeX labels plus the file stems.
+    _reg_tags = ("tab:regression_coefficients", "regression_coefficients_table",
+                 "tab:frequency_size_decomposition", "frequency_size_decomposition_table",
+                 "tab:cost_r_sensitivity", "cost_sensitivity_table",
+                 "regression_model_summary_table", "regression_effects_table")
+    if not art_filter.any_wanted(*_reg_tags):
+        return paths, frame
+    panel = frame if frame is not None else build_liquidity_analysis_panel(**build_kwargs)
     combined_results: list[pd.DataFrame] = []
     logger.debug(
         "write_regression_tables output_dir=%s panel_shape=%s",
@@ -558,6 +639,7 @@ def write_regression_tables(output_dir: str | Path, **build_kwargs) -> dict[str,
         run_amu_spec_depth_regression,
         run_amu_spec_spread_regression,
         run_amu_spec_stale_regression,
+        run_amu_spec_nopost_regression,
     ):
         result = runner(panel=panel)
         combined_results.append(result)

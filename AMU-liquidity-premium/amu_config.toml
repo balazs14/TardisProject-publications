@@ -117,6 +117,33 @@ pcpb_columns = [
   "fwd_joinput_bp",
   "mma_bck_bp",
   "mma_fwd_bp",
+  # Option trades per 5-min bin, per leg (already carried in the aligned parquet).
+  # trade_amount = size, trade_signed_amount = signed net flow (buy-sell),
+  # trade_price_amount = size-weighted price*size (VWAP = price_amount / amount).
+  "call_trade_amount",
+  "call_trade_signed_amount",
+  "call_trade_price_amount",
+  "put_trade_amount",
+  "put_trade_signed_amount",
+  "put_trade_price_amount",
+  # Open interest per leg (also already in the aligned parquet).
+  "call_open_interest",
+  "put_open_interest",
+  # Exchange-reported implied vol + greeks per leg. These require re-aligning the
+  # put/call/quotes/trades/chain parquets (the pairing step now carries them from
+  # the options chain); before that they project as nulls.
+  "call_mark_iv",
+  "call_bid_iv",
+  "call_ask_iv",
+  "put_mark_iv",
+  "put_bid_iv",
+  "put_ask_iv",
+  "call_delta",
+  "call_gamma",
+  "call_vega",
+  "put_delta",
+  "put_gamma",
+  "put_vega",
 ]
 
 [regression]

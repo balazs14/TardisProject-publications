@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+import artifact_filter as art_filter
 from amu_config import CONFIG
 from amu_metrics import PATHS_PER_TICK
 from figure_arbitrage_paths import write_arbitrage_paths_figures
@@ -28,38 +29,65 @@ event_dates = {
     for label, value in CONFIG["figures"]["event_dates"].items()
 }
 
-# AMU flavour these figures plot. The panel carries both mean_amu_conditional_bp
-# and mean_amu_unconditional_bp; switch to "mean_amu_unconditional_bp" for the
-# per-quote (frequency x conditional) wedge instead of the conditional size.
+# AMU flavour these figures plot. The panel carries mean_amu_conditional_bp,
+# mean_amu_unconditional_bp and (derived) mean_amu_rate. PANEL_AMU_COLUMN is the
+# "primary" series (heatmap / daily timeseries / compression); PANEL_AMU_UNCOND_COLUMN
+# is the unconditional per-quote series (event study / friction gradient). Call
+# set_amu_metric("rate") to repoint both at the rate so the whole figure set can be
+# regenerated on the extensive margin (see build_R_overview.py).
 PANEL_AMU_COLUMN = "mean_amu_conditional_bp"
+PANEL_AMU_UNCOND_COLUMN = "mean_amu_unconditional_bp"
 
 
-def generate_all_figures(output_dir: str | Path, **build_kwargs) -> dict[str, Path]:
-    frame = build_liquidity_analysis_panel(**build_kwargs)
+def set_amu_metric(kind: str = "default") -> None:
+    """Repoint the module-level metric columns. kind in {default, unconditional, rate}."""
+    global PANEL_AMU_COLUMN, PANEL_AMU_UNCOND_COLUMN
+    if kind == "rate":
+        PANEL_AMU_COLUMN = PANEL_AMU_UNCOND_COLUMN = "mean_amu_rate"
+    elif kind == "unconditional":
+        PANEL_AMU_COLUMN = PANEL_AMU_UNCOND_COLUMN = "mean_amu_unconditional_bp"
+    else:
+        PANEL_AMU_COLUMN, PANEL_AMU_UNCOND_COLUMN = "mean_amu_conditional_bp", "mean_amu_unconditional_bp"
+
+
+# Each panel figure paired with the tags that select it under
+# ONLY_RECREATE_ARTIFACTS: (paths-key, filename, plotting fn, *tags). The first tag
+# is the LaTeX label in figures-tables-overview.tex; the stem is also accepted.
+_PANEL_FIGURES = (
+    ("amu_bps_by_cost_pre_post", "amu_bps_by_cost_pre_post.pdf", "plot_amu_by_cost_pre_post", "fig:amu_by_cost_pre_post"),
+    ("daily_amu", "liquidity_daily_amu.png", "plot_daily_amu_timeseries", "fig:liquidity_daily_amu"),
+    ("heatmap", "liquidity_pre_post_heatmap.png", "plot_pre_post_heatmaps", "fig:liquidity_pre_post_heatmap"),
+    ("event_study", "liquidity_event_study.png", "plot_event_study", "fig:liquidity_event_study"),
+    ("friction_gradient", "liquidity_friction_gradient.png", "plot_friction_gradient", "fig:liquidity_friction_gradient"),
+    ("friction_timeseries", "friction_timeseries.png", "plot_friction_timeseries", "fig:friction_timeseries"),
+    ("compression", "liquidity_compression_decomposition.png", "plot_compression_decomposition", "fig:liquidity_compression_decomposition"),
+    ("regression_coefficients", "regression_coefficients.png", "plot_regression_coefficients", "fig:regression_coefficients"),
+)
+
+
+def generate_all_figures(output_dir: str | Path, *, frame: pd.DataFrame | None = None, **build_kwargs) -> dict[str, Path]:
     output_root = Path(output_dir)
     output_root.mkdir(parents=True, exist_ok=True)
-    paths = {
-        "daily_amu": output_root / "liquidity_daily_amu.png",
-        "heatmap": output_root / "liquidity_pre_post_heatmap.png",
-        "event_study": output_root / "liquidity_event_study.png",
-        "friction_gradient": output_root / "liquidity_friction_gradient.png",
-        "compression": output_root / "liquidity_compression_decomposition.png",
-        "regression_coefficients": output_root / "regression_coefficients.png",
-        "amu_bps_by_cost_pre_post": output_root / "amu_bps_by_cost_pre_post.pdf",
-    }
-    plot_amu_by_cost_pre_post(frame, paths["amu_bps_by_cost_pre_post"])
-    plot_daily_amu_timeseries(frame, paths["daily_amu"])
-    plot_pre_post_heatmaps(frame, paths["heatmap"])
-    plot_event_study(frame, paths["event_study"])
-    plot_friction_gradient(frame, paths["friction_gradient"])
-    plot_compression_decomposition(frame, paths["compression"])
-    plot_regression_coefficients(frame, paths["regression_coefficients"], **build_kwargs)
+    paths = {key: output_root / fname for key, fname, _, *_ in _PANEL_FIGURES}
+    schematic_tags = ("fig:arb_paths_crossed_noncrossed", "arbitrage_paths_crossed_noncrossed",
+                      "fig:backward_joincall_schematic", "backward_joincall_schematic")
+    # If a selective run requests nothing this generator owns, skip the (10-30 s)
+    # panel build entirely.
+    all_tags = [t for _, fname, _, *tags in _PANEL_FIGURES for t in (*tags, Path(fname).stem)]
+    if not (art_filter.any_wanted(*all_tags) or art_filter.any_wanted(*schematic_tags)):
+        return paths
+    frame = frame if frame is not None else build_liquidity_analysis_panel(**build_kwargs)
+    for key, fname, fn_name, *tags in _PANEL_FIGURES:
+        if art_filter.wanted(*tags, Path(fname).stem):
+            globals()[fn_name](frame, paths[key])
     # Hand-built schematic figures (data-independent) so a fresh clone reproduces
     # every figure in the paper, not just the data-driven ones.
-    for created in write_arbitrage_paths_figures(output_root):
-        paths[created.stem] = created
-    joincall = write_backward_joincall_figure(output_root)
-    paths[joincall.stem] = joincall
+    if art_filter.wanted("fig:arb_paths_crossed_noncrossed", "arbitrage_paths_crossed_noncrossed"):
+        for created in write_arbitrage_paths_figures(output_root):
+            paths[created.stem] = created
+    if art_filter.wanted("fig:backward_joincall_schematic", "backward_joincall_schematic"):
+        joincall = write_backward_joincall_figure(output_root)
+        paths[joincall.stem] = joincall
     return paths
 
 
@@ -103,12 +131,71 @@ def plot_daily_amu_timeseries(frame: pd.DataFrame, output_path: str | Path | Non
         .mean()
         .assign(series=lambda df: df["exchange"] + " | " + df["ref_sym"])
     )
+    # Trailing 1-month rolling mean per market for clarity.
+    plot_frame["day"] = pd.to_datetime(plot_frame["day"])
+    plot_frame = plot_frame.sort_values(["series", "day"]).set_index("day")
+    plot_frame[PANEL_AMU_COLUMN] = plot_frame.groupby("series")[PANEL_AMU_COLUMN].transform(
+        lambda s: s.rolling("30D", min_periods=1).mean()
+    )
+    plot_frame = plot_frame.reset_index()
     fig, ax = plt.subplots(figsize=(11, 5))
     sns.lineplot(data=plot_frame, x="day", y=PANEL_AMU_COLUMN, hue="series", ax=ax)
     _add_event_markers(ax)
     ax.set_ylabel("$U_u$ (bp)")
     ax.set_xlabel("Day")
     ax.set_title("$U_u$ by date")
+    return _finalize_figure(fig, output_path)
+
+
+# (column, y-axis label, log-scale?) for the friction-channel time series. The two
+# Amihud measures and the two recovery measures are present only once the panel is
+# rebuilt with the trade columns; the plot silently drops any channel that is absent.
+_FRICTION_TS_PANELS = (
+    ("average_put_call_spread_bp", r"Spread $\mathrm{Spr}_{g,t}$ (bp)", False),
+    ("average_put_call_spread_dollar", r"Spread (\$)", True),
+    ("stale_proxy", r"Stale $\mathrm{Stale}_{g,t}$ (fraction)", False),
+    ("mean_min_quote_size_dollar", r"Depth (\$)", True),
+    ("min_quote_size_shares", r"Depth (shares)", True),
+    ("amihud_shares", r"Amihud (shares)", True),
+    ("amihud_dollar", r"Amihud (\$)", True),
+    ("spread_bp_recovery", r"Spread-bp recovery (min)", False),
+    ("spread_dollar_recovery", r"Spread-\$ recovery (min)", False),
+)
+
+
+def plot_friction_timeseries(frame: pd.DataFrame, output_path: str | Path | None = None, window: str = "30D") -> plt.Figure:
+    """Three stacked panels -- spread, staleness, depth -- versus time, one line per
+    exchange/underlying group. Aggregated (mean) over strike and maturity buckets so
+    each (day, exchange, underlying) is a single point, then smoothed with a trailing
+    1-month rolling mean over calendar time; shared x-axis."""
+    filtered = filter_analysis_panel(frame)
+    panels = [p for p in _FRICTION_TS_PANELS if p[0] in filtered.columns]
+    cols = [col for col, _, _ in panels]
+    # Spread recovery is a heavy-tailed half-life, so take the median across the surface
+    # (robust to the thin-cell tail); the other channels use the mean.
+    aggfun = {col: ("median" if "recovery" in col else "mean") for col in cols}
+    agg = (
+        filtered.groupby(["day", "exchange", "ref_sym"], as_index=False)
+        .agg(aggfun)
+        .assign(series=lambda df: df["exchange"] + " | " + df["ref_sym"])
+    )
+    agg["day"] = pd.to_datetime(agg["day"])
+    agg = agg.sort_values(["series", "day"]).set_index("day")
+    agg[cols] = agg.groupby("series")[cols].transform(lambda s: s.rolling(window, min_periods=1).mean())
+    agg = agg.reset_index()
+    fig, axes = plt.subplots(len(panels), 1, figsize=(11, 3.3 * len(panels)), sharex=True)
+    axes = np.atleast_1d(axes)
+    for ax, (col, label, logy) in zip(axes, panels, strict=False):
+        sns.lineplot(data=agg, x="day", y=col, hue="series", ax=ax, legend=(ax is axes[0]))
+        _add_event_markers(ax)
+        ax.set_ylabel(label)
+        ax.set_xlabel("")
+        if logy:
+            ax.set_yscale("log")
+    axes[-1].set_xlabel("Day")
+    if axes[0].legend_ is not None:
+        axes[0].legend(title="", fontsize=9, ncol=2)
+    fig.suptitle("Friction channels over time by exchange and underlying (1-month rolling mean, over strike and maturity)")
     return _finalize_figure(fig, output_path)
 
 
@@ -166,7 +253,7 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
         event_rows.append(tmp.loc[tmp["rel_day"].between(-window, window)])
     plot_frame = pd.concat(event_rows, ignore_index=True)
     # Aggregate across all markets (no exchange separation)
-    event_amu_col = "mean_amu_unconditional_bp"  # fig 9 plots unconditional AMU
+    event_amu_col = PANEL_AMU_UNCOND_COLUMN  # fig 9 plots unconditional AMU (or rate in R mode)
     plot_frame = plot_frame.groupby(["event", "event_date", "rel_day"], as_index=False)[event_amu_col].mean()
     fig, ax = plt.subplots(figsize=(11, 6))
     
@@ -202,7 +289,7 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
 
 
 def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None = None, bins: int = 20) -> plt.Figure:
-    y_col = "mean_amu_unconditional_bp"  # headline AMU, consistent with the rest of the paper
+    y_col = PANEL_AMU_UNCOND_COLUMN  # headline AMU (or rate in R mode)
     filtered = filter_analysis_panel(frame)
     filtered = filtered.loc[filtered[y_col].notna()].copy()
     fig, axes = plt.subplots(1, 4, figsize=(24, 6.2), sharey=True)

@@ -134,6 +134,13 @@ $(C_{ask}-P_{ask})S_{ask}-(F_{ask}-K)e^{-rT}-\mathrm{cost}$ \\
 \label{fig:amu_schematic_mma_distribution}
 \end{figure}
 
+\begin{figure}[htbp]
+\centering
+\maybeincludegraphics[width=0.95\textwidth]{artifacts/backward_joincall_schematic.pdf}
+\caption{Backward join-call-bid schematic. Left: the real call bid/ask with the put quote and $F-K$, and the executable wedge $C^{\mathrm{syn}}_{bid}-C_{bid}$ into the synthetic call. Right: the real and synthetic call markets overlapping, with the wedge that market unfairness aggregates. Schematic, illustrative levels.}
+\label{fig:backward_joincall_schematic}
+\end{figure}
+
 \begin{table}[htbp]
 \centering
 {\renewcommand{\arraystretch}{1.3}\normalfont\normalsize\input{artifacts/summary_daily_option_coverage_table.tex}}
@@ -235,6 +242,13 @@ Stale-quote filter & \FilterStale{}: when enabled, ticks with a stale call, put,
 \label{tab:cost_r_sensitivity}
 \end{table}
 
+\begin{table}[htbp]
+\centering
+{\renewcommand{\arraystretch}{1.2}\normalfont\small\IfFileExists{artifacts/robustness_grid_table.tex}{\input{artifacts/robustness_grid_table.tex}}{\emph{\texttt{robustness\_grid\_table.tex}: run the rebuild.}}}
+\caption{Robustness grid: pre/post-2024 market unfairness under one-at-a-time perturbations of the filter and aggregation choices (clip cap, stale filter, spread cap, minimum size, moneyness window, weighting). The pre$\rightarrow$post drop is stable across settings.}
+\label{tab:robustness_grid}
+\end{table}
+
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_pre_post_heatmap.png}
@@ -283,11 +297,25 @@ $\varepsilon_{g,t}$ & Idiosyncratic error. \\
 \label{tab:regression_coefficients}
 \end{table}
 
+\begin{table}[htbp]
+\centering
+{\renewcommand{\arraystretch}{1.2}\normalfont\small\IfFileExists{artifacts/frequency_size_decomposition_table.tex}{\input{artifacts/frequency_size_decomposition_table.tex}}{\emph{\texttt{frequency\_size\_decomposition\_table.tex}: run the rebuild.}}}
+\caption{Two-part (extensive/intensive) decomposition of the post-2024 compression: the log unfairness rate $R$, the log conditional size $U_c$, and the log unconditional unfairness $U_u$ regressed on Post with cell fixed effects. The two Post semi-elasticities add up to the unconditional one.}
+\label{tab:frequency_size_decomposition}
+\end{table}
+
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_friction_gradient.png}
 \caption{Mean MMA against average put--call spread, log quote depth, and stale-quote fraction, and by underlying and exchange. Mean MMA falls almost one-for-one with the spread and moves with staleness, the friction channels that specification (4) controls for.}
 \label{fig:liquidity_friction_gradient}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\maybeincludegraphics[width=0.95\textwidth]{artifacts/friction_timeseries.png}
+\caption{Liquidity and friction channels over time by exchange and underlying, smoothed with a trailing 1-month rolling mean. Nine channels, cell-level (aggregated over strike and maturity). Quote properties: put--call spread in bp ($\mathrm{Spr}_{g,t}$) and dollars ($\mathrm{Spr}/10^{4}\times$ index, log), stale-quote fraction $\mathrm{Stale}_{g,t}$, and quote depth in dollars and in shares (dollar depth over the index, log). Dynamic (per cell-day from the 5-min series): Amihud illiquidity with volume in shares and in dollars (contracts $\times$ index), and the spread recovery time (AR(1) decay half-life after a large $2\sigma$ widening, minutes; median across the surface), each for the bp and the dollar spread. One line per exchange/underlying group; shared time axis.}
+\label{fig:friction_timeseries}
 \end{figure}
 
 \end{document}
