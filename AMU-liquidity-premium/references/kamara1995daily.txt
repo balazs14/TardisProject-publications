@@ -1,0 +1,6 @@
+kamara1995daily
+Title: Daily and Intradaily Tests of European Put-Call Parity
+
+Existing empirical studies of the put-call parity condition report frequent, substantial violations. An important problem in interpreting these results is that these studies all investigate American options. While some of these studies attempt to reduce the effects of possible early exercise on their tests, they cannot fully account for the effect of early exercise. Therefore, it is not possible to conclude from these studies whether, or to what extent, observed put-call parity violations are due to market inefficiency or due to the value of early exercise. We avoid the early exercise problem by testing put-call parity using European options. We find violations that are much less frequent and smaller than the studies using American options. Moreover, these violations reflect premia for liquidity (immediacy) risk.
+
+[Note: the DOI in bibl.bib (10.2307/2331271) does not resolve to any indexed work in Crossref. The correct DOI, confirmed via Crossref bibliographic search on title/authors, is 10.2307/2331275. See _VERIFICATION.md.]

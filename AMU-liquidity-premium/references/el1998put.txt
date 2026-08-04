@@ -1,0 +1,6 @@
+el1998put
+Title: Put-call parity revisited: intradaily tests in the foreign currency options market
+
+No abstract available from Crossref/OpenAlex (publisher page only). Verified real: El-Mekkaoui, Mazen and Flood, Mark D., "Put-call parity revisited: intradaily tests in the foreign currency options market", Journal of International Financial Markets, Institutions and Money, vol. 8, nos. 3-4 (1998). Same first author, journal, and year as the bibl.bib entry; the bib's title ("Put-Call Parity Revisited: Intraday Evidence from the Options Market") is a paraphrase of the actual published title.
+
+[Note: the DOI in bibl.bib (10.1016/S1042-4431(98)00027-9) does not resolve to any indexed work in Crossref or OpenAlex. The correct DOI, found via Crossref bibliographic search on the author/title, is 10.1016/S1042-4431(98)00046-8. See _VERIFICATION.md.]

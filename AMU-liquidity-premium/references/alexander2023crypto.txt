@@ -1,0 +1,4 @@
+alexander2023crypto
+Title: Crypto Quanto and Inverse Options
+
+Over 90% of exchange trading on crypto options has always been on the Deribit platform. This centralized crypto exchange only lists inverse products because they do not accept fiat currency. Likewise, other major crypto options platforms only list crypto-stablecoin trading pairs in so-called direct options, which are similar to the standard crypto options listed by the CME except the US dollar is replaced by a stablecoin version. Until now a clear mathematical exposition of these products has been lacking. We discuss the sources of market incompleteness in direct and inverse options and compare their pricing and hedging characteristics. Then we discuss the useful applications of currency protected "quanto" direct and inverse options for fiat-based traders and describe their pricing and hedging characteristics, all in the Black-Scholes setting.

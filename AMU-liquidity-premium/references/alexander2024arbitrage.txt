@@ -1,0 +1,6 @@
+alexander2024arbitrage
+Title: Arbitrage opportunities and efficiency tests in crypto derivatives
+
+We test the joint efficiency of the bitcoin and ether options and perpetual futures markets and identify the determinants of arbitrage opportunities. Our novel fiat-currency-free put-call parity relationship motivates new arbitrage tests for options-only and option-perpetual cross-markets. Bitcoin and ether derivatives markets are becoming more efficient, especially for options of maturity >= 15 days. Bitcoin derivative markets are generally more efficient than ether derivative markets, but arbitrage strategies can still be highly profitable even under conservative transaction cost scenarios, which include slippage for large orders, especially during periods of high trading volumes or when the blockchain traffic becomes more congested.
+
+[Note: reconstructed from OpenAlex's abstract_inverted_index for DOI 10.1016/j.finmar.2024.100930 (Journal of Financial Markets, vol. 71, art. 100930, 2024); one word position (54) was unindexed by OpenAlex and has been filled with "Bitcoin" for grammatical continuity based on sentence context. See _VERIFICATION.md for a DOI/author-metadata discrepancy versus the bibl.bib entry for this key.]

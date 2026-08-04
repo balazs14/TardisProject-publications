@@ -1,0 +1,6 @@
+nisbet1992put
+Title: Put-call parity theory and an empirical test of the efficiency of the London Traded Options Market
+
+No abstract available from Crossref/OpenAlex (publisher page only). Verified real: Nisbet, Mary (not "Mark" as in bibl.bib), "Put-call parity theory and an empirical test of the efficiency of the London Traded Options Market", Journal of Banking & Finance, vol. 16 (1992). Title and volume match the bib entry.
+
+[Note: two metadata issues found versus bibl.bib. (1) The DOI in bibl.bib (10.1016/0378-4266(92)90044-I) does not resolve to this work in Crossref/OpenAlex; the correct DOI, confirmed via Crossref bibliographic search and cross-checked against the reference list of felfoldi2024put, is 10.1016/0378-4266(92)90021-Q. (2) The author's first name in bibl.bib is given as "Mark" but Crossref lists the author as "Mary" Nisbet. See _VERIFICATION.md.]

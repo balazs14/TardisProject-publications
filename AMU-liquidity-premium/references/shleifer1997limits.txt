@@ -1,0 +1,4 @@
+shleifer1997limits
+Title: The Limits of Arbitrage
+
+Textbook arbitrage in financial markets requires no capital and entails no risk. In reality, almost all arbitrage requires capital, and is typically risky. Moreover, professional arbitrage is conducted by a relatively small number of highly specialized investors using other people's capital. Such professional arbitrage has a number of interesting implications for security pricing, including the possibility that arbitrage becomes ineffective in extreme circumstances, when prices diverge far from fundamental values. The model also suggests where anomalies in financial markets are likely to appear, and why arbitrage fails to eliminate them.

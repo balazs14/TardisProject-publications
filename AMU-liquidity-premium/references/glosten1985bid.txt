@@ -1,0 +1,4 @@
+glosten1985bid
+Title: Bid, ask and transaction prices in a specialist market with heterogeneously informed traders
+
+No abstract available from Crossref/OpenAlex (publisher page only). Verified real: Glosten, Lawrence R. and Milgrom, Paul R., "Bid, ask and transaction prices in a specialist market with heterogeneously informed traders", Journal of Financial Economics, vol. 14, no. 1, pp. 71-100 (1985). Title and authors match the bib entry exactly (DOI 10.1016/0304-405x(85)90044-3 confirmed via Crossref).

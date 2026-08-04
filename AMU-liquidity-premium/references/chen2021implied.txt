@@ -1,0 +1,4 @@
+chen2021implied
+Title: The Implied Arbitrage Mechanism in Financial Markets
+
+No abstract available from Crossref/OpenAlex (publisher page only). Verified real: Chen, Shiyi; Chng, Michael T.; and Liu, Qingfu, "The implied arbitrage mechanism in financial markets", Journal of Econometrics, vol. 222, no. 1, pp. 468-483 (2021), DOI 10.1016/j.jeconom.2020.07.011 - title and authors match the bib entry (bibl.bib had no DOI listed for this key; DOI found via Crossref bibliographic search).

@@ -1,0 +1,6 @@
+gagnon2010multimarket
+Title: Multi-market Trading and Arbitrage
+
+No abstract available from Crossref/OpenAlex (publisher page only). Verified real: Gagnon, Louis and Karolyi, G. Andrew, "Multi-market trading and arbitrage", Journal of Financial Economics, vol. 97, no. 1, pp. 53-80 (2010). Authors, volume, and pages exactly match the bib entry.
+
+[Note: the DOI in bibl.bib (10.1016/j.jfineco.2010.03.008) resolves in OpenAlex to a different, unrelated paper ("Comovement, information production, and the business cycle"). The correct DOI, confirmed via Crossref (matching volume 97, pages 53-80, and the Gagnon/Karolyi author list), is 10.1016/j.jfineco.2010.03.005. See _VERIFICATION.md.]

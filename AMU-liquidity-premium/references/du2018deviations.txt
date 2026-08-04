@@ -1,0 +1,4 @@
+du2018deviations
+Title: Deviations from Covered Interest Rate Parity
+
+We find that deviations from the covered interest rate parity (CIP) condition imply large, persistent, and systematic arbitrage opportunities in one of the largest asset markets in the world. Contrary to the common view, these deviations for major currencies are not explained away by credit risk or transaction costs. They are particularly strong for forward contracts that appear on banks' balance sheets at the end of the quarter, pointing to a causal effect of banking regulation on asset prices. The CIP deviations also appear significantly correlated with other fixed income spreads and with nominal interest rates.

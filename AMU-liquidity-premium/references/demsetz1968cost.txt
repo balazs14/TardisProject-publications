@@ -1,0 +1,4 @@
+demsetz1968cost
+Title: The Cost of Transacting
+
+No true abstract available from Crossref/OpenAlex (publisher page only). OpenAlex only carries a section/table-of-contents listing for this 1968 paper ("Introduction... The definition and measurement of transaction cost on the New York stock exchange... The determination of the ask-bid spread... Statistical results... Summary comments... Appendix I... Appendix II"), not a genuine abstract, so none is reproduced here. Verified real: Demsetz, Harold, "The Cost of Transacting", The Quarterly Journal of Economics, vol. 82, no. 1, pp. 33-53 (1968), DOI 10.2307/1882244 - title and author match the bib entry.

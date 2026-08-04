@@ -1,0 +1,4 @@
+duffie2010presidential
+Title: Presidential Address: Asset Price Dynamics with Slow-Moving Capital
+
+I describe asset price dynamics caused by the slow movement of investment capital to trading opportunities. The pattern of price responses to a supply or demand shock typically involves a sharp reaction to the shock and a subsequent and more extended reversal. The amplitude of the immediate price impact and of the subsequent recovery can reflect the institutional impediments to immediate trade, such as search costs for trading counterparties or time to raise capital by intermediaries. I discuss special impediments to capital formation during the recent financial crisis that caused asset price distortions, which subsided afterward. After presenting examples of price reactions to supply shocks in normal market settings, I offer a simple illustrative model of price dynamics associated with slow-moving capital due to the presence of inattentive investors.

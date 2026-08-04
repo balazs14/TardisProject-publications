@@ -1,0 +1,4 @@
+klemkosky1979put
+Title: Put-Call Parity and Market Efficiency
+
+No abstract available from Crossref/OpenAlex (publisher page only). Verified real: Klemkosky, Robert C. and Resnick, Bruce G., "Put-Call Parity and Market Efficiency", The Journal of Finance, vol. 34, no. 5, pp. 1141-1155 (1979), DOI 10.2307/2327240 - title and authors match the bib entry (this is the corrected DOI noted in the prior verification pass; see _VERIFICATION.md).

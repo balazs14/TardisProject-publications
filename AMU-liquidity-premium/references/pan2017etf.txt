@@ -1,0 +1,4 @@
+pan2017etf
+Title: ETF Arbitrage Under Liquidity Mismatch
+
+No abstract available from Crossref/OpenAlex (SSRN abstract page only accessible via publisher; not deposited as machine-readable metadata). Verified real: Pan, Kevin and Zeng, Yao, "ETF Arbitrage Under Liquidity Mismatch", European Systemic Risk Board Working Paper No. 59 (2017), DOI 10.2139/ssrn.3723406 - title, authors, and year match the bib entry exactly.

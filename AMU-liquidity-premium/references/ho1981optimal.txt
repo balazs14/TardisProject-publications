@@ -1,0 +1,4 @@
+ho1981optimal
+Title: Optimal Dealer Pricing under Transactions and Return Uncertainty
+
+No abstract available from Crossref/OpenAlex (publisher page only). Verified real: Ho, Thomas and Stoll, Hans R., "Optimal dealer pricing under transactions and return uncertainty", Journal of Financial Economics, vol. 9, no. 1, pp. 47-73 (1981), DOI 10.1016/0304-405X(81)90020-9 - title and authors match the bib entry.

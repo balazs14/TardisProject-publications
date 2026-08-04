@@ -1,0 +1,4 @@
+pontiff1996costly
+Title: Costly Arbitrage: Evidence from Closed-End Funds
+
+Arbitrage costs lead to large deviations of prices from fundamentals. Using a sample of closed-end funds, I find that the market value of a fund is more likely to deviate from its assets (1) for funds with portfolios that are difficult to replicate, (2) for funds that pay out smaller dividends, (3) for funds with lower market values, and (4) when interest rates are high. These factors are related to the magnitude of the deviation, as opposed to the direction (i.e., whether a discount or premium), and explain a quarter of cross-sectional mispricing variation. These findings are consistent with a noise trader models of asset pricing.

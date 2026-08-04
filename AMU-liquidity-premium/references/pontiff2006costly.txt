@@ -1,0 +1,4 @@
+pontiff2006costly
+Title: Costly arbitrage and the myth of idiosyncratic risk
+
+Transaction and holding costs make arbitrage costly. If some traders are rational, mispricing will only exist to the extent that arbitrage costs prevent rational traders from fully eliminating inefficiencies. Although the relation between mispricing and transaction costs is well-known, the relation between mispricing and holding costs is misunderstood. One holding cost, idiosyncratic risk, is particularly misunderstood. Various myths are debunked, including the common myth that arbitrageurs care about idiosyncratic risk because they are undiversified [Shleifer and Vishny (1997)]. The literature demonstrates that idiosyncratic risk is the single largest cost faced by arbitrageurs.

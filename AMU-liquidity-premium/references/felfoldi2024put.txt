@@ -1,0 +1,6 @@
+felfoldi2024put
+Title: Put-call parity in a crypto option market - Evidence from Binance
+
+No abstract available from Crossref/OpenAlex (publisher page only). Verified real: Felfoldi-Szucs, Nora; Kralik, Balazs; Varadi, Kata, "Put-call parity in a crypto option market - Evidence from Binance", Finance Research Letters, vol. 61, art. 104874 (2024).
+
+[Note: the DOI in bibl.bib (10.1016/j.frl.2023.104963) resolves to an unrelated paper ("Uncertainties and oil price volatility: Can lasso help?", Li et al.). The correct DOI for this reference is 10.1016/j.frl.2023.104874. See _VERIFICATION.md.]
