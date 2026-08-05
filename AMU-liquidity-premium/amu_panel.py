@@ -16,6 +16,7 @@ from amu_metrics import (
     positive_count_expr,
     positive_part_sum_expr,
     tickpath_amu_agg_exprs,
+    tickpath_amu_agg_exprs_flavored,
 )
 from tardis import package_set_log_level
 from tardis.process_pcp import compute_pcp_metrics
@@ -59,6 +60,8 @@ _cg_bp = [int(round(float(x) * 1.0e4)) for x in _cost_grid]  # [start_bp, end_bp
 COST_GRID_BP = list(range(_cg_bp[0], _cg_bp[1] + 1, _cg_bp[2]))
 pcp_metric_kwargs = {
     "cost_per_notional": float(pcp_cfg["cost_per_notional"]),
+    "cost_per_option_value": float(pcp_cfg.get("cost_per_option_value", 0.0)),
+    "flat_dollar_amount": float(pcp_cfg.get("flat_dollar_amount", 0.0)),
     "fut_mgn_rate": float(pcp_cfg["fut_mgn_rate"]),
     "short_put_mgn_rate": float(pcp_cfg["short_put_mgn_rate"]),
     "short_call_mgn_rate": float(pcp_cfg["short_call_mgn_rate"]),
@@ -191,8 +194,12 @@ def _panel_metrics() -> list[pl.Expr]:
     # is the denominator for the unconditional flavour; both mean_amu_conditional_bp
     # and mean_amu_unconditional_bp are formed as ratios after aggregation below.
     metrics.extend(
-        tickpath_amu_agg_exprs(
-            max_amu_bp, sum_alias="sum_amu_tickpath_bp", count_alias="num_amu_tickpath"
+        tickpath_amu_agg_exprs_flavored(
+            max_amu_bp,
+            sum_alias="sum_amu_tickpath_bp",
+            count_alias="num_amu_tickpath",
+            sum_dollar_alias="sum_amu_tickpath_dollar",
+            sum_capital_alias="sum_amu_tickpath_capital_bp",
         )
     )
     # Cost-grid AMU accumulators: for each grid cost c, the positive-part sum and the
@@ -227,7 +234,7 @@ def _panel_metrics() -> list[pl.Expr]:
 #     (see _spread_resiliency; cf. Degryse et al. 2005, Large 2007).
 # Robust to missing trade columns: without trades the two Amihud measures are null and
 # only the recoveries are produced.
-_CELL_DAY_LIQ_COLUMNS = ("amihud_shares", "amihud_dollar", "spread_bp_recovery", "spread_dollar_recovery")
+_CELL_DAY_LIQ_COLUMNS = ("amihud_shares", "amihud_dollar", "amihud_capital", "spread_bp_recovery", "spread_dollar_recovery")
 _LN2 = 0.6931471805599453
 _BIN_MINUTES = 5.0  # cell-tick spacing; spread recovery is reported in minutes
 _RECOVERY_BASELINE_BINS = 12  # centered rolling-baseline window (~1 hour) for the deviation
@@ -288,11 +295,17 @@ def _cell_day_liquidity(panel_ready: pl.DataFrame) -> pl.DataFrame:
     # option price). amihud_dollar = amihud_shares / index up to within-bin variation.
     call_ok = (pl.col("cvol") > 0) & pl.col("cret").is_not_null()
     put_ok = (pl.col("pvol") > 0) & pl.col("pret").is_not_null()
+    # Option capital per cell-tick: the sum of the call and put mid prices (K), used as the
+    # denominator scaler for the capital-normalized Amihud (volume in premium dollars,
+    # contracts x (call+put mid), rather than notional dollars, contracts x index).
+    _cap = (pl.col("cmid") + pl.col("pmid"))
     amihud = bins.group_by(cell_keys).agg(
         (pl.col("cret").abs() / pl.col("cvol")).filter(call_ok).sum().alias("_as_c"),
         (pl.col("pret").abs() / pl.col("pvol")).filter(put_ok).sum().alias("_as_p"),
         (pl.col("cret").abs() / (pl.col("cvol") * pl.col("index"))).filter(call_ok).sum().alias("_ad_c"),
         (pl.col("pret").abs() / (pl.col("pvol") * pl.col("index"))).filter(put_ok).sum().alias("_ad_p"),
+        (pl.col("cret").abs() / (pl.col("cvol") * _cap)).filter(call_ok).sum().alias("_ac_c"),
+        (pl.col("pret").abs() / (pl.col("pvol") * _cap)).filter(put_ok).sum().alias("_ac_p"),
         call_ok.sum().alias("_n_c"),
         put_ok.sum().alias("_n_p"),
     ).with_columns(
@@ -302,7 +315,10 @@ def _cell_day_liquidity(panel_ready: pl.DataFrame) -> pl.DataFrame:
         pl.when((pl.col("_n_c") + pl.col("_n_p")) > 0)
         .then((pl.col("_ad_c") + pl.col("_ad_p")) / (pl.col("_n_c") + pl.col("_n_p")))
         .otherwise(None).alias("amihud_dollar"),
-    ).select(cell_keys + ["amihud_shares", "amihud_dollar"])
+        pl.when((pl.col("_n_c") + pl.col("_n_p")) > 0)
+        .then((pl.col("_ac_c") + pl.col("_ac_p")) / (pl.col("_n_c") + pl.col("_n_p")))
+        .otherwise(None).alias("amihud_capital"),
+    ).select(cell_keys + ["amihud_shares", "amihud_dollar", "amihud_capital"])
 
     return (
         amihud
@@ -401,6 +417,13 @@ def _panel_block_from_file(file_path: Path) -> pl.DataFrame:
     ratio_columns = [
         amu_conditional_bp_expr("sum_amu_tickpath_bp", "num_amu_tickpath").alias("mean_amu_conditional_bp"),
         amu_unconditional_bp_expr("sum_amu_tickpath_bp", "n_obs").alias("mean_amu_unconditional_bp"),
+        # Dollar (per one notional) and capital-bp flavours of the same wedges.
+        amu_conditional_bp_expr("sum_amu_tickpath_dollar", "num_amu_tickpath").alias("mean_amu_conditional_dollar"),
+        amu_unconditional_bp_expr("sum_amu_tickpath_dollar", "n_obs").alias("mean_amu_unconditional_dollar"),
+        amu_conditional_bp_expr("sum_amu_tickpath_capital_bp", "num_amu_tickpath").alias(
+            "mean_amu_conditional_capital_bp"
+        ),
+        amu_unconditional_bp_expr("sum_amu_tickpath_capital_bp", "n_obs").alias("mean_amu_unconditional_capital_bp"),
     ]
     # Same two flavours at each grid cost, derived from the per-cost accumulators.
     for c in COST_GRID_BP:

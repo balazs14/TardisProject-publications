@@ -18,9 +18,15 @@ max_amu_bp = 100
 filter_stale = false
 
 [pcp]
-# Primary single cost for all standard AMU calculations (Table 5, regressions,
-# figures): the round-trip cost netted into MMA. AMU is thresholded at MMA>0.
+# Round-trip arbitrage cost for one notional, netted into MMA (and hence MU). Three
+# commensurate terms, all per one notional (no contract multiplier):
+#   cost = cost_per_notional * index  +  cost_per_option_value * (call+put mid)  +  flat_dollar_amount
+# Only MMA and MU (U_c, U_u) depend on this; the descriptive liquidity channels do not.
 cost_per_notional = 0.003
+# Fraction of the option capital (sum of call+put mid prices) charged per cycle.
+cost_per_option_value = 0.0
+# Flat dollar cost for one full arbitrage cycle of one notional.
+flat_dollar_amount = 0.0
 #cost_per_notional = 0.0005
 # AMU cost grid as fractions of notional (same units as cost_per_notional), given as
 # [start, end, step] with end inclusive. The panel precomputes conditional/
@@ -84,8 +90,17 @@ mean_panel_columns = [
   "pcpb_fwd_real_ann_bp",
   "call_opt_spread_bp",
   "put_opt_spread_bp",
+  "call_opt_spread_dollar",
+  "put_opt_spread_dollar",
+  "call_opt_spread_capital_bp",
+  "put_opt_spread_capital_bp",
+  "opt_val",
   "mma_bck_bp",
   "mma_fwd_bp",
+  "mma_bck_dollar",
+  "mma_fwd_dollar",
+  "mma_bck_capital_bp",
+  "mma_fwd_capital_bp",
   "min_quote_size_dollar",
   "contract_size",
 ]
@@ -110,6 +125,15 @@ pcpb_columns = [
   "rel_strike",
   "call_opt_spread_bp",
   "put_opt_spread_bp",
+  "call_opt_spread_dollar",
+  "put_opt_spread_dollar",
+  "call_opt_spread_capital_bp",
+  "put_opt_spread_capital_bp",
+  "opt_val",
+  "mma_bck_dollar",
+  "mma_fwd_dollar",
+  "mma_bck_capital_bp",
+  "mma_fwd_capital_bp",
   "tte",
   "index",
   "min_quote_size_dollar",

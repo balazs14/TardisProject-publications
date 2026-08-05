@@ -56,6 +56,8 @@ MAX_MMA_BP = float(CONFIG["filters"]["max_mma_bp"])
 MAX_AMU_BP = int(CONFIG["filters"]["max_amu_bp"])
 
 PCP_COST_PER_NOTIONAL = float(CONFIG["pcp"]["cost_per_notional"])
+PCP_COST_PER_OPTION_VALUE = float(CONFIG["pcp"].get("cost_per_option_value", 0.0))
+PCP_FLAT_DOLLAR_AMOUNT = float(CONFIG["pcp"].get("flat_dollar_amount", 0.0))
 PCP_FUT_MGN_RATE = float(CONFIG["pcp"]["fut_mgn_rate"])
 PCP_SHORT_PUT_MGN_RATE = float(CONFIG["pcp"]["short_put_mgn_rate"])
 PCP_SHORT_CALL_MGN_RATE = float(CONFIG["pcp"]["short_call_mgn_rate"])
@@ -63,6 +65,8 @@ PCP_R = float(CONFIG["pcp"]["r"])
 PCP_CONTRACT_SIZE = float(CONFIG["pcp"]["contract_size"])
 PCP_METRIC_KWARGS = {
     "cost_per_notional": PCP_COST_PER_NOTIONAL,
+    "cost_per_option_value": PCP_COST_PER_OPTION_VALUE,
+    "flat_dollar_amount": PCP_FLAT_DOLLAR_AMOUNT,
     "fut_mgn_rate": PCP_FUT_MGN_RATE,
     "short_put_mgn_rate": PCP_SHORT_PUT_MGN_RATE,
     "short_call_mgn_rate": PCP_SHORT_CALL_MGN_RATE,

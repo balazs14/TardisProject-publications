@@ -70,11 +70,64 @@ def any_positive_count_expr() -> pl.Expr:
     return (condition > 0).cast(pl.Int64).sum()
 
 
+def positive_part_sum_dollar_expr(max_amu_bp: float, *, index_col: str = "index") -> pl.Expr:
+    """Dollar (per one notional) analogue of ``positive_part_sum_expr`` at the baseline
+    cost. Each tickpath's winsorized bp wedge ``clip(m, 0, max_amu_bp)`` is converted to
+    a dollar wedge per notional by ``m_bp/1e4 * index``; the per-tick ``index`` multiplies
+    each row before summing, so the executable-path set and winsorization match the bp
+    measure exactly and only the units differ."""
+    return _add(
+        [
+            (pl.col(column).clip(lower_bound=0.0, upper_bound=max_amu_bp) * pl.col(index_col) / 1.0e4).sum()
+            for column in JOIN_PATH_COLUMNS
+        ]
+    )
+
+
+def positive_part_sum_capital_bp_expr(
+    max_amu_bp: float, *, index_col: str = "index", capital_col: str = "opt_val"
+) -> pl.Expr:
+    """Capital-bp analogue of ``positive_part_sum_expr``: the same winsorized bp wedge
+    expressed in basis points of the option capital (sum of the call and put mid prices),
+    i.e. ``clip(m, 0, max_amu_bp) * index / opt_val``. Shares the bp path set and cap."""
+    return _add(
+        [
+            (pl.col(column).clip(lower_bound=0.0, upper_bound=max_amu_bp) * pl.col(index_col) / pl.col(capital_col)).sum()
+            for column in JOIN_PATH_COLUMNS
+        ]
+    )
+
+
 def tickpath_amu_agg_exprs(max_amu_bp: float, *, sum_alias: str, count_alias: str) -> list[pl.Expr]:
     """Group-by aggregation exprs for the AMU numerator and denominator."""
     return [
         positive_part_sum_expr(max_amu_bp).alias(sum_alias),
         positive_count_expr().cast(pl.Float64).alias(count_alias),
+    ]
+
+
+def tickpath_amu_agg_exprs_flavored(
+    max_amu_bp: float,
+    *,
+    sum_alias: str,
+    count_alias: str,
+    sum_dollar_alias: str,
+    sum_capital_alias: str,
+    index_col: str = "index",
+    capital_col: str = "opt_val",
+) -> list[pl.Expr]:
+    """AMU accumulators in all three units: the bp positive-part sum and positive count
+    (as in ``tickpath_amu_agg_exprs``), plus the dollar and capital-bp positive-part sums
+    built from the same winsorized wedges. The shared ``count_alias`` is the denominator
+    for every conditional flavour; ``n_ticks`` (formed by the caller) for the
+    unconditional ones."""
+    return [
+        positive_part_sum_expr(max_amu_bp).alias(sum_alias),
+        positive_count_expr().cast(pl.Float64).alias(count_alias),
+        positive_part_sum_dollar_expr(max_amu_bp, index_col=index_col).alias(sum_dollar_alias),
+        positive_part_sum_capital_bp_expr(max_amu_bp, index_col=index_col, capital_col=capital_col).alias(
+            sum_capital_alias
+        ),
     ]
 
 

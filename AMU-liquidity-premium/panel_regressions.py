@@ -103,6 +103,14 @@ def build_liquidity_analysis_panel(
     frame["day"] = pd.to_datetime(frame["day"])
     frame["mean_mma_bp"] = 0.5 * (frame["mean_mma_bck_bp"] + frame["mean_mma_fwd_bp"])
     frame["std_mma_bp"] = frame[["mean_mma_bck_bp", "mean_mma_fwd_bp"]].std(axis=1, ddof=0)
+    # MMA in the other two units (dollars per notional and bp of option capital),
+    # averaged over the forward/backward legs exactly like the bp version.
+    if {"mean_mma_bck_dollar", "mean_mma_fwd_dollar"} <= set(frame.columns):
+        frame["mean_mma_dollar"] = 0.5 * (frame["mean_mma_bck_dollar"] + frame["mean_mma_fwd_dollar"])
+    if {"mean_mma_bck_capital_bp", "mean_mma_fwd_capital_bp"} <= set(frame.columns):
+        frame["mean_mma_capital_bp"] = 0.5 * (
+            frame["mean_mma_bck_capital_bp"] + frame["mean_mma_fwd_capital_bp"]
+        )
     frame["post_2024"] = (frame["day"].dt.date >= post_2024_start).astype(float)
     frame["average_put_call_spread_bp"] = 0.5 * (
         frame["mean_call_spread_bp"] + frame["mean_put_spread_bp"]
@@ -111,9 +119,20 @@ def build_liquidity_analysis_panel(
     # index recovers the quoted dollar bid-ask width exactly. Rising underlying prices
     # shrink the bp spread mechanically, so the dollar spread checks whether the
     # compression is a real tightening or a price artifact.
-    if "mean_index" in frame.columns:
+    if {"mean_call_opt_spread_dollar", "mean_put_opt_spread_dollar"} <= set(frame.columns):
+        # Exact dollar spread: the per-tick dollar width averaged over the cell-day.
+        frame["average_put_call_spread_dollar"] = 0.5 * (
+            frame["mean_call_opt_spread_dollar"] + frame["mean_put_opt_spread_dollar"]
+        )
+    elif "mean_index" in frame.columns:
+        # Fallback (pre-rebuild panels): reconstruct from the bp spread and mean index.
         frame["average_put_call_spread_dollar"] = (
             frame["average_put_call_spread_bp"] / 10000.0 * frame["mean_index"]
+        )
+    # Spread in bp of option capital (sum of call+put mid), averaged over the two legs.
+    if {"mean_call_opt_spread_capital_bp", "mean_put_opt_spread_capital_bp"} <= set(frame.columns):
+        frame["average_put_call_spread_capital_bp"] = 0.5 * (
+            frame["mean_call_opt_spread_capital_bp"] + frame["mean_put_opt_spread_capital_bp"]
         )
     # Quote depth in underlying units ("shares"): the dollar depth divided back by the
     # index, so a depth rise driven purely by higher prices shows up as flat shares.
@@ -149,6 +168,18 @@ def build_liquidity_analysis_panel(
         f"Expected {AMU_DEPENDENT} in panel. Recreate cached amu_panel parquet files "
         "(they now carry mean_amu_conditional_bp and mean_amu_unconditional_bp)."
     )
+    # BTCUSD reference price as a market-wide macro covariate: the daily mean index over
+    # the BTCUSD rows (the series plotted alongside the AMU time path), mapped onto every
+    # cell-day (including ETH rows). Provided as the level and its inverse so a spec can
+    # use whichever sign/scaling it needs.
+    if {"ref_sym", "mean_index"} <= set(frame.columns):
+        _btc = (
+            frame.loc[frame["ref_sym"].str.contains("BTC", na=False)]
+            .groupby("day")["mean_index"]
+            .mean()
+        )
+        frame["btcusd_ref"] = frame["day"].map(_btc)
+        frame["btcusd_ref_inv"] = 1.0 / frame["btcusd_ref"].where(frame["btcusd_ref"] > 0)
     frame["cell_id"] = (
         frame["exchange"]
         + "|"
@@ -325,10 +356,15 @@ def write_liquidity_pca_table(output_dir: str | Path) -> Path:
     return path
 
 
-# AMU dependent variable for every spec below. The panel carries both explicit
-# flavours; the regressions use the UNCONDITIONAL (per-quote = frequency x
-# conditional) AMU. Switch to "mean_amu_conditional_bp" for the conditional size.
-AMU_DEPENDENT = "mean_amu_uncond_bp_c30"
+# AMU dependent variable for every spec below. The regressions use the UNCONDITIONAL
+# (per-quote = frequency x conditional) AMU at the BASELINE cost -- i.e. net of the full
+# three-term cost structure (cost_per_notional, cost_per_option_value, flat_dollar_amount),
+# not a fixed-bp grid offset. The panel also carries the capital-bp and dollar unconditional
+# flavours (mean_amu_unconditional_capital_bp / _dollar), all of which depend on all three
+# cost parameters; point AMU_DEPENDENT at one of those to run the regression in that unit,
+# or at "mean_amu_conditional_bp" for the conditional size. The cost-sensitivity grid
+# (mean_amu_uncond_bp_c{cc}) is kept separately for the robustness analysis.
+AMU_DEPENDENT = "mean_amu_unconditional_bp"
 
 # Covariance estimator for the reported standard errors. Cluster keys must be
 # columns carried in the analysis panel. An empty tuple falls back to HC1
@@ -493,8 +529,10 @@ def write_text_macros(frame: pd.DataFrame, output_dir: str | Path) -> Path:
     return path
 
 
-# Cost tag the headline unconditional-AMU dependent is built at (e.g. "c30").
-_AMU_COST_TAG = AMU_DEPENDENT.rsplit("_", 1)[-1]
+# Baseline AMU accumulators (net of the full three-term cost), used for the
+# extensive/intensive decomposition so it matches the headline unconditional dependent.
+_AMU_POSSUM_COL = "sum_amu_tickpath_bp"
+_AMU_POSCOUNT_COL = "num_amu_tickpath"
 
 _FREQ_SIZE_CHANNELS = (
     ("log_amu_freq", "Unfairness rate $R$"),
@@ -506,14 +544,14 @@ _FREQ_SIZE_CHANNELS = (
 def _frequency_size_channels(panel: pd.DataFrame) -> pd.DataFrame:
     """Add the extensive/intensive AMU channels to a copy of the analysis panel.
 
-    At the headline cost tag the unconditional AMU factors exactly as
+    At the baseline cost the unconditional AMU factors exactly as
     ``uncond = phi * size`` where ``phi`` = positive tickpaths / total tickpaths
     (extensive margin) and ``size`` = positive-part sum / positive tickpaths
     (intensive margin). Logs are taken on the positive-mass sample (poscount > 0),
     so a log-linear regression of each channel on the same design decomposes the
     Post effect additively: beta(log uncond) = beta(log phi) + beta(log size)."""
-    possum = f"amu_possum_bp_{_AMU_COST_TAG}"
-    poscount = f"amu_poscount_{_AMU_COST_TAG}"
+    possum = _AMU_POSSUM_COL
+    poscount = _AMU_POSCOUNT_COL
     missing = {possum, poscount, "n_obs"} - set(panel.columns)
     assert not missing, f"frequency/size decomposition needs {sorted(missing)} in the panel"
     out = panel.copy()

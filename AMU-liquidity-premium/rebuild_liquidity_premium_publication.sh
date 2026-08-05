@@ -27,7 +27,7 @@ R_SENSITIVITY_VALUES=${R_SENSITIVITY_VALUES:-}
 # ARTIFACTS_DIR=artifacts_long for the full 2020-2026 build.
 # The script always creates/updates an "artifacts" symlink pointing at the
 # chosen directory so that liquidity-premium.tex sees the latest outputs.
-ARTIFACTS_DIR=${ARTIFACTS_DIR:-artifacts_long}
+ARTIFACTS_DIR=${ARTIFACTS_DIR:-artifacts_long_nofilterstale}
 
 export FROM_DATE
 export TO_DATE

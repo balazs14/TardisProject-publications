@@ -29,6 +29,7 @@ from amu_metrics import (
     amu_unconditional_bp_expr,
     any_positive_count_expr,
     tickpath_amu_agg_exprs,
+    tickpath_amu_agg_exprs_flavored,
 )
 
 # Which AMU flavour the single-series tick figures (by date, avg-events) plot.
@@ -78,6 +79,8 @@ STALE_LEG_COLUMNS = ("call_stale", "put_stale", "spot_stale")
 pcpb_columns = list(statistics_cfg["pcpb_columns"])
 pcp_metric_kwargs = {
     "cost_per_notional": float(pcp_cfg["cost_per_notional"]),
+    "cost_per_option_value": float(pcp_cfg.get("cost_per_option_value", 0.0)),
+    "flat_dollar_amount": float(pcp_cfg.get("flat_dollar_amount", 0.0)),
     "fut_mgn_rate": float(pcp_cfg["fut_mgn_rate"]),
     "short_put_mgn_rate": float(pcp_cfg["short_put_mgn_rate"]),
     "short_call_mgn_rate": float(pcp_cfg["short_call_mgn_rate"]),
@@ -378,7 +381,13 @@ def _amu_agg_exprs() -> list[pl.Expr]:
     # (see amu_metrics for the shared definition). num_pairs is the tick count and
     # num_has_amu the number of ticks with at least one positive path.
     return [
-        *tickpath_amu_agg_exprs(float(max_amu_bp_default), sum_alias="amu_possum", count_alias="num_amu"),
+        *tickpath_amu_agg_exprs_flavored(
+            float(max_amu_bp_default),
+            sum_alias="amu_possum",
+            count_alias="num_amu",
+            sum_dollar_alias="amu_possum_dollar",
+            sum_capital_alias="amu_possum_capital_bp",
+        ),
         pl.len().alias("num_pairs"),
         any_positive_count_expr().alias("num_has_amu"),
     ]
@@ -391,7 +400,13 @@ def _add_amu_bp_columns(frame: pl.LazyFrame) -> pl.LazyFrame:
     return frame.with_columns(
         amu_conditional_bp_expr("amu_possum", "num_amu").alias("amu_conditional_bp"),
         amu_unconditional_bp_expr("amu_possum", "num_pairs").alias("amu_unconditional_bp"),
-        # Rate R = positive tickpaths / total tickpaths = uncond / cond (bp cancels).
+        # Dollar (per one notional) and capital-bp flavours of the same conditional and
+        # unconditional wedges (same positive-path denominators, different units).
+        amu_conditional_bp_expr("amu_possum_dollar", "num_amu").alias("amu_conditional_dollar"),
+        amu_unconditional_bp_expr("amu_possum_dollar", "num_pairs").alias("amu_unconditional_dollar"),
+        amu_conditional_bp_expr("amu_possum_capital_bp", "num_amu").alias("amu_conditional_capital_bp"),
+        amu_unconditional_bp_expr("amu_possum_capital_bp", "num_pairs").alias("amu_unconditional_capital_bp"),
+        # Rate R = positive tickpaths / total tickpaths = uncond / cond (units cancel).
         pl.when(pl.col("num_pairs") > 0)
         .then(pl.col("num_amu") / (PATHS_PER_TICK * pl.col("num_pairs")))
         .otherwise(None)
