@@ -64,6 +64,7 @@ TERM_DISPLAY_NAMES = {
 
 
 filters_cfg = CONFIG["filters"]
+allowed_ref_syms = tuple(filters_cfg.get("ref_syms", ("BTCUSD", "ETHUSD")))
 regression_cfg = CONFIG["regression"]
 
 post_2024_start = pd.Timestamp(regression_cfg["post_2024_start"]).date()
@@ -199,6 +200,8 @@ def filter_analysis_panel(
     )
     if apply_rel_strike:
         mask = mask & pd.to_numeric(frame["mean_rel_strike"], errors="coerce").between(rel_strike_min, rel_strike_max)
+    if "ref_sym" in frame.columns:
+        mask = mask & frame["ref_sym"].isin(allowed_ref_syms)
     filtered = frame.loc[mask].copy()
     # Optional "most liquid options" restriction (short tenor, near-ATM), toggled by
     # LIQUID_ONLY=1. Bounds overridable via LIQUID_TTE_MAX / LIQUID_RS_MIN /

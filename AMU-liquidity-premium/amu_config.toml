@@ -2,6 +2,10 @@
 parquet_batch_rows = 100000
 
 [filters]
+# Underlyings kept in the analysis. Other listed underlyings (SOL, XRP, ...) become
+# computable once a spot/index is available (e.g. the futures-implied spot fallback),
+# so restrict the post-PCP sample to BTC and ETH.
+ref_syms = ["BTCUSD", "ETHUSD"]
 rel_strike_min = 0.79
 rel_strike_max = 1.21
 spread_bp_max = 1000

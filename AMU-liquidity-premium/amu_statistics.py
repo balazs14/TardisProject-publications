@@ -59,6 +59,7 @@ def _rolling_by_date(frame, value_cols, *, window: str = "30D", date_col: str = 
 PUBLICATION_DIR = Path(__file__).resolve().parent
 
 filters_cfg = CONFIG["filters"]
+allowed_ref_syms = tuple(filters_cfg.get("ref_syms", ("BTCUSD", "ETHUSD")))
 statistics_cfg = CONFIG["statistics"]
 pcp_cfg = CONFIG["pcp"]
 panel_cfg = CONFIG["panel"]
@@ -200,6 +201,8 @@ def filter_ticks(
             for column in STALE_LEG_COLUMNS:
                 if column in df.columns:
                     mask = mask & ~df[column].fillna(False).astype(bool)
+        if "ref_sym" in df.columns:
+            mask = mask & df["ref_sym"].isin(allowed_ref_syms)
         return df.loc[mask].copy()
 
     if isinstance(df, (pl.DataFrame, pl.LazyFrame)):
@@ -222,6 +225,8 @@ def filter_ticks(
             for column in STALE_LEG_COLUMNS:
                 if column in column_names:
                     expr = expr & (~pl.col(column).fill_null(False).cast(pl.Boolean))
+        if "ref_sym" in column_names:
+            expr = expr & pl.col("ref_sym").is_in(list(allowed_ref_syms))
         return df.filter(expr)
 
     raise TypeError(f"Unsupported frame type: {type(df)}")
