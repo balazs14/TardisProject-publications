@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -11,6 +12,8 @@ import artifact_filter as art_filter
 from amu_config import CONFIG
 from amu_metrics import PATHS_PER_TICK
 from figure_arbitrage_paths import write_arbitrage_paths_figures
+
+logger = logging.getLogger(__name__)
 from figure_backward_joincall import write_backward_joincall_figure
 from panel_regressions import (
     amu_spec1_regression_spec,
@@ -59,7 +62,9 @@ _PANEL_FIGURES = (
     ("heatmap", "liquidity_pre_post_heatmap.png", "plot_pre_post_heatmaps", "fig:liquidity_pre_post_heatmap"),
     ("event_study", "liquidity_event_study.png", "plot_event_study", "fig:liquidity_event_study"),
     ("friction_gradient", "liquidity_friction_gradient.png", "plot_friction_gradient", "fig:liquidity_friction_gradient"),
-    ("friction_timeseries", "friction_timeseries.png", "plot_friction_timeseries", "fig:friction_timeseries"),
+    ("friction_timeseries_direct", "friction_timeseries_direct.png", "plot_friction_timeseries_direct", "fig:friction_timeseries_direct"),
+    ("friction_timeseries_dynamic", "friction_timeseries_dynamic.png", "plot_friction_timeseries_dynamic", "fig:friction_timeseries_dynamic"),
+    ("amu_units_timeseries", "amu_units_timeseries.png", "plot_amu_units_timeseries", "fig:amu_units_timeseries"),
     ("compression", "liquidity_compression_decomposition.png", "plot_compression_decomposition", "fig:liquidity_compression_decomposition"),
     ("regression_coefficients", "regression_coefficients.png", "plot_regression_coefficients", "fig:regression_coefficients"),
 )
@@ -150,27 +155,48 @@ def plot_daily_amu_timeseries(frame: pd.DataFrame, output_path: str | Path | Non
 # (column, y-axis label, log-scale?) for the friction-channel time series. The two
 # Amihud measures and the two recovery measures are present only once the panel is
 # rebuilt with the trade columns; the plot silently drops any channel that is absent.
-_FRICTION_TS_PANELS = (
-    ("average_put_call_spread_bp", r"Spread $\mathrm{Spr}_{g,t}$ (bp)", False),
-    ("average_put_call_spread_dollar", r"Spread (\$)", True),
+# Friction channels split into two pages (at most seven panels each), grouped by kind.
+# Each entry: (column, y-axis label, log-y?). DIRECT = static properties of the standing
+# quotes (spread in three units, staleness, depth in two units); DYNAMIC = the intraday
+# illiquidity/resiliency measures (Amihud in three units, spread recovery in two).
+_FRICTION_TS_DIRECT = (
+    ("average_put_call_spread_bp", r"Spread $\mathrm{Spr}^{\mathrm{bp}}_{g,t}$ (bp)", False),
+    ("average_put_call_spread_capital_bp", r"Spread $\mathrm{Spr}^{\mathrm{cap}}_{g,t}$ (bp of capital)", False),
+    ("average_put_call_spread_dollar", r"Spread $\mathrm{Spr}^{\$}_{g,t}$ (\$)", True),
     ("stale_proxy", r"Stale $\mathrm{Stale}_{g,t}$ (fraction)", False),
     ("mean_min_quote_size_dollar", r"Depth (\$)", True),
     ("min_quote_size_shares", r"Depth (shares)", True),
+    ("mean_min_quote_size_capital", r"Depth (capital \$)", True),
+)
+_FRICTION_TS_DYNAMIC = (
     ("amihud_shares", r"Amihud (shares)", True),
-    ("amihud_dollar", r"Amihud (\$)", True),
+    ("amihud_dollar", r"Amihud (\$, index)", True),
+    ("amihud_capital", r"Amihud (capital)", True),
     ("spread_bp_recovery", r"Spread-bp recovery (min)", False),
     ("spread_dollar_recovery", r"Spread-\$ recovery (min)", False),
 )
 
 
-def plot_friction_timeseries(frame: pd.DataFrame, output_path: str | Path | None = None, window: str = "30D") -> plt.Figure:
-    """Three stacked panels -- spread, staleness, depth -- versus time, one line per
-    exchange/underlying group. Aggregated (mean) over strike and maturity buckets so
-    each (day, exchange, underlying) is a single point, then smoothed with a trailing
-    1-month rolling mean over calendar time; shared x-axis."""
+def _plot_friction_panels(
+    frame: pd.DataFrame, spec: tuple, title: str, output_path: str | Path | None, window: str = "30D"
+) -> plt.Figure:
+    """Stacked time-series panels (one per channel in ``spec``), one line per exchange/
+    underlying group. Aggregated over strike and maturity so each (day, exchange,
+    underlying) is a single point, then smoothed with a trailing 1-month rolling mean."""
     filtered = filter_analysis_panel(frame)
-    panels = [p for p in _FRICTION_TS_PANELS if p[0] in filtered.columns]
+    panels = [p for p in spec if p[0] in filtered.columns]
+    missing = [p[0] for p in spec if p[0] not in filtered.columns]
+    if missing:
+        logger.warning(
+            "%s: dropping %d friction channel(s) absent from the panel -- rebuild the panel "
+            "cache (RECREATE_PANEL_CACHE=1) if these are expected: %s",
+            title.split(" over time")[0], len(missing), missing,
+        )
     cols = [col for col, _, _ in panels]
+    if not cols:
+        fig, ax = plt.subplots(figsize=(11, 3))
+        ax.set_axis_off()
+        return _finalize_figure(fig, output_path)
     # Spread recovery is a heavy-tailed half-life, so take the median across the surface
     # (robust to the thin-cell tail); the other channels use the mean.
     aggfun = {col: ("median" if "recovery" in col else "mean") for col in cols}
@@ -195,8 +221,49 @@ def plot_friction_timeseries(frame: pd.DataFrame, output_path: str | Path | None
     axes[-1].set_xlabel("Day")
     if axes[0].legend_ is not None:
         axes[0].legend(title="", fontsize=9, ncol=2)
-    fig.suptitle("Friction channels over time by exchange and underlying (1-month rolling mean, over strike and maturity)")
+    fig.suptitle(title)
     return _finalize_figure(fig, output_path)
+
+
+def plot_friction_timeseries_direct(frame: pd.DataFrame, output_path: str | Path | None = None, window: str = "30D") -> plt.Figure:
+    """Direct quote frictions over time: the put--call spread in bp of notional, bp of
+    option capital, and dollars; staleness; and depth in dollars and in shares."""
+    return _plot_friction_panels(
+        frame, _FRICTION_TS_DIRECT,
+        "Direct quote frictions over time by exchange and underlying (1-month rolling mean, over strike and maturity)",
+        output_path, window,
+    )
+
+
+def plot_friction_timeseries_dynamic(frame: pd.DataFrame, output_path: str | Path | None = None, window: str = "30D") -> plt.Figure:
+    """Dynamic frictions over time: the Amihud illiquidity ratio with volume in shares,
+    in index dollars, and in option-capital dollars; and the spread recovery half-life
+    for the bp and the dollar spread."""
+    return _plot_friction_panels(
+        frame, _FRICTION_TS_DYNAMIC,
+        "Dynamic frictions over time by exchange and underlying (1-month rolling mean, over strike and maturity)",
+        output_path, window,
+    )
+
+
+# Unconditional market unfairness U_u in the three units, over time.
+_AMU_TS_PANELS = (
+    ("mean_amu_unconditional_bp", r"$U_u^{\mathrm{bp}}$ (bp of notional)", False),
+    ("mean_amu_unconditional_capital_bp", r"$U_u^{\mathrm{cap}}$ (bp of capital)", False),
+    ("mean_amu_unconditional_dollar", r"$U_u^{\$}$ (\$ per contract)", False),
+)
+
+
+def plot_amu_units_timeseries(frame: pd.DataFrame, output_path: str | Path | None = None, window: str = "30D") -> plt.Figure:
+    """Unconditional market unfairness $U_u$ over time in three units -- basis points of
+    notional, basis points of option capital, and dollars per contract -- one line per
+    exchange/underlying group. Aggregated (mean) over strike and maturity, then smoothed
+    with a trailing 1-month rolling mean."""
+    return _plot_friction_panels(
+        frame, _AMU_TS_PANELS,
+        r"Unconditional unfairness $U_u$ over time by exchange and underlying (1-month rolling mean, over strike and maturity)",
+        output_path, window,
+    )
 
 
 def plot_pre_post_heatmaps(frame: pd.DataFrame, output_path: str | Path | None = None) -> plt.Figure:

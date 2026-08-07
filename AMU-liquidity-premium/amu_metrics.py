@@ -71,9 +71,9 @@ def any_positive_count_expr() -> pl.Expr:
 
 
 def positive_part_sum_dollar_expr(max_amu_bp: float, *, index_col: str = "index") -> pl.Expr:
-    """Dollar (per one notional) analogue of ``positive_part_sum_expr`` at the baseline
+    """Dollar (per contract) analogue of ``positive_part_sum_expr`` at the baseline
     cost. Each tickpath's winsorized bp wedge ``clip(m, 0, max_amu_bp)`` is converted to
-    a dollar wedge per notional by ``m_bp/1e4 * index``; the per-tick ``index`` multiplies
+    a dollar wedge per contract by ``m_bp/1e4 * index``; the per-tick ``index`` multiplies
     each row before summing, so the executable-path set and winsorization match the bp
     measure exactly and only the units differ."""
     return _add(

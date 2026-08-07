@@ -102,6 +102,7 @@ mean_panel_columns = [
   "mma_bck_capital_bp",
   "mma_fwd_capital_bp",
   "min_quote_size_dollar",
+  "min_quote_size_capital",
   "contract_size",
 ]
 sum_panel_columns = [
@@ -137,6 +138,7 @@ pcpb_columns = [
   "tte",
   "index",
   "min_quote_size_dollar",
+  "min_quote_size_capital",
   "call_stale",
   "put_stale",
   "bck_joincall_bp",

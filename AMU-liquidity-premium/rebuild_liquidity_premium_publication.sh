@@ -8,13 +8,18 @@ VENV_PYTHON="$ROOT_DIR/venv/bin/python"
 
 FROM_DATE=${FROM_DATE:-2020-01-01}
 TO_DATE=${TO_DATE:-2026-06-05}
-BUILD_PDF=${BUILD_PDF:-1}
+BUILD_PDF=${BUILD_PDF:-0}
 LOG_LEVEL=${LOG_LEVEL:-INFO}
 # Recreate the two caches selectively (0 = reuse if present, 1 = rebuild from raw):
 #   RECREATE_STAT_CACHE  -> the tick-level statistics frame (18 GB)
 #   RECREATE_PANEL_CACHE -> the aggregated panel (drives the regressions)
 RECREATE_STAT_CACHE=${RECREATE_STAT_CACHE:-0}
 RECREATE_PANEL_CACHE=${RECREATE_PANEL_CACHE:-0}
+# SUBSAMPLE_DAYS -> development speedup: process only one calendar day in every N when
+# rebuilding the stat/panel caches (selected deterministically by date, so the two stay
+# aligned). Within-day computation is unchanged. 1 = full run (default). Set e.g.
+# SUBSAMPLE_DAYS=10 for a ~10x-faster experimental rebuild; drop it for the final run.
+SUBSAMPLE_DAYS=${SUBSAMPLE_DAYS:-1}
 # RECREATE_R_SENSITIVITY -> re-run the full r-sensitivity sweep via
 # run_r_sensitivity.sh (recomputes AMU across discount rates and rewrites the
 # r-dependence table + plot). VERY expensive: one full ~18 GB tick-frame rebuild
@@ -35,6 +40,7 @@ export BUILD_PDF
 export LOG_LEVEL
 export RECREATE_STAT_CACHE
 export RECREATE_PANEL_CACHE
+export SUBSAMPLE_DAYS
 export RECREATE_R_SENSITIVITY
 export ARTIFACTS_DIR
 
@@ -54,9 +60,15 @@ fi
 ln -sfn "$ARTIFACTS_DIR" artifacts
 echo "artifacts -> $ARTIFACTS_DIR"
 
+if [[ "${SUBSAMPLE_DAYS:-1}" -gt 1 ]]; then
+	echo "SUBSAMPLE_DAYS=$SUBSAMPLE_DAYS"
+	echo "  -> DEVELOPMENT MODE: rebuilding caches from only 1 calendar day in every $SUBSAMPLE_DAYS."
+	echo "     Within-day calculations are unchanged, but results are a day-subsample. Unset (or =1) for the full run."
+fi
+
 if [[ -n "${ONLY_RECREATE_ARTIFACTS:-}" ]]; then
 	echo "ONLY_RECREATE_ARTIFACTS=$ONLY_RECREATE_ARTIFACTS"
-	echo "  -> regenerating only those artifacts (tags = figures-tables-overview.tex \\label strings, e.g. fig:friction_timeseries, or file stems). Everything else is left as-is."
+	echo "  -> regenerating only those artifacts (tags = figures-tables-overview.tex \\label strings, e.g. fig:friction_timeseries_direct, or file stems). Everything else is left as-is."
 fi
 
 "$VENV_PYTHON" - <<'PY'
@@ -64,10 +76,12 @@ import os
 import logging
 from pathlib import Path
 
+import artifact_filter as art_filter
 from amu_statistics import generate_all_statistics, write_dynamic_tex_assumptions
 from amu_cache import build_shared_cache_path
 from panel_figures import generate_all_figures
 from panel_regressions import write_regression_tables
+from cross_exchange_quotes import plot_cross_exchange_quote_diff
 
 from_date = os.environ["FROM_DATE"]
 to_date = os.environ["TO_DATE"]
@@ -128,6 +142,11 @@ generate_all_figures(
 	cache_path=cache_path,
 	force_recreate_cache=recreate_panel_cache,
 )
+
+# Cross-exchange quote-difference figure (reads the aligned parquets directly; independent
+# of the stat/panel caches). Gated so a selective run only pays for it when requested.
+if art_filter.wanted("fig:cross_exchange_quote_diff", "cross_exchange_quote_diff"):
+	plot_cross_exchange_quote_diff(from_date, to_date, artifacts_dir)
 PY
 
 # Optional, very expensive: recompute AMU across discount rates and refresh the

@@ -3,14 +3,14 @@
 Set ONLY_RECREATE_ARTIFACTS to a comma-separated list of tags to regenerate only
 those artifacts and skip everything else (each generator keeps its existing files
 for the ones it skips). A tag is the LaTeX reference string used in
-figures-tables-overview.tex (e.g. ``fig:friction_timeseries``,
+figures-tables-overview.tex (e.g. ``fig:friction_timeseries_direct``,
 ``tab:regression_coefficients``); the artifact filename stem (e.g.
 ``friction_timeseries``) is also accepted.
 
 Examples
 --------
-    ONLY_RECREATE_ARTIFACTS=fig:friction_timeseries          # one figure
-    ONLY_RECREATE_ARTIFACTS=fig:friction_timeseries,tab:robustness_grid
+    ONLY_RECREATE_ARTIFACTS=fig:friction_timeseries_direct          # one figure
+    ONLY_RECREATE_ARTIFACTS=fig:friction_timeseries_direct,tab:robustness_grid
 
 When the variable is unset or empty, everything is regenerated (normal full run).
 """

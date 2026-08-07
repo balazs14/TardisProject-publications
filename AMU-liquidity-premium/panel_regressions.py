@@ -37,6 +37,27 @@ SPEC_DISPLAY_NAMES = {
     "amu_spec_spread": "(6)",
     "amu_spec_stale": "(7)",
     "amu_spec_nopost": "(8)",
+    "amu_spec_btc": "(9)",
+    # Capital-unit variants (dependent U_u^cap; spread in bp of capital, depth in shares).
+    "cap_spec1": "(1)",
+    "cap_spec1fe": "(2)",
+    "cap_spec2": "(3)",
+    "cap_spec3": "(4)",
+    "cap_spec_depth": "(5)",
+    "cap_spec_spread": "(6)",
+    "cap_spec_stale": "(7)",
+    "cap_spec_nopost": "(8)",
+    "cap_spec_btc": "(9)",
+    # Dollar-unit variants (dependent U_u^$; spread in dollars, depth in dollars).
+    "dol_spec1": "(1)",
+    "dol_spec1fe": "(2)",
+    "dol_spec2": "(3)",
+    "dol_spec3": "(4)",
+    "dol_spec_depth": "(5)",
+    "dol_spec_spread": "(6)",
+    "dol_spec_stale": "(7)",
+    "dol_spec_nopost": "(8)",
+    "dol_spec_btc": "(9)",
 }
 
 # Column order in the combined coefficient table: (1) Post, (2) Post+cell FE,
@@ -46,12 +67,29 @@ SPEC_DISPLAY_NAMES = {
 # frictions and reproduce (4) exactly, while PC1 alone is a rank-1 control that
 # merely under-controls. The amu_specpca helpers below are retained but unwired.
 MAIN_SPEC_ORDER = ("amu_spec1", "amu_spec1fe", "amu_spec2", "amu_spec3", "amu_spec_depth", "amu_spec_spread", "amu_spec_stale", "amu_spec_nopost")
+# Same column order for the capital-unit and dollar-unit tables.
+CAP_SPEC_ORDER = ("cap_spec1", "cap_spec1fe", "cap_spec2", "cap_spec3", "cap_spec_depth", "cap_spec_spread", "cap_spec_stale", "cap_spec_nopost")
+DOL_SPEC_ORDER = ("dol_spec1", "dol_spec1fe", "dol_spec2", "dol_spec3", "dol_spec_depth", "dol_spec_spread", "dol_spec_stale", "dol_spec_nopost")
+# Columns actually SHOWN in the coefficient tables: drop (1) [pooled Post-only] and (3)
+# [pooled segment dummies], leaving the fixed-effects specifications (2),(4)-(8).
+MAIN_COEF_DISPLAY_ORDER = ("amu_spec1fe", "amu_spec3", "amu_spec_depth", "amu_spec_spread", "amu_spec_stale", "amu_spec_nopost", "amu_spec_btc")
+CAP_COEF_DISPLAY_ORDER = ("cap_spec1fe", "cap_spec3", "cap_spec_depth", "cap_spec_spread", "cap_spec_stale", "cap_spec_nopost", "cap_spec_btc")
+DOL_COEF_DISPLAY_ORDER = ("dol_spec1fe", "dol_spec3", "dol_spec_depth", "dol_spec_spread", "dol_spec_stale", "dol_spec_nopost", "dol_spec_btc")
+# Coefficient-table row order per unit. Each swaps in its own depth and spread controls;
+# the BTCUSD index level enters every full-control specification as a market covariate.
+_MAIN_COEF_TERM_ORDER = ("post_2024", "okx", "eth", "atm", "short_tte", "log_mean_min_quote_size_dollar", "average_put_call_spread_bp", "stale_proxy", "log_btcusd_ref")
+_CAP_COEF_TERM_ORDER = ("post_2024", "okx", "eth", "atm", "short_tte", "log_min_quote_size_shares", "average_put_call_spread_capital_bp", "stale_proxy", "log_btcusd_ref")
+_DOL_COEF_TERM_ORDER = ("post_2024", "okx", "eth", "atm", "short_tte", "log_mean_min_quote_size_dollar", "average_put_call_spread_dollar", "stale_proxy", "log_btcusd_ref")
 
 TERM_DISPLAY_NAMES = {
     "post_2024": "$\\mathrm{Post}_t$",
-    "average_put_call_spread_bp": "$\\mathrm{Spr}_{g,t}$",
-    "log_mean_min_quote_size_dollar": "$\\mathrm{Depth}_{g,t}$",
+    "average_put_call_spread_bp": "$\\mathrm{Spr}^{\\mathrm{bp}}_{g,t}$",
+    "average_put_call_spread_capital_bp": "$\\mathrm{Spr}^{\\mathrm{cap}}_{g,t}$",
+    "average_put_call_spread_dollar": "$\\mathrm{Spr}^{\\$}_{g,t}$",
+    "log_mean_min_quote_size_dollar": "$\\mathrm{Depth}^{\\$}_{g,t}$",
+    "log_min_quote_size_shares": "$\\mathrm{Depth}^{\\mathrm{sh}}_{g,t}$",
     "stale_proxy": "$\\mathrm{Stale}_{g,t}$",
+    "log_btcusd_ref": "$\\log\\mathrm{BTC}_t$",
     "liquidity_pc": "$\\mathrm{Liq}_{g,t}$",
     "okx": "$\\mathrm{OKX}_g$",
     "eth": "$\\mathrm{ETH}_g$",
@@ -101,13 +139,30 @@ def build_liquidity_analysis_panel(
 
     frame = panel.to_pandas().copy()
     frame["day"] = pd.to_datetime(frame["day"])
+
+    # Derived columns below are guarded on the presence of their panel inputs so a stale
+    # (pre-rebuild) panel cache degrades instead of erroring. Any skip is logged so a
+    # silently-missing column is visible rather than mysterious (see _have).
+    _present = set(frame.columns)
+
+    def _have(required: set[str], produces: str) -> bool:
+        missing = set(required) - _present
+        if missing:
+            logger.warning(
+                "build_liquidity_analysis_panel: skipping %s -- panel missing %s "
+                "(rebuild the panel cache with RECREATE_PANEL_CACHE=1 if this is expected)",
+                produces, sorted(missing),
+            )
+            return False
+        return True
+
     frame["mean_mma_bp"] = 0.5 * (frame["mean_mma_bck_bp"] + frame["mean_mma_fwd_bp"])
     frame["std_mma_bp"] = frame[["mean_mma_bck_bp", "mean_mma_fwd_bp"]].std(axis=1, ddof=0)
-    # MMA in the other two units (dollars per notional and bp of option capital),
+    # MMA in the other two units (dollars per contract and bp of option capital),
     # averaged over the forward/backward legs exactly like the bp version.
-    if {"mean_mma_bck_dollar", "mean_mma_fwd_dollar"} <= set(frame.columns):
+    if _have({"mean_mma_bck_dollar", "mean_mma_fwd_dollar"}, "mean_mma_dollar"):
         frame["mean_mma_dollar"] = 0.5 * (frame["mean_mma_bck_dollar"] + frame["mean_mma_fwd_dollar"])
-    if {"mean_mma_bck_capital_bp", "mean_mma_fwd_capital_bp"} <= set(frame.columns):
+    if _have({"mean_mma_bck_capital_bp", "mean_mma_fwd_capital_bp"}, "mean_mma_capital_bp"):
         frame["mean_mma_capital_bp"] = 0.5 * (
             frame["mean_mma_bck_capital_bp"] + frame["mean_mma_fwd_capital_bp"]
         )
@@ -119,25 +174,33 @@ def build_liquidity_analysis_panel(
     # index recovers the quoted dollar bid-ask width exactly. Rising underlying prices
     # shrink the bp spread mechanically, so the dollar spread checks whether the
     # compression is a real tightening or a price artifact.
-    if {"mean_call_opt_spread_dollar", "mean_put_opt_spread_dollar"} <= set(frame.columns):
+    if {"mean_call_opt_spread_dollar", "mean_put_opt_spread_dollar"} <= _present:
         # Exact dollar spread: the per-tick dollar width averaged over the cell-day.
         frame["average_put_call_spread_dollar"] = 0.5 * (
             frame["mean_call_opt_spread_dollar"] + frame["mean_put_opt_spread_dollar"]
         )
-    elif "mean_index" in frame.columns:
+    elif "mean_index" in _present:
         # Fallback (pre-rebuild panels): reconstruct from the bp spread and mean index.
+        logger.warning(
+            "build_liquidity_analysis_panel: average_put_call_spread_dollar from the bp*index "
+            "fallback (mean_call/put_opt_spread_dollar absent); rebuild the panel cache for the exact value"
+        )
         frame["average_put_call_spread_dollar"] = (
             frame["average_put_call_spread_bp"] / 10000.0 * frame["mean_index"]
         )
+    else:
+        logger.warning("build_liquidity_analysis_panel: skipping average_put_call_spread_dollar -- no dollar spread or mean_index")
     # Spread in bp of option capital (sum of call+put mid), averaged over the two legs.
-    if {"mean_call_opt_spread_capital_bp", "mean_put_opt_spread_capital_bp"} <= set(frame.columns):
+    if _have({"mean_call_opt_spread_capital_bp", "mean_put_opt_spread_capital_bp"}, "average_put_call_spread_capital_bp"):
         frame["average_put_call_spread_capital_bp"] = 0.5 * (
             frame["mean_call_opt_spread_capital_bp"] + frame["mean_put_opt_spread_capital_bp"]
         )
     # Quote depth in underlying units ("shares"): the dollar depth divided back by the
     # index, so a depth rise driven purely by higher prices shows up as flat shares.
-    if {"mean_min_quote_size_dollar", "mean_index"} <= set(frame.columns):
+    if _have({"mean_min_quote_size_dollar", "mean_index"}, "min_quote_size_shares / log_min_quote_size_shares"):
         frame["min_quote_size_shares"] = frame["mean_min_quote_size_dollar"] / frame["mean_index"]
+        # Log depth-in-shares, the capital-table analogue of log_mean_min_quote_size_dollar.
+        frame["log_min_quote_size_shares"] = np.log(frame["min_quote_size_shares"].clip(lower=1e-9))
     frame["log_mean_min_quote_size_dollar"] = np.log(frame["mean_min_quote_size_dollar"].clip(lower=1.0))
     frame["stale_proxy"] = frame[["frac_call_stale", "frac_put_stale", "frac_spot_stale"]].mean(axis=1)
     frame["eth"] = frame["ref_sym"].str.contains("ETH", na=False).astype(float)
@@ -158,7 +221,7 @@ def build_liquidity_analysis_panel(
         c = pd.to_numeric(frame[cond], errors="coerce")
         return u / c.where(c > 0)
 
-    if {"mean_amu_unconditional_bp", "mean_amu_conditional_bp"} <= set(frame.columns):
+    if _have({"mean_amu_unconditional_bp", "mean_amu_conditional_bp"}, "mean_amu_rate"):
         frame["mean_amu_rate"] = _rate_col("mean_amu_unconditional_bp", "mean_amu_conditional_bp")
     for _c in range(5, 51, 5):
         _u, _cc = f"mean_amu_uncond_bp_c{_c:02d}", f"mean_amu_cond_bp_c{_c:02d}"
@@ -172,7 +235,7 @@ def build_liquidity_analysis_panel(
     # the BTCUSD rows (the series plotted alongside the AMU time path), mapped onto every
     # cell-day (including ETH rows). Provided as the level and its inverse so a spec can
     # use whichever sign/scaling it needs.
-    if {"ref_sym", "mean_index"} <= set(frame.columns):
+    if _have({"ref_sym", "mean_index"}, "btcusd_ref / btcusd_ref_inv"):
         _btc = (
             frame.loc[frame["ref_sym"].str.contains("BTC", na=False)]
             .groupby("day")["mean_index"]
@@ -180,6 +243,9 @@ def build_liquidity_analysis_panel(
         )
         frame["btcusd_ref"] = frame["day"].map(_btc)
         frame["btcusd_ref_inv"] = 1.0 / frame["btcusd_ref"].where(frame["btcusd_ref"] > 0)
+        # Log BTCUSD index: the regression covariate (a level of ~1e4-1e5 gives an
+        # unreadable coefficient; the log makes it a per-log-point semi-elasticity).
+        frame["log_btcusd_ref"] = np.log(frame["btcusd_ref"].clip(lower=1.0))
     frame["cell_id"] = (
         frame["exchange"]
         + "|"
@@ -402,6 +468,7 @@ _SPEC3_REGRESSORS = (
     "log_mean_min_quote_size_dollar",
     "average_put_call_spread_bp",
     "stale_proxy",
+    "log_btcusd_ref",
 )
 
 
@@ -475,8 +542,125 @@ def amu_spec_stale_regression_spec() -> RegressionSpec:
 # regime dummy to soak up the trend.
 def amu_spec_nopost_regression_spec() -> RegressionSpec:
     return RegressionSpec(name="amu_spec_nopost", dependent=AMU_DEPENDENT,
-                          regressors=("log_mean_min_quote_size_dollar", "average_put_call_spread_bp", "stale_proxy"),
+                          regressors=("log_mean_min_quote_size_dollar", "average_put_call_spread_bp", "stale_proxy", "log_btcusd_ref"),
                           fixed_effects=("cell_id",))
+
+
+# Spec (9): Post plus the log BTCUSD index only, with cell fixed effects -- the regime
+# effect controlling only for the market-wide price level.
+def amu_spec_btc_regression_spec() -> RegressionSpec:
+    return RegressionSpec(name="amu_spec_btc", dependent=AMU_DEPENDENT,
+                          regressors=("post_2024", "log_btcusd_ref"), fixed_effects=("cell_id",))
+
+
+def run_amu_spec_btc_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
+    return _run_regression(amu_spec_btc_regression_spec(), panel=panel, **build_kwargs)
+
+
+# Capital-unit regression variants. Same eight structures as specs (1)-(8), but the
+# dependent is the UNCONDITIONAL unfairness in bp of option capital (U_u^cap), the depth
+# regressor is depth-in-shares (log), and the spread regressor is the spread in bp of
+# capital. This reads the compression through the option-capital (return-on-premium) lens
+# rather than the notional (bp-of-underlying) one.
+CAP_DEPENDENT = "mean_amu_unconditional_capital_bp"
+_CAP_FRICTIONS = ("log_min_quote_size_shares", "average_put_call_spread_capital_bp", "stale_proxy", "log_btcusd_ref")
+_CAP_SPEC3_REGRESSORS = ("post_2024",) + _CAP_FRICTIONS
+
+
+def _cap_spec(name: str, regressors: tuple[str, ...], fixed_effects: tuple[str, ...]) -> RegressionSpec:
+    return RegressionSpec(name=name, dependent=CAP_DEPENDENT, regressors=regressors, fixed_effects=fixed_effects)
+
+
+def _run_cap(name, regressors, fixed_effects, panel, build_kwargs):
+    return _run_regression(_cap_spec(name, regressors, fixed_effects), panel=panel, **build_kwargs)
+
+
+def run_cap_spec1(panel=None, **k): return _run_cap("cap_spec1", _SPEC1_REGRESSORS, (), panel, k)
+def run_cap_spec1fe(panel=None, **k): return _run_cap("cap_spec1fe", _SPEC1_REGRESSORS, ("cell_id",), panel, k)
+def run_cap_spec2(panel=None, **k): return _run_cap("cap_spec2", _SPEC2_REGRESSORS, (), panel, k)
+def run_cap_spec3(panel=None, **k): return _run_cap("cap_spec3", _CAP_SPEC3_REGRESSORS, ("cell_id",), panel, k)
+def run_cap_spec_depth(panel=None, **k): return _run_cap("cap_spec_depth", ("post_2024", "log_min_quote_size_shares"), ("cell_id",), panel, k)
+def run_cap_spec_spread(panel=None, **k): return _run_cap("cap_spec_spread", ("post_2024", "average_put_call_spread_capital_bp"), ("cell_id",), panel, k)
+def run_cap_spec_stale(panel=None, **k): return _run_cap("cap_spec_stale", ("post_2024", "stale_proxy"), ("cell_id",), panel, k)
+def run_cap_spec_nopost(panel=None, **k): return _run_cap("cap_spec_nopost", _CAP_FRICTIONS, ("cell_id",), panel, k)
+def run_cap_spec_btc(panel=None, **k): return _run_cap("cap_spec_btc", ("post_2024", "log_btcusd_ref"), ("cell_id",), panel, k)
+
+
+_CAP_RUNNERS = (
+    run_cap_spec1, run_cap_spec1fe, run_cap_spec2, run_cap_spec3,
+    run_cap_spec_depth, run_cap_spec_spread, run_cap_spec_stale, run_cap_spec_nopost, run_cap_spec_btc,
+)
+
+
+def write_capital_regression_table(panel: pd.DataFrame, output_dir: str | Path) -> Path | None:
+    """Coefficient table in the capital normalization: dependent U_u^cap, depth in shares,
+    spread in bp of capital. Same eight columns as the headline table. Returns None (with a
+    warning) if the panel predates the capital columns, so a stale cache degrades gracefully."""
+    need = {CAP_DEPENDENT, "average_put_call_spread_capital_bp", "log_min_quote_size_shares"}
+    missing = need - set(panel.columns)
+    if missing:
+        logger.warning("write_capital_regression_table skipped; panel missing %s (rebuild the panel cache)", sorted(missing))
+        return None
+    results = pd.concat([runner(panel=panel) for runner in _CAP_RUNNERS], ignore_index=True)
+    table = _regression_coefficient_table(
+        results, spec_order=CAP_COEF_DISPLAY_ORDER, term_order=_CAP_COEF_TERM_ORDER, show_fixed_effects=False
+    )
+    path = Path(output_dir) / "regression_coefficients_capital_table.tex"
+    dataframe_to_tabular_tex(table, path)
+    logger.debug("write_capital_regression_table wrote %s", path)
+    return path
+
+
+# Dollar-unit regression variants. Same eight structures, but the dependent is the
+# unconditional unfairness in dollars per contract (U_u^$), the depth control is the
+# dollar depth (log), and the spread control is the dollar spread.
+DOL_DEPENDENT = "mean_amu_unconditional_dollar"
+_DOL_FRICTIONS = ("log_mean_min_quote_size_dollar", "average_put_call_spread_dollar", "stale_proxy", "log_btcusd_ref")
+_DOL_SPEC3_REGRESSORS = ("post_2024",) + _DOL_FRICTIONS
+
+
+def _dol_spec(name: str, regressors: tuple[str, ...], fixed_effects: tuple[str, ...]) -> RegressionSpec:
+    return RegressionSpec(name=name, dependent=DOL_DEPENDENT, regressors=regressors, fixed_effects=fixed_effects)
+
+
+def _run_dol(name, regressors, fixed_effects, panel, build_kwargs):
+    return _run_regression(_dol_spec(name, regressors, fixed_effects), panel=panel, **build_kwargs)
+
+
+def run_dol_spec1(panel=None, **k): return _run_dol("dol_spec1", _SPEC1_REGRESSORS, (), panel, k)
+def run_dol_spec1fe(panel=None, **k): return _run_dol("dol_spec1fe", _SPEC1_REGRESSORS, ("cell_id",), panel, k)
+def run_dol_spec2(panel=None, **k): return _run_dol("dol_spec2", _SPEC2_REGRESSORS, (), panel, k)
+def run_dol_spec3(panel=None, **k): return _run_dol("dol_spec3", _DOL_SPEC3_REGRESSORS, ("cell_id",), panel, k)
+def run_dol_spec_depth(panel=None, **k): return _run_dol("dol_spec_depth", ("post_2024", "log_mean_min_quote_size_dollar"), ("cell_id",), panel, k)
+def run_dol_spec_spread(panel=None, **k): return _run_dol("dol_spec_spread", ("post_2024", "average_put_call_spread_dollar"), ("cell_id",), panel, k)
+def run_dol_spec_stale(panel=None, **k): return _run_dol("dol_spec_stale", ("post_2024", "stale_proxy"), ("cell_id",), panel, k)
+def run_dol_spec_nopost(panel=None, **k): return _run_dol("dol_spec_nopost", _DOL_FRICTIONS, ("cell_id",), panel, k)
+def run_dol_spec_btc(panel=None, **k): return _run_dol("dol_spec_btc", ("post_2024", "log_btcusd_ref"), ("cell_id",), panel, k)
+
+
+_DOL_RUNNERS = (
+    run_dol_spec1, run_dol_spec1fe, run_dol_spec2, run_dol_spec3,
+    run_dol_spec_depth, run_dol_spec_spread, run_dol_spec_stale, run_dol_spec_nopost, run_dol_spec_btc,
+)
+
+
+def write_dollar_regression_table(panel: pd.DataFrame, output_dir: str | Path) -> Path | None:
+    """Coefficient table in dollar units: dependent U_u^$, depth in dollars, spread in
+    dollars. Same shown columns as the other two. Returns None if the panel predates the
+    dollar columns."""
+    need = {DOL_DEPENDENT, "average_put_call_spread_dollar", "log_mean_min_quote_size_dollar"}
+    missing = need - set(panel.columns)
+    if missing:
+        logger.warning("write_dollar_regression_table skipped; panel missing %s (rebuild the panel cache)", sorted(missing))
+        return None
+    results = pd.concat([runner(panel=panel) for runner in _DOL_RUNNERS], ignore_index=True)
+    table = _regression_coefficient_table(
+        results, spec_order=DOL_COEF_DISPLAY_ORDER, term_order=_DOL_COEF_TERM_ORDER, show_fixed_effects=False
+    )
+    path = Path(output_dir) / "regression_coefficients_dollar_table.tex"
+    dataframe_to_tabular_tex(table, path)
+    logger.debug("write_dollar_regression_table wrote %s", path)
+    return path
 
 
 def run_amu_spec_depth_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
@@ -660,6 +844,8 @@ def write_regression_tables(output_dir: str | Path, *, frame: pd.DataFrame | Non
     # Under a selective run, skip the (slow) regressions unless a table they produce
     # was requested. Tags are the overview LaTeX labels plus the file stems.
     _reg_tags = ("tab:regression_coefficients", "regression_coefficients_table",
+                 "tab:regression_coefficients_capital", "regression_coefficients_capital_table",
+                 "tab:regression_coefficients_dollar", "regression_coefficients_dollar_table",
                  "tab:frequency_size_decomposition", "frequency_size_decomposition_table",
                  "tab:cost_r_sensitivity", "cost_sensitivity_table",
                  "regression_model_summary_table", "regression_effects_table")
@@ -681,12 +867,17 @@ def write_regression_tables(output_dir: str | Path, *, frame: pd.DataFrame | Non
         run_amu_spec_spread_regression,
         run_amu_spec_stale_regression,
         run_amu_spec_nopost_regression,
+        run_amu_spec_btc_regression,
     ):
         result = runner(panel=panel)
         combined_results.append(result)
     results = pd.concat(combined_results, ignore_index=True)
     summary_table = _regression_summary_table(results)
-    coefficient_table = _regression_coefficient_table(results)
+    # Headline coefficient table: show only the fixed-effects specifications (drop the
+    # pooled columns (1) and (3)); the cell-FE row is redundant once every column has it.
+    coefficient_table = _regression_coefficient_table(
+        results, spec_order=MAIN_COEF_DISPLAY_ORDER, show_fixed_effects=False
+    )
 
     for spec_name in results["specification"].dropna().unique().tolist():
         spec_slice = results.loc[results["specification"] == spec_name].copy()
@@ -705,6 +896,12 @@ def write_regression_tables(output_dir: str | Path, *, frame: pd.DataFrame | Non
     paths["regression_coefficients_table"] = coefficient_path
     paths["regression_effects_table"] = effects_path
     paths["text_numbers"] = write_text_macros(filter_analysis_panel(panel), output_root)
+    _cap_table = write_capital_regression_table(panel, output_root)
+    if _cap_table is not None:
+        paths["regression_coefficients_capital_table"] = _cap_table
+    _dol_table = write_dollar_regression_table(panel, output_root)
+    if _dol_table is not None:
+        paths["regression_coefficients_dollar_table"] = _dol_table
     paths["frequency_size_decomposition_table"] = write_frequency_size_table(panel, output_root)
     paths["cost_sensitivity_table"] = write_cost_sensitivity_table_from_panel(panel, output_root)
     logger.debug(
@@ -842,19 +1039,16 @@ def _regression_summary_table(results: pd.DataFrame) -> pd.DataFrame:
     return summary.set_index("specification")
 
 
-def _regression_coefficient_table(results: pd.DataFrame) -> pd.DataFrame:
+def _regression_coefficient_table(
+    results: pd.DataFrame,
+    *,
+    spec_order: tuple[str, ...] = MAIN_SPEC_ORDER,
+    term_order: tuple[str, ...] = _MAIN_COEF_TERM_ORDER,
+    show_fixed_effects: bool = True,
+) -> pd.DataFrame:
     results = results.copy()
-    spec_order = [spec for spec in MAIN_SPEC_ORDER if spec in results["specification"].unique()]
-    term_order = [
-        "post_2024",
-        "okx",
-        "eth",
-        "atm",
-        "short_tte",
-        "log_mean_min_quote_size_dollar",
-        "average_put_call_spread_bp",
-        "stale_proxy",
-    ]
+    spec_order = [spec for spec in spec_order if spec in results["specification"].unique()]
+    term_order = list(term_order)
 
     # One column per specification. Each coefficient cell is stacked over three
     # rows: the coefficient (with significance stars), the HC1 standard error in
@@ -862,11 +1056,14 @@ def _regression_coefficient_table(results: pd.DataFrame) -> pd.DataFrame:
     # bracketed third row. Folding the old separate Eff column into this third
     # row halves the column count, so more specifications fit across the page.
     spec_labels = [SPEC_DISPLAY_NAMES.get(spec, spec) for spec in spec_order]
+    # Only keep rows for terms that actually appear in a SHOWN column, so hiding the
+    # pooled segment-dummy specification does not leave empty dummy rows behind.
+    shown_terms = set(results.loc[results["specification"].isin(spec_order), "term"])
     output_rows: list[dict[str, str]] = []
     output_index: list[str] = []
 
     for term in term_order:
-        if term not in results["term"].values:
+        if term not in shown_terms:
             continue
         coef_row = {column: "" for column in spec_labels}
         se_row = {column: "" for column in spec_labels}
@@ -884,7 +1081,10 @@ def _regression_coefficient_table(results: pd.DataFrame) -> pd.DataFrame:
         output_rows.extend([coef_row, se_row, eff_row])
         output_index.extend([TERM_DISPLAY_NAMES.get(term, term), "", ""])
 
-    for summary_label, key in (("Total $R^2$", "r2"), ("Observations", "nobs"), ("Fixed effects", "fixed_effects")):
+    summary_specs = (("Total $R^2$", "r2"), ("Observations", "nobs"))
+    if show_fixed_effects:
+        summary_specs = summary_specs + (("Fixed effects", "fixed_effects"),)
+    for summary_label, key in summary_specs:
         summary_row = {column: "" for column in spec_labels}
         for spec, spec_label in zip(spec_order, spec_labels):
             spec_slice = results.loc[results["specification"] == spec]

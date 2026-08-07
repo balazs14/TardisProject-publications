@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-from amu_config import CONFIG, bootstrap_repo_root
+from amu_config import CONFIG, bootstrap_repo_root, keep_sampled_day
 from amu_cache import get_cached_frame, put_cached_frame
 from amu_metrics import (
     amu_conditional_bp_expr,
@@ -124,6 +124,8 @@ def _aligned_panel_files(
     files = []
     for file_path in sorted(root.glob(pattern)):
         file_day = _parse_file_day(file_path)
+        if not keep_sampled_day(file_day):
+            continue
         if file_day is None or _day_in_range(file_day, from_date, to_date):
             files.append(file_path)
     return files
@@ -253,6 +255,10 @@ def _cell_day_liquidity(panel_ready: pl.DataFrame) -> pl.DataFrame:
         "call_opt_spread_bp", "put_opt_spread_bp", "timestamp",
     } | set(cell_keys)
     if not need <= cols:
+        logger.warning(
+            "_cell_day_liquidity: emitting null Amihud/recovery columns -- input frame missing %s",
+            sorted(need - cols),
+        )
         base = panel_ready.select(cell_keys).unique()
         return base.with_columns([pl.lit(None, dtype=pl.Float64).alias(c) for c in _CELL_DAY_LIQ_COLUMNS])
 
@@ -389,6 +395,10 @@ def _panel_block_from_file(file_path: Path) -> pl.DataFrame:
         logger.debug("Skipping empty aligned file: %s", file_path)
         return pl.DataFrame()
 
+    from amu_statistics import drop_cross_day_carry
+    raw = drop_cross_day_carry(raw)
+    if raw.is_empty():
+        return pl.DataFrame()
     panel_ready = compute_pcp_metrics(raw, **pcp_metric_kwargs)
     panel_ready = panel_ready.drop_nulls(_required_panel_columns())
     # Apply the tick-level filters up front, so the aggregated panel (and therefore
@@ -417,7 +427,7 @@ def _panel_block_from_file(file_path: Path) -> pl.DataFrame:
     ratio_columns = [
         amu_conditional_bp_expr("sum_amu_tickpath_bp", "num_amu_tickpath").alias("mean_amu_conditional_bp"),
         amu_unconditional_bp_expr("sum_amu_tickpath_bp", "n_obs").alias("mean_amu_unconditional_bp"),
-        # Dollar (per one notional) and capital-bp flavours of the same wedges.
+        # Dollar (per contract) and capital-bp flavours of the same wedges.
         amu_conditional_bp_expr("sum_amu_tickpath_dollar", "num_amu_tickpath").alias("mean_amu_conditional_dollar"),
         amu_unconditional_bp_expr("sum_amu_tickpath_dollar", "n_obs").alias("mean_amu_unconditional_dollar"),
         amu_conditional_bp_expr("sum_amu_tickpath_capital_bp", "num_amu_tickpath").alias(

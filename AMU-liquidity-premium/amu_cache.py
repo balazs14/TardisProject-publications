@@ -8,11 +8,15 @@ from typing import Any
 import polars as pl
 import pyarrow.parquet as pq
 
-from amu_config import PARQUET_BATCH_ROWS
+from amu_config import PARQUET_BATCH_ROWS, SUBSAMPLE_DAYS
 
 
 def build_shared_cache_path(base_dir: str | Path, from_date: str, to_date: str) -> Path:
-    return Path(base_dir) / f"amu_frames_{from_date}_to_{to_date}_meta.pkl"
+    # A day-subsampled build (SUBSAMPLE_DAYS>1) writes to a distinct cache file, so an
+    # experimental 1-in-N cache can never be silently reused as (or overwrite) the full
+    # cache. Unset the env var to point back at the full-run cache.
+    suffix = f"_sub{SUBSAMPLE_DAYS}" if SUBSAMPLE_DAYS > 1 else ""
+    return Path(base_dir) / f"amu_frames_{from_date}_to_{to_date}{suffix}_meta.pkl"
 
 
 def get_cached_frame(cache_path: str | Path, key: str) -> pl.DataFrame | None:

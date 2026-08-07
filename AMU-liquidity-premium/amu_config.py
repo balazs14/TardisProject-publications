@@ -25,6 +25,26 @@ def bootstrap_repo_root(start: Path | None = None) -> Path:
     return root
 
 
+# Development speedup: process only a deterministic subsample of calendar days, so the
+# stat and panel parquets rebuild ~N times faster while every within-day calculation is
+# untouched. SUBSAMPLE_DAYS=N keeps one calendar day in every N, selected by date ordinal
+# (not by file position) so the tick-frame and the panel builds pick the SAME days and
+# stay aligned. SUBSAMPLE_DAYS=1 (the default) keeps all days -- the full run. Set the env
+# var while experimenting; drop it for the final rebuild.
+try:
+    SUBSAMPLE_DAYS = max(1, int(os.environ.get("SUBSAMPLE_DAYS", "1")))
+except ValueError:
+    SUBSAMPLE_DAYS = 1
+
+
+def keep_sampled_day(day: date | None) -> bool:
+    """True if this calendar day survives the SUBSAMPLE_DAYS development filter. Days that
+    cannot be dated (day is None) are always kept, matching the existing loops."""
+    if SUBSAMPLE_DAYS <= 1 or day is None:
+        return True
+    return day.toordinal() % SUBSAMPLE_DAYS == 0
+
+
 def _load_config() -> dict[str, Any]:
     configured = os.getenv("AMU_CONFIG_PATH", "").strip()
     config_path = Path(configured) if configured else Path(__file__).with_suffix(".toml")

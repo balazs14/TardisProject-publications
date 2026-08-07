@@ -299,6 +299,20 @@ $\varepsilon_{g,t}$ & Idiosyncratic error. \\
 
 \begin{table}[htbp]
 \centering
+{\renewcommand{\arraystretch}{1.2}\normalfont\small\IfFileExists{artifacts/regression_coefficients_capital_table.tex}{\input{artifacts/regression_coefficients_capital_table.tex}}{\textit{(rebuild the panel to generate this table)}}}
+\caption{Regressions of the cell-level unconditional unfairness in \emph{capital} units: dependent $U_u^{\mathrm{cap}}$ (bp of option capital), depth control $\mathrm{Depth}^{\mathrm{sh}}$ (shares, log), spread control $\mathrm{Spr}^{\mathrm{cap}}$ (bp of capital), plus the log BTCUSD index $\log\mathrm{BTC}_t$. Shown columns (2),(4)--(9) all include cell fixed effects; (9) is Post with $\log\mathrm{BTC}_t$ only. Same layout as Table~\ref{tab:regression_coefficients}.}
+\label{tab:regression_coefficients_capital}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+{\renewcommand{\arraystretch}{1.2}\normalfont\small\IfFileExists{artifacts/regression_coefficients_dollar_table.tex}{\input{artifacts/regression_coefficients_dollar_table.tex}}{\textit{(rebuild the panel to generate this table)}}}
+\caption{Regressions of the cell-level unconditional unfairness in \emph{dollar} units: dependent $U_u^{\$}$ (dollars per contract), depth control $\mathrm{Depth}^{\$}$ (dollars, log), spread control $\mathrm{Spr}^{\$}$ (dollars), plus the log BTCUSD index $\log\mathrm{BTC}_t$. Shown columns (2),(4)--(9) all include cell fixed effects; (9) is Post with $\log\mathrm{BTC}_t$ only. Same layout as Table~\ref{tab:regression_coefficients}.}
+\label{tab:regression_coefficients_dollar}
+\end{table}
+
+\begin{table}[htbp]
+\centering
 {\renewcommand{\arraystretch}{1.2}\normalfont\small\IfFileExists{artifacts/frequency_size_decomposition_table.tex}{\input{artifacts/frequency_size_decomposition_table.tex}}{\emph{\texttt{frequency\_size\_decomposition\_table.tex}: run the rebuild.}}}
 \caption{Two-part (extensive/intensive) decomposition of the post-2024 compression: the log unfairness rate $R$, the log conditional size $U_c$, and the log unconditional unfairness $U_u$ regressed on Post with cell fixed effects. The two Post semi-elasticities add up to the unconditional one.}
 \label{tab:frequency_size_decomposition}
@@ -313,9 +327,37 @@ $\varepsilon_{g,t}$ & Idiosyncratic error. \\
 
 \begin{figure}[htbp]
 \centering
-\maybeincludegraphics[width=0.95\textwidth]{artifacts/friction_timeseries.png}
-\caption{Liquidity and friction channels over time by exchange and underlying, smoothed with a trailing 1-month rolling mean. Nine channels, cell-level (aggregated over strike and maturity). Quote properties: put--call spread in bp ($\mathrm{Spr}_{g,t}$) and dollars ($\mathrm{Spr}/10^{4}\times$ index, log), stale-quote fraction $\mathrm{Stale}_{g,t}$, and quote depth in dollars and in shares (dollar depth over the index, log). Dynamic (per cell-day from the 5-min series): Amihud illiquidity with volume in shares and in dollars (contracts $\times$ index), and the spread recovery time (AR(1) decay half-life after a large $2\sigma$ widening, minutes; median across the surface), each for the bp and the dollar spread. One line per exchange/underlying group; shared time axis.}
-\label{fig:friction_timeseries}
+\maybeincludegraphics[width=0.95\textwidth]{artifacts/friction_timeseries_direct.png}
+\caption{Direct quote frictions over time by exchange and underlying (1-month rolling mean, over strike and maturity). Seven panels: put--call spread in bp of notional ($\mathrm{Spr}^{\mathrm{bp}}$), bp of option capital ($\mathrm{Spr}^{\mathrm{cap}}$, sum of call+put mid), and dollars ($\mathrm{Spr}^{\$}$, log); stale-quote fraction $\mathrm{Stale}_{g,t}$; and quote depth in dollars of notional, in shares, and in dollars of option capital (all log). One line per exchange/underlying group.}
+\label{fig:friction_timeseries_direct}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\maybeincludegraphics[width=0.95\textwidth]{artifacts/friction_timeseries_dynamic.png}
+\caption{Dynamic frictions over time by exchange and underlying (1-month rolling mean, per cell-day from the 5-min series, averaged over the surface). Five panels: Amihud illiquidity with volume in shares, in index dollars (contracts $\times$ index), and in option-capital dollars (contracts $\times$ (call+put mid)); and the spread recovery time (AR(1) decay half-life after a large $2\sigma$ widening, minutes; median across the surface) for the bp and the dollar spread.}
+\label{fig:friction_timeseries_dynamic}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\maybeincludegraphics[width=0.7\textwidth]{artifacts/total_mma_hist_pre_post_3units.pdf}
+\caption{Pre/post-2024 MMA distribution over the four join paths in three units: bp of notional ($m^{\mathrm{bp}}$, $30$ bp notional-proportional cost floor dashed), bp of option capital ($m^{\mathrm{cap}}$), and dollars per contract ($m^{\$}$).}
+\label{fig:total_mma_hist_pre_post_3units}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\maybeincludegraphics[width=0.95\textwidth]{artifacts/amu_units_timeseries.png}
+\caption{Unconditional unfairness $U_u$ over time by exchange and underlying (1-month rolling mean, over strike and maturity), in three units: $U_u^{\mathrm{bp}}$ (bp of notional), $U_u^{\mathrm{cap}}$ (bp of option capital), and $U_u^{\$}$ (dollars per contract).}
+\label{fig:amu_units_timeseries}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\maybeincludegraphics[width=0.95\textwidth]{artifacts/cross_exchange_quote_diff.pdf}
+\caption{Cross-exchange option-quote differences (Deribit $-$ OKX), by underlying, 1-month rolling mean. For each contract quoted on both venues at the same instant (matched on timestamp, underlying, strike, and expiry, restricted to the liquid two-sided screen), the four USD quote differences $\Delta$call bid, $\Delta$call ask, $\Delta$put bid, $\Delta$put ask (positive = Deribit richer), averaged over the matched surface. Unlike single-venue market unfairness, a cross-venue gap is not bounded by either book's own spread.}
+\label{fig:cross_exchange_quote_diff}
 \end{figure}
 
 \end{document}

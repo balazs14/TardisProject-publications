@@ -16,7 +16,7 @@ import seaborn as sns
 from matplotlib.ticker import EngFormatter, PercentFormatter
 
 import artifact_filter as art_filter
-from amu_config import CONFIG, bootstrap_repo_root
+from amu_config import CONFIG, bootstrap_repo_root, keep_sampled_day
 
 PROJECT_ROOT = bootstrap_repo_root(Path(__file__).resolve())
 
@@ -235,6 +235,52 @@ def filter_ticks(
     raise TypeError(f"Unsupported frame type: {type(df)}")
 
 
+# Legs that the resampler forward-fills, with the key identifying an independent series
+# and the price/size columns to invalidate: (stale flag, grouping keys, value columns).
+_CARRY_LEGS = (
+    ("call_stale", ("call_symbol",), ("call_bid_price", "call_ask_price", "call_bid_amount", "call_ask_amount")),
+    ("put_stale", ("put_symbol",), ("put_bid_price", "put_ask_price", "put_bid_amount", "put_ask_amount")),
+    ("spot_stale", ("exchange", "ref_sym"), ("spot_bid_price", "spot_ask_price", "spot_bid_amount", "spot_ask_amount")),
+)
+
+
+def drop_cross_day_carry(df: pl.DataFrame) -> pl.DataFrame:
+    """Strip the resampler's cross-day forward fill from a freshly loaded aligned file.
+
+    The 5-minute resampler carries each leg's last-known quote forward across empty
+    buckets over the symbol's whole range, so the buckets at the start of a low-activity
+    day inherit the PREVIOUS day's quote (see the warning in tardis/download_files.py).
+    This is wrong in general and especially under SUBSAMPLE_DAYS, where the previous day
+    may be skipped. For each leg (call, put, spot) and each calendar day we null the quote
+    on the leading run of buckets that precede the day's first genuine (non-stale) update
+    -- identified as the buckets with zero cumulative fresh observations so far that day --
+    so those rows drop out of every downstream aggregation. The forward fill within a day
+    is untouched; only carries that would cross midnight are removed. Futures carry no
+    stale flag but update effectively continuously, so a fut-only leading carry is
+    negligible and any such row is dropped anyway once its call/put/spot leg is nulled.
+    """
+    if df.is_empty() or "timestamp" not in df.columns:
+        return df
+    day = pl.col("timestamp").dt.date()
+    df = df.sort("timestamp")
+    for stale_col, keys, value_cols in _CARRY_LEGS:
+        if stale_col not in df.columns:
+            logger.debug("drop_cross_day_carry: leg skipped, no %s column in aligned file", stale_col)
+            continue
+        present_keys = [k for k in keys if k in df.columns]
+        present_vals = [c for c in value_cols if c in df.columns]
+        if not present_vals:
+            logger.debug("drop_cross_day_carry: leg %s skipped, none of its price columns present", stale_col)
+            continue
+        fresh = (~pl.col(stale_col).fill_null(True)).cast(pl.Int64)
+        seen = fresh.cum_sum().over(present_keys + [day]) if present_keys else fresh.cum_sum().over(day)
+        # A bucket is a cross-day carry iff no fresh quote for this leg has occurred yet
+        # today (cumulative fresh count, current bucket included, is zero).
+        carry = seen == 0
+        df = df.with_columns([pl.when(carry).then(None).otherwise(pl.col(c)).alias(c) for c in present_vals])
+    return df
+
+
 @debug_runtime("build_amu_statistics_frame_cached_path")
 def build_amu_statistics_frame_cached_path(
     *,
@@ -281,6 +327,8 @@ def build_amu_statistics_frame_cached_path(
                         file_day = date.fromisoformat(parts[-2])
                     except ValueError:
                         file_day = None
+                if not keep_sampled_day(file_day):
+                    continue
                 if file_day is not None:
                     if from_day is not None and file_day < from_day:
                         continue
@@ -291,6 +339,7 @@ def build_amu_statistics_frame_cached_path(
                 raw = pl.read_parquet(file_path)
                 if raw.is_empty():
                     continue
+                raw = drop_cross_day_carry(raw)
                 block = compute_pcp_metrics(raw, **pcp_metric_kwargs)
                 if block.is_empty():
                     continue
@@ -299,6 +348,7 @@ def build_amu_statistics_frame_cached_path(
                 # is filled with a Float64 null so the schema stays stable across days.
                 _missing = [c for c in pcpb_columns if c not in block.columns]
                 if _missing:
+                    logger.debug("build_amu_statistics_frame: filling %d pcpb column(s) with null for %s: %s", len(_missing), file_path.name, _missing)
                     block = block.with_columns([pl.lit(None, dtype=pl.Float64).alias(c) for c in _missing])
                 block = block.select(pcpb_columns)
 
@@ -400,7 +450,7 @@ def _add_amu_bp_columns(frame: pl.LazyFrame) -> pl.LazyFrame:
     return frame.with_columns(
         amu_conditional_bp_expr("amu_possum", "num_amu").alias("amu_conditional_bp"),
         amu_unconditional_bp_expr("amu_possum", "num_pairs").alias("amu_unconditional_bp"),
-        # Dollar (per one notional) and capital-bp flavours of the same conditional and
+        # Dollar (per contract) and capital-bp flavours of the same conditional and
         # unconditional wedges (same positive-path denominators, different units).
         amu_conditional_bp_expr("amu_possum_dollar", "num_amu").alias("amu_conditional_dollar"),
         amu_unconditional_bp_expr("amu_possum_dollar", "num_pairs").alias("amu_unconditional_dollar"),
@@ -836,6 +886,119 @@ def plot_total_mma_hist_pre_post_btc_etp_from_parquet(parquet_path: str | Path, 
         pre_count,
         post_count,
     )
+    return output_path
+
+
+@debug_runtime("plot_total_mma_hist_pre_post_3units_from_parquet")
+def plot_total_mma_hist_pre_post_3units_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
+    """Pre/post-2024 density of the pooled four MMA join paths in three units: basis
+    points of notional (m^bp, as in the headline histogram), basis points of option
+    capital (m^cap = m^bp x index / opt_val), and dollars per contract
+    (m^$ = m^bp x index / 1e4). One panel per unit; pre vs post overlaid. The cost stays
+    the 30 bp notional-proportional round-trip (the dashed line on the bp panel)."""
+    join_cols = ["bck_joincall_bp", "bck_joinput_bp", "fwd_joincall_bp", "fwd_joinput_bp"]
+    read_cols = [
+        "mdy", "rel_strike", "call_opt_spread_bp", "put_opt_spread_bp",
+        "min_quote_size_dollar", "index", "opt_val",
+    ] + join_cols
+    schema_names = set(pq.ParquetFile(str(parquet_path)).schema_arrow.names)
+    _missing = [c for c in read_cols if c not in schema_names]
+    if _missing:
+        logger.warning(
+            "plot_total_mma_hist_pre_post_3units: pcpb parquet missing %s (rebuild the stat cache "
+            "with RECREATE_STAT_CACHE=1 if these are expected)", _missing,
+        )
+    read_cols = [c for c in read_cols if c in schema_names]
+    assert {"index", "opt_val"} <= set(read_cols), "3-unit MMA histogram needs index and opt_val in the pcpb parquet"
+    event_day = pd.Timestamp(str(regression_cfg["post_2024_start"])).date()
+    max_bp = float(max_amu_bp_default)
+
+    # Pass 1: robust symmetric ranges per unit from the pooled tickpaths (0.5/99.5 pct).
+    # bp keeps the fixed +/-100 window used by the headline histogram.
+    rng = {"bp": 100.0}
+    try:
+        lf = filter_ticks(pl.scan_parquet(str(parquet_path)).select(read_cols))
+        long = lf.unpivot(on=join_cols, index=["index", "opt_val"], variable_name="p", value_name="m").drop_nulls("m")
+        long = long.with_columns(
+            (pl.col("m") * pl.col("index") / 1.0e4).alias("dol"),
+            (pl.col("m") * pl.col("index") / pl.col("opt_val")).alias("cap"),
+        )
+        q = long.select(
+            pl.col("dol").quantile(0.005).alias("dol_lo"), pl.col("dol").quantile(0.995).alias("dol_hi"),
+            pl.col("cap").quantile(0.005).alias("cap_lo"), pl.col("cap").quantile(0.995).alias("cap_hi"),
+        ).collect(engine="streaming").row(0, named=True)
+        rng["dollar"] = max(abs(q["dol_lo"] or 0.0), abs(q["dol_hi"] or 0.0)) or 1.0
+        rng["capital"] = max(abs(q["cap_lo"] or 0.0), abs(q["cap_hi"] or 0.0)) or 1.0
+    except Exception as exc:  # pragma: no cover - fallback keeps the figure robust
+        logger.warning("3-unit MMA range scan failed (%s); using fixed ranges", exc)
+        rng["dollar"], rng["capital"] = 5000.0, 20000.0
+
+    units = ("bp", "capital", "dollar")
+    edges = {u: np.linspace(-rng[u], rng[u], 101) for u in units}
+    widths = {u: float(edges[u][1] - edges[u][0]) for u in units}
+    pre_hist = {u: np.zeros(len(edges[u]) - 1) for u in units}
+    post_hist = {u: np.zeros(len(edges[u]) - 1) for u in units}
+    pre_n = {u: 0 for u in units}
+    post_n = {u: 0 for u in units}
+
+    for batch in pq.ParquetFile(str(parquet_path)).iter_batches(batch_size=100_000, columns=read_cols):
+        chunk = filter_ticks(pl.from_arrow(batch))
+        if chunk.is_empty():
+            continue
+        mdy = pd.to_datetime(chunk.get_column("mdy").to_numpy(), errors="coerce")
+        pre_mask = np.asarray(mdy < pd.Timestamp(event_day))
+        post_mask = np.asarray(mdy >= pd.Timestamp(event_day))
+        idx = chunk.get_column("index").cast(pl.Float64, strict=False).to_numpy()
+        cap_den = chunk.get_column("opt_val").cast(pl.Float64, strict=False).to_numpy()
+        for col in join_cols:
+            m = chunk.get_column(col).cast(pl.Float64, strict=False).to_numpy()
+            unit_vals = {
+                "bp": m,
+                "dollar": m * idx / 1.0e4,
+                "capital": np.divide(m * idx, cap_den, out=np.full_like(m, np.nan), where=cap_den > 0),
+            }
+            for u in units:
+                v = unit_vals[u]
+                valid = np.isfinite(v)
+                for mask, hist, ncount in ((pre_mask, pre_hist, pre_n), (post_mask, post_hist, post_n)):
+                    sel = mask & valid
+                    if np.any(sel):
+                        h, _ = np.histogram(v[sel], bins=edges[u], density=False)
+                        hist[u] += h
+                        ncount[u] += int(sel.sum())
+
+    sns.set_theme(style="whitegrid", context="talk")
+    fig, axes = plt.subplots(3, 1, figsize=(10, 13))
+    titles = {
+        "bp": r"$m^{\mathrm{bp}}$ (bp of notional)",
+        "capital": r"$m^{\mathrm{cap}}$ (bp of option capital)",
+        "dollar": r"$m^{\$}$ (\$ per contract)",
+    }
+    cost_bp = -float(pcp_cfg["cost_per_notional"]) * 10_000.0
+    for ax, u in zip(axes, units):
+        centers = 0.5 * (edges[u][:-1] + edges[u][1:])
+        x = np.linspace(-rng[u], rng[u], 800)
+        pre_d = pre_hist[u] / (pre_n[u] * widths[u]) if pre_n[u] > 0 else np.zeros_like(pre_hist[u])
+        post_d = post_hist[u] / (post_n[u] * widths[u]) if post_n[u] > 0 else np.zeros_like(post_hist[u])
+        pre_f = np.interp(x, centers, pre_d, left=0.0, right=0.0)
+        post_f = np.interp(x, centers, post_d, left=0.0, right=0.0)
+        ax.plot(x, pre_f, color="#1f77b4", linewidth=2.2, label="Pre 2024")
+        ax.plot(x, post_f, color="#d62728", linewidth=2.2, label="Post 2024")
+        ax.axvline(0, color="black", linewidth=2.2, alpha=0.85)
+        if u == "bp":
+            ax.axvline(cost_bp, color="black", linestyle="--", linewidth=1.8, alpha=0.8)
+        ax.set_xlim(-rng[u], rng[u])
+        vis = max(float(np.nanmax(pre_f)) if pre_f.size else 0.0, float(np.nanmax(post_f)) if post_f.size else 0.0)
+        ax.set_ylim(0, vis * 1.05 if vis > 0 else 1.0)
+        ax.set_xlabel(titles[u])
+        ax.set_ylabel("Density")
+    axes[0].legend(title="")
+    fig.suptitle("Pre/post-2024 MMA distribution in three units")
+    output_path = output_dir / "total_mma_hist_pre_post_3units.pdf"
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=220, bbox_inches="tight", transparent=True)
+    plt.close(fig)
+    logger.debug("Saved 3-unit pre/post MMA histogram %s", output_path)
     return output_path
 
 
@@ -1402,6 +1565,7 @@ def generate_all_statistics(
         ("spread_figures", "fig:all_markets_avg_4_spreads", plot_4_spreads_from_parquet),
         ("robustness_grid_table", "tab:robustness_grid", write_robustness_grid_table_from_parquet),
         ("total_mma_hist_pre_post_btc_etp", "fig:total_mma_hist_pre_post_btc_etp", plot_total_mma_hist_pre_post_btc_etp_from_parquet),
+        ("total_mma_hist_pre_post_3units", "fig:total_mma_hist_pre_post_3units", plot_total_mma_hist_pre_post_3units_from_parquet),
         ("multi_exchange_amu_bps_by_date", "fig:multi_exchange_amu_by_date", plot_amu_bps_by_date_from_parquet),
         ("multi_exchange_amu_bps_by_date_2023_2024_avg_events", "fig:multi_exchange_amu_by_date_2023_2024_avg_events", plot_amu_bps_avg_2023_2024_with_events_from_parquet),
         ("multi_exchange_amu_bps_by_rel_strike", "fig:multi_exchange_amu_by_strike", plot_amu_bps_by_rel_strike_from_parquet),
