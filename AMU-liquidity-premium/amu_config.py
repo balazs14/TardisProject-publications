@@ -83,6 +83,7 @@ PCP_SHORT_PUT_MGN_RATE = float(CONFIG["pcp"]["short_put_mgn_rate"])
 PCP_SHORT_CALL_MGN_RATE = float(CONFIG["pcp"]["short_call_mgn_rate"])
 PCP_R = float(CONFIG["pcp"]["r"])
 PCP_CONTRACT_SIZE = float(CONFIG["pcp"]["contract_size"])
+PCP_CONTRACT_SIZE_OVERRIDES = {str(k): float(v) for k, v in CONFIG["pcp"].get("contract_size_overrides", {}).items()}
 PCP_METRIC_KWARGS = {
     "cost_per_notional": PCP_COST_PER_NOTIONAL,
     "cost_per_option_value": PCP_COST_PER_OPTION_VALUE,
@@ -92,6 +93,7 @@ PCP_METRIC_KWARGS = {
     "short_call_mgn_rate": PCP_SHORT_CALL_MGN_RATE,
     "r": PCP_R,
     "contract_size": PCP_CONTRACT_SIZE,
+    "contract_size_overrides": PCP_CONTRACT_SIZE_OVERRIDES,
 }
 
 REL_STRIKE_BUCKETS = int(CONFIG["panel"]["rel_strike_buckets"])

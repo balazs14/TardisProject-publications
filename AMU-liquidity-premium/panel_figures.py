@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -64,6 +65,8 @@ _PANEL_FIGURES = (
     ("friction_gradient", "liquidity_friction_gradient.png", "plot_friction_gradient", "fig:liquidity_friction_gradient"),
     ("friction_timeseries_direct", "friction_timeseries_direct.png", "plot_friction_timeseries_direct", "fig:friction_timeseries_direct"),
     ("friction_timeseries_dynamic", "friction_timeseries_dynamic.png", "plot_friction_timeseries_dynamic", "fig:friction_timeseries_dynamic"),
+    ("trade_volume", "trade_volume_timeseries.png", "plot_trade_volume_timeseries", "fig:trade_volume_timeseries"),
+    ("premium_volume", "premium_volume_timeseries.png", "plot_premium_volume_timeseries", "fig:premium_volume_timeseries"),
     ("amu_units_timeseries", "amu_units_timeseries.png", "plot_amu_units_timeseries", "fig:amu_units_timeseries"),
     ("compression", "liquidity_compression_decomposition.png", "plot_compression_decomposition", "fig:liquidity_compression_decomposition"),
     ("regression_coefficients", "regression_coefficients.png", "plot_regression_coefficients", "fig:regression_coefficients"),
@@ -160,25 +163,26 @@ def plot_daily_amu_timeseries(frame: pd.DataFrame, output_path: str | Path | Non
 # quotes (spread in three units, staleness, depth in two units); DYNAMIC = the intraday
 # illiquidity/resiliency measures (Amihud in three units, spread recovery in two).
 _FRICTION_TS_DIRECT = (
-    ("average_put_call_spread_bp", r"Spread $\mathrm{Spr}^{\mathrm{bp}}_{g,t}$ (bp)", False),
-    ("average_put_call_spread_capital_bp", r"Spread $\mathrm{Spr}^{\mathrm{cap}}_{g,t}$ (bp of capital)", False),
-    ("average_put_call_spread_dollar", r"Spread $\mathrm{Spr}^{\$}_{g,t}$ (\$)", True),
+    ("average_put_call_spread_dollar", r"Spread (\$)", False, True),
     ("stale_proxy", r"Stale $\mathrm{Stale}_{g,t}$ (fraction)", False),
-    ("mean_min_quote_size_dollar", r"Depth (\$)", True),
-    ("min_quote_size_shares", r"Depth (shares)", True),
-    ("mean_min_quote_size_capital", r"Depth (capital \$)", True),
+    # Depth in PREMIUM dollars: resting size x contract_size x option price (= min quote
+    # size valued at the call+put mid), not the notional (size x index).
+    ("mean_min_quote_size_capital", r"Depth (premium \$)", False, True),
 )
 _FRICTION_TS_DYNAMIC = (
-    ("amihud_shares", r"Amihud (shares)", True),
-    ("amihud_dollar", r"Amihud (\$, index)", True),
-    ("amihud_capital", r"Amihud (capital)", True),
-    ("spread_bp_recovery", r"Spread-bp recovery (min)", False),
+    ("amihud_capital", r"Amihud (premium volume)", False, "exchange"),
     ("spread_dollar_recovery", r"Spread-\$ recovery (min)", False),
+)
+# Channels aggregated across the surface by SUM (a daily total) rather than by mean/median.
+_FRICTION_SUM_COLS = {"total_option_volume"}
+_TRADE_VOLUME_PANEL = (
+    ("total_option_volume", r"Option volume (contracts, call$+$put)", True),
 )
 
 
 def _plot_friction_panels(
-    frame: pd.DataFrame, spec: tuple, title: str, output_path: str | Path | None, window: str = "30D"
+    frame: pd.DataFrame, spec: tuple, title: str, output_path: str | Path | None, window: str = "30D",
+    show_event_labels: bool = True,
 ) -> plt.Figure:
     """Stacked time-series panels (one per channel in ``spec``), one line per exchange/
     underlying group. Aggregated over strike and maturity so each (day, exchange,
@@ -192,14 +196,17 @@ def _plot_friction_panels(
             "cache (RECREATE_PANEL_CACHE=1) if these are expected: %s",
             title.split(" over time")[0], len(missing), missing,
         )
-    cols = [col for col, _, _ in panels]
+    cols = [p[0] for p in panels]
     if not cols:
         fig, ax = plt.subplots(figsize=(11, 3))
         ax.set_axis_off()
         return _finalize_figure(fig, output_path)
     # Spread recovery is a heavy-tailed half-life, so take the median across the surface
-    # (robust to the thin-cell tail); the other channels use the mean.
-    aggfun = {col: ("median" if "recovery" in col else "mean") for col in cols}
+    # (robust to the thin-cell tail); volume is a total, so summed; the rest use the mean.
+    aggfun = {
+        col: ("sum" if col in _FRICTION_SUM_COLS else "median" if "recovery" in col else "mean")
+        for col in cols
+    }
     agg = (
         filtered.groupby(["day", "exchange", "ref_sym"], as_index=False)
         .agg(aggfun)
@@ -209,29 +216,54 @@ def _plot_friction_panels(
     agg = agg.sort_values(["series", "day"]).set_index("day")
     agg[cols] = agg.groupby("series")[cols].transform(lambda s: s.rolling(window, min_periods=1).mean())
     agg = agg.reset_index()
+    # One fixed colour per exchange/underlying series, shared across every panel.
+    markets = sorted(agg["series"].unique())
+    palette = dict(zip(markets, sns.color_palette(n_colors=max(1, len(markets)))))
+    is_btc = agg["ref_sym"].str.contains("BTC", na=False)
+    is_deribit = agg["exchange"].str.contains("deribit", case=False, na=False)
     fig, axes = plt.subplots(len(panels), 1, figsize=(11, 3.3 * len(panels)), sharex=True)
     axes = np.atleast_1d(axes)
-    for ax, (col, label, logy) in zip(axes, panels, strict=False):
-        sns.lineplot(data=agg, x="day", y=col, hue="series", ax=ax, legend=(ax is axes[0]))
-        _add_event_markers(ax)
-        ax.set_ylabel(label)
+    # A panel tuple is (column, label, log_y[, dual_axis]); dual_axis (True/"underlying"
+    # splits BTC left / ETH right; "exchange" splits deribit left / okex right) puts the two
+    # groups on two linear axes both starting at zero so one scale does not swamp the other.
+    for ax, panel in zip(axes, panels, strict=False):
+        col, label, logy = panel[0], panel[1], panel[2]
+        dual = len(panel) > 3 and panel[3]
+        if dual:
+            if dual == "exchange":
+                left_mask, left_lab, right_lab = is_deribit, "deribit", "okex"
+            else:
+                left_mask, left_lab, right_lab = is_btc, "BTC", "ETH"
+            sns.lineplot(data=agg[left_mask], x="day", y=col, hue="series", palette=palette, ax=ax, legend=False)
+            ax2 = ax.twinx()
+            sns.lineplot(data=agg[~left_mask], x="day", y=col, hue="series", palette=palette, ax=ax2, legend=False)
+            ax.set_ylim(bottom=0)
+            ax2.set_ylim(bottom=0)
+            ax2.grid(False)
+            ax.set_ylabel(f"{label}\n({left_lab}, left axis)")
+            ax2.set_ylabel(f"{label}\n({right_lab}, right axis)")
+        else:
+            sns.lineplot(data=agg, x="day", y=col, hue="series", palette=palette, ax=ax, legend=False)
+            if logy:
+                ax.set_yscale("log")
+            ax.set_ylabel(label)
+        _add_event_markers(ax, labels=show_event_labels)
         ax.set_xlabel("")
-        if logy:
-            ax.set_yscale("log")
     axes[-1].set_xlabel("Day")
-    if axes[0].legend_ is not None:
-        axes[0].legend(title="", fontsize=9, ncol=2)
+    handles = [Line2D([0], [0], color=palette[m], lw=5.0) for m in markets]
+    axes[0].legend(handles, markets, title="", fontsize=17, ncol=2, loc="upper left",
+                   handlelength=2.4, borderpad=0.7, labelspacing=0.5, columnspacing=1.4)
     fig.suptitle(title)
     return _finalize_figure(fig, output_path)
 
 
 def plot_friction_timeseries_direct(frame: pd.DataFrame, output_path: str | Path | None = None, window: str = "30D") -> plt.Figure:
-    """Direct quote frictions over time: the put--call spread in bp of notional, bp of
-    option capital, and dollars; staleness; and depth in dollars and in shares."""
+    """Direct quote frictions over time: the put--call spread in dollars; staleness; and
+    depth in dollars. Event lines are drawn without on-plot text (described in the caption)."""
     return _plot_friction_panels(
         frame, _FRICTION_TS_DIRECT,
         "Direct quote frictions over time by exchange and underlying (1-month rolling mean, over strike and maturity)",
-        output_path, window,
+        output_path, window, show_event_labels=False,
     )
 
 
@@ -244,6 +276,68 @@ def plot_friction_timeseries_dynamic(frame: pd.DataFrame, output_path: str | Pat
         "Dynamic frictions over time by exchange and underlying (1-month rolling mean, over strike and maturity)",
         output_path, window,
     )
+
+
+def plot_trade_volume_timeseries(frame: pd.DataFrame, output_path: str | Path | None = None, window: str = "30D") -> plt.Figure:
+    """Daily option trading volume (call + put traded size, summed over the surface) by
+    exchange and underlying, smoothed with a trailing 1-month rolling mean."""
+    return _plot_friction_panels(
+        frame, _TRADE_VOLUME_PANEL,
+        "Daily option trading volume by exchange and underlying (1-month rolling mean, summed over strike and maturity)",
+        output_path, window,
+    )
+
+
+def plot_premium_volume_timeseries(frame: pd.DataFrame, output_path: str | Path | None = None, window: str = "30D") -> plt.Figure:
+    """Daily premium volume -- (call + put) traded premium in dollars, summed over the
+    surface -- by exchange and underlying, with the BTCUSD index overlaid on the right
+    axis. Colours/style follow the daily unconditional-unfairness figure."""
+    filtered = filter_analysis_panel(frame)
+    if "premium_volume" not in filtered.columns:
+        logger.warning(
+            "plot_premium_volume_timeseries: panel missing premium_volume -- "
+            "rebuild the panel cache (RECREATE_PANEL_CACHE=1)"
+        )
+        fig, ax = plt.subplots(figsize=(11, 6))
+        ax.set_axis_off()
+        return _finalize_figure(fig, output_path)
+    agg = (
+        filtered.groupby(["day", "exchange", "ref_sym"], as_index=False)["premium_volume"].sum()
+        .assign(market=lambda d: d["exchange"] + " | " + d["ref_sym"])
+    )
+    agg["day"] = pd.to_datetime(agg["day"])
+    agg = agg.sort_values(["market", "day"]).set_index("day")
+    agg["premium_volume"] = agg.groupby("market")["premium_volume"].transform(
+        lambda s: s.rolling(window, min_periods=1).mean()
+    )
+    agg = agg.reset_index()
+    btc = None
+    if "btcusd_ref" in filtered.columns:
+        btc = filtered.groupby("day", as_index=False)["btcusd_ref"].mean()
+        btc["day"] = pd.to_datetime(btc["day"])
+        btc = btc.sort_values("day")
+
+    sns.set_theme(style="whitegrid", context="talk")
+    fig, ax = plt.subplots(figsize=(11, 6))
+    sns.lineplot(data=agg, x="day", y="premium_volume", hue="market", linewidth=2.0, ax=ax)
+    ax.set_yscale("log")
+    ax.set_ylabel("Premium volume (\\$, call$+$put)")
+    ax.set_xlabel("Day")
+    _add_event_markers(ax)
+    lines, labels = ax.get_legend_handles_labels()
+    if btc is not None:
+        ax2 = ax.twinx()
+        sns.lineplot(data=btc, x="day", y="btcusd_ref", color="black", linewidth=2.6, linestyle="--", ax=ax2, label="BTCUSD index")
+        ax2.grid(False)
+        ax2.set_ylabel("BTCUSD index price")
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        if ax2.legend_ is not None:
+            ax2.legend_.remove()
+        ax.legend(lines + lines2, labels + labels2, loc="upper left", fontsize=9, ncol=2)
+    else:
+        ax.legend(loc="upper left", fontsize=9, ncol=2)
+    fig.suptitle("Daily premium volume by exchange and underlying (1-month rolling mean)")
+    return _finalize_figure(fig, output_path)
 
 
 # Unconditional market unfairness U_u in the three units, over time.
@@ -500,10 +594,11 @@ def plot_regression_coefficients(
     return _finalize_figure(fig, output_path)
 
 
-def _add_event_markers(ax: plt.Axes) -> None:
+def _add_event_markers(ax: plt.Axes, labels: bool = True) -> None:
     for label, event_day in event_dates.items():
         ax.axvline(event_day, color="grey", linestyle="--", linewidth=0.8, alpha=0.7)
-        ax.text(event_day, ax.get_ylim()[1], label, rotation=90, va="top", ha="right", fontsize=8)
+        if labels:
+            ax.text(event_day, ax.get_ylim()[1], label, rotation=90, va="top", ha="right", fontsize=8)
 
 
 def _binned_means(frame: pd.DataFrame, column: str, bins: int, y_col: str = "mean_mma_bp") -> pd.DataFrame:

@@ -86,6 +86,7 @@ pcp_metric_kwargs = {
     "short_call_mgn_rate": float(pcp_cfg["short_call_mgn_rate"]),
     "r": float(pcp_cfg["r"]),
     "contract_size": float(pcp_cfg["contract_size"]),
+    "contract_size_overrides": {str(k): float(v) for k, v in pcp_cfg.get("contract_size_overrides", {}).items()},
 }
 
 event_dates = {
@@ -504,8 +505,8 @@ def write_summary_daily_table_from_parquet(parquet_path: str | Path, *, output_d
             pl.col("num_contracts_ts").mean().alias("Avg num contracts"),
             pl.col("num_expirations_ts").mean().alias("Avg num expirations"),
             pl.col("num_strikes_ts").mean().alias("Avg num strikes"),
-            pl.col("call_spread_bp_ts").mean().alias("Avg call spread (bp)"),
-            pl.col("put_spread_bp_ts").mean().alias("Avg put spread (bp)"),
+            pl.col("call_spread_bp_ts").mean().alias("Avg call spread (bp of index)"),
+            pl.col("put_spread_bp_ts").mean().alias("Avg put spread (bp of index)"),
         )
         .join(n_days, on=["ref_sym", "exchange"], how="left")
         .sort(["ref_sym", "exchange"])
@@ -539,9 +540,9 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
         lf.select(
             pl.col("ref_sym").alias("underlying"),
             "exchange",
-            pl.col("amu_conditional_bp").alias("cond"),
-            pl.col("amu_unconditional_bp").alias("uncond"),
-            pl.col("num_has_amu").alias("positive MMA"),
+            pl.col("amu_conditional_bp").alias("U_c (bp)"),
+            pl.col("amu_unconditional_bp").alias("U_u (bp)"),
+            pl.col("amu_rate").alias("R"),
             pl.col("num_pairs").alias("num pairs"),
         )
         .sort(["underlying", "exchange"])
@@ -549,9 +550,10 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
         .to_pandas()
     )
     table = table.set_index(["underlying", "exchange"])
-    for amu_column in ["cond", "uncond"]:
+    for amu_column in ["U_c (bp)", "U_u (bp)"]:
         table[amu_column] = table[amu_column].map(lambda value: f"{value:.2f}" if pd.notna(value) else "")
-    for column in ["positive MMA", "num pairs"]:
+    table["R"] = table["R"].map(lambda value: f"{value:.3f}" if pd.notna(value) else "")
+    for column in ["num pairs"]:
         table[column] = table[column].map(lambda value: f"{int(value):,}" if pd.notna(value) else "")
 
     output_path = output_dir / "amu_summary_table.tex"

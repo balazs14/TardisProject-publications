@@ -67,6 +67,7 @@ pcp_metric_kwargs = {
     "short_call_mgn_rate": float(pcp_cfg["short_call_mgn_rate"]),
     "r": float(pcp_cfg["r"]),
     "contract_size": float(pcp_cfg["contract_size"]),
+    "contract_size_overrides": {str(k): float(v) for k, v in pcp_cfg.get("contract_size_overrides", {}).items()},
 }
 
 

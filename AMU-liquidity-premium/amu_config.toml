@@ -38,7 +38,17 @@ fut_mgn_rate = 0.2
 short_put_mgn_rate = 0.5
 short_call_mgn_rate = 0.5
 r = 0.05
-contract_size = 0.01
+# Contract multiplier (coin units per exchange contract). Default applies to any
+# exchange/underlying not overridden below; used only to convert quote/trade SIZES from
+# contracts to coin (depth, volume, Amihud, the min-quote-size filter). Prices and
+# bp/notional wedges are per coin and unaffected. Deribit = 1 contract = 1 coin.
+contract_size = 1.0
+
+# Per-(exchange:ref_sym) overrides of the contract multiplier (exchange contract specs).
+# OKX options: 1 BTC contract = 0.01 BTC, 1 ETH contract = 0.1 ETH.
+[pcp.contract_size_overrides]
+"okex:BTCUSD" = 0.01
+"okex:ETHUSD" = 0.1
 
 [panel]
 rel_strike_buckets = 21

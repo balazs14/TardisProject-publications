@@ -109,11 +109,11 @@ def draw_case(ax, key, fs=8.0, title_fs=11.0):
 
 
 def _synthetic_tracking_figure(art: Path) -> Path:
-    """Fair real quotes track the matching synthetic quote to within +/- cost.
+    """Fair real quotes track the matching synthetic quote within +/- cost'.
 
     The band centres are labelled with the explicit no-cost synthetic prices
-    P +/- (F -/+ K) e^{-rT} to stress that the centre is the frictionless
-    synthetic market and the +/- cost cushion is what the trading cost buys.
+    P +/- (F_mid - K) e^{-rT} to stress that the centre is the frictionless
+    synthetic market and the +/- cost' cushion is what the trading cost buys.
     """
     fig, ax = plt.subplots(figsize=(11.6, 5.2))
     cost = 3.0
@@ -130,8 +130,8 @@ def _synthetic_tracking_figure(art: Path) -> Path:
         ax.plot([x, x], [y - 0.02, y + h + 0.02], color="black", lw=0.9, zorder=4)
         ax.text(x, y + h + dy, lab, ha="center", va="bottom", fontsize=fs)
 
-    tick(syn_bid, y_syn, r"$P_{bid}+(F_{bid}-K)e^{-rT}$", 14.0)
-    tick(syn_ask, y_syn, r"$P_{ask}+(F_{ask}-K)e^{-rT}$", 14.0)
+    tick(syn_bid, y_syn, r"$P_{bid}+(F_{mid}-K)e^{-rT}$", 14.0)
+    tick(syn_ask, y_syn, r"$P_{ask}+(F_{mid}-K)e^{-rT}$", 14.0)
     tick(c_bid, y_real, r"$C_{bid}$", 15.0)
     tick(c_ask, y_real, r"$C_{ask}$", 15.0)
     ax.text(2.0, y_syn + h / 2, "synthetic\n(no-cost)", ha="right", va="center", color="#8a6d0b", fontweight="bold", fontsize=14)
@@ -139,13 +139,13 @@ def _synthetic_tracking_figure(art: Path) -> Path:
 
     for xc, col in ((syn_bid, C_REAL), (syn_ask, C_ARB)):
         ax.annotate("", xy=(xc + cost, 0.10), xytext=(xc - cost, 0.10), arrowprops=dict(arrowstyle="<->", color=col, lw=1.4))
-        ax.text(xc, 0.055, r"$\pm\,\mathrm{cost}$", ha="center", va="top", color=col, fontsize=14)
+        ax.text(xc, 0.055, r"$\pm\,\mathrm{cost}'$", ha="center", va="top", color=col, fontsize=14)
     ax.text(syn_bid, 0.80, "fair " + r"$C_{bid}$", ha="center", va="bottom", color=C_REAL, fontsize=14)
     ax.text(syn_ask, 0.80, "fair " + r"$C_{ask}$", ha="center", va="bottom", color="#1B7A3D", fontsize=14)
 
     ax.annotate("", xy=(33.5, 0.02), xytext=(3.0, 0.02), arrowprops=dict(arrowstyle="->", color="#777", lw=0.9))
     ax.text(33.5, 0.05, "option value", ha="right", va="bottom", fontsize=12, color="#777")
-    ax.set_title(r"Fair quotes track the synthetic market within $\pm$cost", fontsize=17, fontweight="bold")
+    ax.set_title(r"Fair quotes track the synthetic market within $\pm\mathrm{cost}'$", fontsize=17, fontweight="bold")
     ax.set_xlim(1.5, 34)
     ax.set_ylim(0, 0.92)
     ax.set_xticks([]); ax.set_yticks([])
@@ -182,15 +182,15 @@ def _schematic_mma_distribution_figure(art: Path) -> Path:
 
     ax.axvline(0.0, color="black", lw=1.0, zorder=3)
     ax.plot([-cost, -cost], [0.0, peak * 1.04], color="#333", ls="--", lw=1.1, zorder=3)
-    ax.text(-cost, peak * 1.07, r"$-\,$cost", ha="center", va="bottom", fontsize=14)
+    ax.text(-cost, peak * 1.07, r"$-\,$cost'", ha="center", va="bottom", fontsize=14)
     ax.text(0.0, peak * 1.07, "0", ha="center", va="bottom", fontsize=14)
     ax.annotate("no maker arbitrage", xy=(-58, peak * 0.42), xytext=(-96, peak * 0.88),
                 fontsize=13, color="#333", arrowprops=dict(arrowstyle="->", color="#333", lw=0.8))
-    ax.text(26, peak * 0.30, "AMU\n(executable)", ha="center", va="center", color=C_POT, fontsize=14, fontweight="bold")
+    ax.text(26, peak * 0.30, "MU", ha="center", va="center", color=C_POT, fontsize=14, fontweight="bold")
 
     ax.set_xlim(-100, 60)
     ax.set_ylim(0, peak * 1.22)
-    ax.set_xlabel("MMA (bp)", fontsize=15)
+    ax.set_xlabel("MMA ($)", fontsize=15)
     ax.set_ylabel("density", fontsize=15)
     ax.set_title("Schematic MMA distribution", fontsize=17, fontweight="bold")
     ax.tick_params(axis="x", labelsize=13)

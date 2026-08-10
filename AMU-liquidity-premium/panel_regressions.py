@@ -203,6 +203,21 @@ def build_liquidity_analysis_panel(
         frame["log_min_quote_size_shares"] = np.log(frame["min_quote_size_shares"].clip(lower=1e-9))
     frame["log_mean_min_quote_size_dollar"] = np.log(frame["mean_min_quote_size_dollar"].clip(lower=1.0))
     frame["stale_proxy"] = frame[["frac_call_stale", "frac_put_stale", "frac_spot_stale"]].mean(axis=1)
+    # Total option trading volume in the cell-day (call + put traded size), summed over the
+    # surface at plot time to a daily per-market total.
+    if _have({"sum_call_trade_amount", "sum_put_trade_amount"}, "total_option_volume"):
+        frame["total_option_volume"] = (
+            pd.to_numeric(frame["sum_call_trade_amount"], errors="coerce").fillna(0.0)
+            + pd.to_numeric(frame["sum_put_trade_amount"], errors="coerce").fillna(0.0)
+        )
+    # Premium volume: trade_price_amount is sum(price*size) in coin (for inverse), so
+    # multiplying by the index gives the traded premium in dollars -- the premium volume,
+    # as opposed to the notional (contracts x index) volume.
+    if _have({"sum_call_trade_price_amount", "sum_put_trade_price_amount", "mean_index"}, "premium_volume"):
+        frame["premium_volume"] = (
+            pd.to_numeric(frame["sum_call_trade_price_amount"], errors="coerce").fillna(0.0)
+            + pd.to_numeric(frame["sum_put_trade_price_amount"], errors="coerce").fillna(0.0)
+        ) * pd.to_numeric(frame["mean_index"], errors="coerce")
     frame["eth"] = frame["ref_sym"].str.contains("ETH", na=False).astype(float)
     frame["okx"] = frame["exchange"].str.contains("okex", case=False, na=False).astype(float)
     frame["nonatm"] = (frame["rel_strike_bucket"].sub(1.0).abs() > nonatm_distance).astype(float)
@@ -1318,9 +1333,18 @@ def _fit_ols_robust(frame: pd.DataFrame, spec: RegressionSpec) -> tuple[pd.Serie
         len(design.columns) - 1 - len(spec.regressors),
         _se_description(),
     )
-    beta = np.linalg.lstsq(x, y, rcond=None)[0]
+    # Solve via the SVD of x, and build (x'x)^{-1} from the same SVD. Forming x.T @ x and
+    # pinv-ing it squares the condition number and makes LAPACK's SVD fail to converge on
+    # the high-dimensional cell-fixed-effects design ("SVD did not converge"); the SVD of x
+    # itself is well-conditioned (it is what lstsq uses).
+    u, s, vt = np.linalg.svd(x, full_matrices=False)
+    tol = np.finfo(float).eps * max(x.shape) * (float(s[0]) if s.size else 1.0)
+    keep = s > tol
+    s_safe = np.where(keep, s, 1.0)
+    beta = vt.T @ np.where(keep, (u.T @ y) / s_safe, 0.0)
     residuals = y - x @ beta
-    xtx_inv = np.linalg.pinv(x.T @ x)
+    inv_s2 = np.where(keep, 1.0 / (s * s), 0.0)
+    xtx_inv = (vt.T * inv_s2) @ vt
     vcov = _robust_vcov(x, residuals, xtx_inv, frame, n_params=x.shape[1])
     stderr = np.sqrt(np.clip(np.diag(vcov), a_min=0.0, a_max=None))
     coefs = pd.Series(beta, index=design.columns)
