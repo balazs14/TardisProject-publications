@@ -21,18 +21,17 @@ from tardis.utils import debug_runtime
 
 logger = logging.getLogger(__name__)
 
-# Fixed effects are per-specification (see each RegressionSpec.fixed_effects):
-# specs (1)-(2) are pooled OLS with explicit segment dummies, spec (3) adds cell
-# fixed effects. Set to False only to disable all fixed effects for debugging.
+# Fixed effects are per-specification (see each RegressionSpec.fixed_effects).
+# The headline R-regressions use cell fixed effects in every specification.
 ENABLE_FIXED_EFFECTS = True
 
 
 
 SPEC_DISPLAY_NAMES = {
     "amu_spec1": "(1)",
-    "amu_spec1fe": "(2)",
-    "amu_spec2": "(3)",
-    "amu_spec3": "(4)",
+    "amu_spec2": "(2)",
+    "amu_spec3": "(3)",
+    "amu_spec4": "(4)",
     "amu_spec_depth": "(5)",
     "amu_spec_spread": "(6)",
     "amu_spec_stale": "(7)",
@@ -66,18 +65,27 @@ SPEC_DISPLAY_NAMES = {
 # is an orthogonal rotation, all three components span the same space as the raw
 # frictions and reproduce (4) exactly, while PC1 alone is a rank-1 control that
 # merely under-controls. The amu_specpca helpers below are retained but unwired.
-MAIN_SPEC_ORDER = ("amu_spec1", "amu_spec1fe", "amu_spec2", "amu_spec3", "amu_spec_depth", "amu_spec_spread", "amu_spec_stale", "amu_spec_nopost")
+MAIN_SPEC_ORDER = ("amu_spec1", "amu_spec2", "amu_spec3", "amu_spec4")
 # Same column order for the capital-unit and dollar-unit tables.
 CAP_SPEC_ORDER = ("cap_spec1", "cap_spec1fe", "cap_spec2", "cap_spec3", "cap_spec_depth", "cap_spec_spread", "cap_spec_stale", "cap_spec_nopost")
 DOL_SPEC_ORDER = ("dol_spec1", "dol_spec1fe", "dol_spec2", "dol_spec3", "dol_spec_depth", "dol_spec_spread", "dol_spec_stale", "dol_spec_nopost")
 # Columns actually SHOWN in the coefficient tables: drop (1) [pooled Post-only] and (3)
 # [pooled segment dummies], leaving the fixed-effects specifications (2),(4)-(8).
-MAIN_COEF_DISPLAY_ORDER = ("amu_spec1fe", "amu_spec3", "amu_spec_depth", "amu_spec_spread", "amu_spec_stale", "amu_spec_nopost", "amu_spec_btc")
+MAIN_COEF_DISPLAY_ORDER = ("amu_spec1", "amu_spec2", "amu_spec3", "amu_spec4")
 CAP_COEF_DISPLAY_ORDER = ("cap_spec1fe", "cap_spec3", "cap_spec_depth", "cap_spec_spread", "cap_spec_stale", "cap_spec_nopost", "cap_spec_btc")
 DOL_COEF_DISPLAY_ORDER = ("dol_spec1fe", "dol_spec3", "dol_spec_depth", "dol_spec_spread", "dol_spec_stale", "dol_spec_nopost", "dol_spec_btc")
 # Coefficient-table row order per unit. Each swaps in its own depth and spread controls;
 # the BTCUSD index level enters every full-control specification as a market covariate.
-_MAIN_COEF_TERM_ORDER = ("post_2024", "okx", "eth", "atm", "short_tte", "log_mean_min_quote_size_dollar", "average_put_call_spread_bp", "stale_proxy", "log_btcusd_ref")
+_MAIN_COEF_TERM_ORDER = (
+    "post_2024",
+    "Depth",
+    "Stale",
+    "Spr_BTC",
+    "Spr_ETH",
+    "Rec",
+    "Amh_BTC",
+    "Amh_ETH",
+)
 _CAP_COEF_TERM_ORDER = ("post_2024", "okx", "eth", "atm", "short_tte", "log_min_quote_size_shares", "average_put_call_spread_capital_bp", "stale_proxy", "log_btcusd_ref")
 _DOL_COEF_TERM_ORDER = ("post_2024", "okx", "eth", "atm", "short_tte", "log_mean_min_quote_size_dollar", "average_put_call_spread_dollar", "stale_proxy", "log_btcusd_ref")
 
@@ -86,9 +94,19 @@ TERM_DISPLAY_NAMES = {
     "average_put_call_spread_bp": "$\\mathrm{Spr}^{\\mathrm{bp}}_{g,t}$",
     "average_put_call_spread_capital_bp": "$\\mathrm{Spr}^{\\mathrm{cap}}_{g,t}$",
     "average_put_call_spread_dollar": "$\\mathrm{Spr}^{\\$}_{g,t}$",
+    "Depth": "$\\mathrm{Depth}_{g,t}$",
+    "Stale": "$\\mathrm{Stale}_{g,t}$",
+    "Spr_BTC": "$\\mathrm{Spr}^{\\mathrm{BTC}}_{g,t}$",
+    "Spr_ETH": "$\\mathrm{Spr}^{\\mathrm{ETH}}_{g,t}$",
+    "Rec": "$\\mathrm{Rec}_{g,t}$",
+    "Amh_BTC": "$\\mathrm{Amh}^{\\mathrm{BTC}}_{g,t}$",
+    "Amh_ETH": "$\\mathrm{Amh}^{\\mathrm{ETH}}_{g,t}$",
     "log_mean_min_quote_size_dollar": "$\\mathrm{Depth}^{\\$}_{g,t}$",
+    "log10_mean_min_quote_size_dollar": "$\\log_{10}(\\mathrm{Depth}^{\\$}_{g,t})$",
     "log_min_quote_size_shares": "$\\mathrm{Depth}^{\\mathrm{sh}}_{g,t}$",
     "stale_proxy": "$\\mathrm{Stale}_{g,t}$",
+    "log10_stale_proxy": "$\\log_{10}(\\mathrm{Stale}_{g,t})$",
+    "log10_spread_dollar_recovery": "$\\log_{10}(\\mathrm{Rec}_{g,t})$",
     "log_btcusd_ref": "$\\log\\mathrm{BTC}_t$",
     "liquidity_pc": "$\\mathrm{Liq}_{g,t}$",
     "okx": "$\\mathrm{OKX}_g$",
@@ -226,6 +244,17 @@ def build_liquidity_analysis_panel(
     frame["post_2024_x_eth"] = frame["post_2024"] * frame["eth"]
     frame["post_2024_x_atm"] = frame["post_2024"] * frame["atm"]
     frame["post_2024_x_short_tte"] = frame["post_2024"] * frame["short_tte"]
+    # Main-regression friction controls use the raw terse symbols that the paper
+    # now defines in the notation table.
+    frame["Depth"] = pd.to_numeric(frame["mean_min_quote_size_dollar"], errors="coerce")
+    frame["Stale"] = pd.to_numeric(frame["stale_proxy"], errors="coerce")
+    frame["Spr"] = pd.to_numeric(frame["average_put_call_spread_dollar"], errors="coerce") if "average_put_call_spread_dollar" in frame.columns else np.nan
+    frame["Rec"] = pd.to_numeric(frame["spread_dollar_recovery"], errors="coerce") if "spread_dollar_recovery" in frame.columns else np.nan
+    frame["Amh"] = pd.to_numeric(frame["amihud_capital"], errors="coerce") if "amihud_capital" in frame.columns else np.nan
+    frame["Spr_BTC"] = frame["Spr"] * (1.0 - frame["eth"])
+    frame["Spr_ETH"] = frame["Spr"] * frame["eth"]
+    frame["Amh_BTC"] = frame["Amh"] * (1.0 - frame["eth"])
+    frame["Amh_ETH"] = frame["Amh"] * frame["eth"]
     # Rate R = unconditional / conditional (share of positive tickpaths); the bp
     # units cancel, leaving a fraction in [0, 1]. Materialized at the baseline and
     # at each cost tag so figures/regressions can plot the extensive margin just by
@@ -437,14 +466,7 @@ def write_liquidity_pca_table(output_dir: str | Path) -> Path:
     return path
 
 
-# AMU dependent variable for every spec below. The regressions use the UNCONDITIONAL
-# (per-quote = frequency x conditional) AMU at the BASELINE cost -- i.e. net of the full
-# three-term cost structure (cost_per_notional, cost_per_option_value, flat_dollar_amount),
-# not a fixed-bp grid offset. The panel also carries the capital-bp and dollar unconditional
-# flavours (mean_amu_unconditional_capital_bp / _dollar), all of which depend on all three
-# cost parameters; point AMU_DEPENDENT at one of those to run the regression in that unit,
-# or at "mean_amu_conditional_bp" for the conditional size. The cost-sensitivity grid
-# (mean_amu_uncond_bp_c{cc}) is kept separately for the robustness analysis.
+# Headline dependent for Table 5: unfairness rate R.
 AMU_DEPENDENT = "mean_amu_rate"
 
 # Covariance estimator for the reported standard errors. Cluster keys must be
@@ -469,34 +491,33 @@ def _se_description() -> str:
     joined = " and ".join([", ".join(names[:-1]), names[-1]]) if len(names) > 2 else " and ".join(names)
     return f"two-way cluster-robust (by {joined})"
 
-# Nested AMU specifications (HC1 SEs):
-#   (1) Post                          -> RQ2 (regime effect)
-#   (2) + OKX/ETH/ATM/NearExp         -> RQ1 (cross-sectional segments, linear dummies)
-#   (3) Post + Depth/Spread/Stale, cell fixed effects -> RQ3. The segment/bucket
-#       dependence is nonlinear, so it is absorbed by cell fixed effects rather
-#       than the linear dummies of (2); a residual Post is compression not
-#       explained by the frictions.
+# Main four specifications (all with cell FE):
+#   (1) Post only
+#   (2) Post + static frictions (Depth, Stale, Spr)
+#   (3) Post + static + dynamic frictions (Depth, Stale, Spr, Rec, Amh)
+#   (4) Static + dynamic frictions, no Post
 _SPEC1_REGRESSORS = ("post_2024",)
-_SPEC2_REGRESSORS = _SPEC1_REGRESSORS + ("okx", "eth", "atm", "short_tte")
-_SPEC3_REGRESSORS = (
-    "post_2024",
-    "log_mean_min_quote_size_dollar",
-    "average_put_call_spread_bp",
-    "stale_proxy",
-    "log_btcusd_ref",
-)
+_STATIC_FRICTIONS = ("Depth", "Stale", "Spr_BTC", "Spr_ETH")
+_DYNAMIC_FRICTIONS = ("Rec", "Amh_BTC", "Amh_ETH")
+_SPEC2_REGRESSORS = ("post_2024",) + _STATIC_FRICTIONS
+_SPEC3_REGRESSORS = ("post_2024",) + _STATIC_FRICTIONS + _DYNAMIC_FRICTIONS
+_SPEC4_REGRESSORS = _STATIC_FRICTIONS + _DYNAMIC_FRICTIONS
 
 
 def amu_spec1_regression_spec() -> RegressionSpec:
-    return RegressionSpec(name="amu_spec1", dependent=AMU_DEPENDENT, regressors=_SPEC1_REGRESSORS, fixed_effects=())
+    return RegressionSpec(name="amu_spec1", dependent=AMU_DEPENDENT, regressors=_SPEC1_REGRESSORS, fixed_effects=("cell_id",))
 
 
 def amu_spec2_regression_spec() -> RegressionSpec:
-    return RegressionSpec(name="amu_spec2", dependent=AMU_DEPENDENT, regressors=_SPEC2_REGRESSORS, fixed_effects=())
+    return RegressionSpec(name="amu_spec2", dependent=AMU_DEPENDENT, regressors=_SPEC2_REGRESSORS, fixed_effects=("cell_id",))
 
 
 def amu_spec3_regression_spec() -> RegressionSpec:
     return RegressionSpec(name="amu_spec3", dependent=AMU_DEPENDENT, regressors=_SPEC3_REGRESSORS, fixed_effects=("cell_id",))
+
+
+def amu_spec4_regression_spec() -> RegressionSpec:
+    return RegressionSpec(name="amu_spec4", dependent=AMU_DEPENDENT, regressors=_SPEC4_REGRESSORS, fixed_effects=("cell_id",))
 
 
 # Column (5): the three collinear frictions of spec (4) replaced by their first
@@ -532,6 +553,10 @@ def run_amu_spec2_regression(panel: pd.DataFrame | pl.DataFrame | None = None, *
 
 def run_amu_spec3_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
     return _run_regression(amu_spec3_regression_spec(), panel=panel, **build_kwargs)
+
+
+def run_amu_spec4_regression(panel: pd.DataFrame | pl.DataFrame | None = None, **build_kwargs) -> pd.DataFrame:
+    return _run_regression(amu_spec4_regression_spec(), panel=panel, **build_kwargs)
 
 
 # Single-friction specs (5)-(7): Post plus ONE friction, with cell fixed effects.
@@ -701,7 +726,9 @@ def write_text_macros(frame: pd.DataFrame, output_dir: str | Path) -> Path:
     never be typed by hand. ``frame`` is the filtered analysis panel.
     """
     cost_bp = int(round(float(CONFIG["pcp"]["cost_per_notional"]) * 10000.0))
-    amu = pd.to_numeric(frame[AMU_DEPENDENT], errors="coerce")
+    # Keep manuscript scalar macros in unconditional-bp units even when the
+    # active regression dependent is switched (e.g., to R).
+    amu = pd.to_numeric(frame["mean_amu_unconditional_bp"], errors="coerce")
     weights = pd.to_numeric(frame["n_obs"], errors="coerce") if "n_obs" in frame.columns else pd.Series(1.0, index=frame.index)
     post = pd.to_numeric(frame["post_2024"], errors="coerce")
 
@@ -875,14 +902,9 @@ def write_regression_tables(output_dir: str | Path, *, frame: pd.DataFrame | Non
     )
     for runner in (
         run_amu_spec1_regression,
-        run_amu_spec1fe_regression,
         run_amu_spec2_regression,
         run_amu_spec3_regression,
-        run_amu_spec_depth_regression,
-        run_amu_spec_spread_regression,
-        run_amu_spec_stale_regression,
-        run_amu_spec_nopost_regression,
-        run_amu_spec_btc_regression,
+        run_amu_spec4_regression,
     ):
         result = runner(panel=panel)
         combined_results.append(result)
@@ -891,7 +913,7 @@ def write_regression_tables(output_dir: str | Path, *, frame: pd.DataFrame | Non
     # Headline coefficient table: show only the fixed-effects specifications (drop the
     # pooled columns (1) and (3)); the cell-FE row is redundant once every column has it.
     coefficient_table = _regression_coefficient_table(
-        results, spec_order=MAIN_COEF_DISPLAY_ORDER, show_fixed_effects=False
+        results, spec_order=MAIN_COEF_DISPLAY_ORDER, show_fixed_effects=True
     )
 
     for spec_name in results["specification"].dropna().unique().tolist():
@@ -911,13 +933,8 @@ def write_regression_tables(output_dir: str | Path, *, frame: pd.DataFrame | Non
     paths["regression_coefficients_table"] = coefficient_path
     paths["regression_effects_table"] = effects_path
     paths["text_numbers"] = write_text_macros(filter_analysis_panel(panel), output_root)
-    _cap_table = write_capital_regression_table(panel, output_root)
-    if _cap_table is not None:
-        paths["regression_coefficients_capital_table"] = _cap_table
-    _dol_table = write_dollar_regression_table(panel, output_root)
-    if _dol_table is not None:
-        paths["regression_coefficients_dollar_table"] = _dol_table
-    paths["frequency_size_decomposition_table"] = write_frequency_size_table(panel, output_root)
+    # Single-table regression narrative: skip alternate-unit and decomposition
+    # tables from the automatic regression bundle.
     paths["cost_sensitivity_table"] = write_cost_sensitivity_table_from_panel(panel, output_root)
     logger.debug(
         "write_regression_tables wrote summary_tex=%s coefficient_tex=%s combined_rows=%d",
@@ -1124,42 +1141,64 @@ def _regression_coefficient_table(
 
 
 def _regression_effects_table(results: pd.DataFrame) -> pd.DataFrame:
-    """Compact one-row-per-term table showing only the standardized (percent)
-    effect with significance stars, plus the R^2 and fixed-effects rows. A slide
-    -friendly digest of the full coefficient table."""
+    """Compact table with two columns per specification: beta (left) and
+    standardized effect (right, bold). Summary rows (R^2, observations, fixed
+    effects) are shown only in the left column of each specification pair."""
     results = results.copy()
     spec_order = [spec for spec in MAIN_SPEC_ORDER if spec in results["specification"].unique()]
     spec_labels = [SPEC_DISPLAY_NAMES.get(spec, spec) for spec in spec_order]
+    beta_cols = [f"{spec}__beta" for spec in spec_order]
+    eff_cols = [f"{spec}__eff" for spec in spec_order]
+    all_cols = [col for pair in zip(beta_cols, eff_cols) for col in pair]
     term_order = [
-        "post_2024", "okx", "eth", "atm", "short_tte",
-        "log_mean_min_quote_size_dollar", "average_put_call_spread_bp", "stale_proxy",
+        "post_2024",
+        "Depth",
+        "Stale",
+        "Spr_BTC",
+        "Spr_ETH",
+        "Rec",
+        "Amh_BTC",
+        "Amh_ETH",
     ]
     rows: list[dict[str, str]] = []
     index: list[str] = []
     for term in term_order:
         if term not in results["term"].values:
             continue
-        row = {label: "" for label in spec_labels}
-        for spec, label in zip(spec_order, spec_labels):
+        row = {column: "" for column in all_cols}
+        for spec, beta_col, eff_col in zip(spec_order, beta_cols, eff_cols):
             spec_slice = results.loc[(results["specification"] == spec) & (results["term"] == term)]
             if spec_slice.empty:
                 continue
             r = spec_slice.iloc[0]
-            row[label] = _format_pct_effect(r["economic_significance"], r["t_stat"])
+            row[beta_col] = (
+                f"{_format_signed_decimal(float(r['coefficient']), decimals=3)}"
+                f"{_significance_stars(float(r['t_stat']))}"
+            )
+            row[eff_col] = _format_bracket_bold_percent(r["economic_significance"])
         rows.append(row)
         index.append(TERM_DISPLAY_NAMES.get(term, term))
-    for summary_label, key in (("Total $R^2$", "r2"), ("Fixed effects", "fixed_effects")):
-        row = {label: "" for label in spec_labels}
-        for spec, label in zip(spec_order, spec_labels):
+    for summary_label, key in (("Total $R^2$", "r2"), ("Observations", "nobs"), ("Fixed effects", "fixed_effects")):
+        row = {column: "" for column in all_cols}
+        for spec, beta_col, eff_col in zip(spec_order, beta_cols, eff_cols):
             spec_slice = results.loc[results["specification"] == spec]
             if spec_slice.empty:
                 continue
             r = spec_slice.iloc[0]
-            row[label] = f"{float(r['r2']):.3f}" if key == "r2" else ", ".join(_fixed_effects_components_from_results(results, spec))
+            if key == "r2":
+                row[beta_col] = f"{float(r['r2']):.3f}"
+            elif key == "nobs":
+                row[beta_col] = f"{int(r['nobs']):,}"
+            else:
+                row[beta_col] = ", ".join(_fixed_effects_components_from_results(results, spec))
+            row[eff_col] = ""
         rows.append(row)
         index.append(summary_label)
-    table = pd.DataFrame(rows, index=index, columns=spec_labels)
-    table.index.name = "Std.\\ effect"
+    table = pd.DataFrame(rows, index=index, columns=all_cols)
+    # Display as pairs: (spec label, blank) per specification.
+    display_headers = [col for label in spec_labels for col in (label, "")]
+    table.columns = display_headers
+    table.index.name = "Term"
     return table
 
 

@@ -20,12 +20,14 @@ from panel_regressions import (
     amu_spec1_regression_spec,
     amu_spec2_regression_spec,
     amu_spec3_regression_spec,
+    amu_spec4_regression_spec,
     build_liquidity_analysis_panel,
     filter_analysis_panel,
     _panel_pooled_amu,
     run_amu_spec1_regression,
     run_amu_spec2_regression,
     run_amu_spec3_regression,
+    run_amu_spec4_regression,
 )
 
 event_dates = {
@@ -162,15 +164,15 @@ def plot_daily_amu_timeseries(frame: pd.DataFrame, output_path: str | Path | Non
 # quotes (spread in three units, staleness, depth in two units); DYNAMIC = the intraday
 # illiquidity/resiliency measures (Amihud in three units, spread recovery in two).
 _FRICTION_TS_DIRECT = (
-    ("average_put_call_spread_dollar", r"Spread (\$)", False, True),
-    ("stale_proxy", r"Stale $\mathrm{Stale}_{g,t}$ (fraction)", False),
+    ("average_put_call_spread_dollar", r"Spread (\$)", True),
+    ("stale_proxy", r"Stale (fraction)", True),
     # Depth in PREMIUM dollars: resting size x contract_size x option price (= min quote
     # size valued at the call+put mid), not the notional (size x index).
-    ("mean_min_quote_size_capital", r"Depth (premium \$)", False, True),
+    ("mean_min_quote_size_capital", r"Depth (\$)", True),
 )
 _FRICTION_TS_DYNAMIC = (
-    ("amihud_capital", r"Amihud (premium volume)", False, "exchange"),
-    ("spread_dollar_recovery", r"Spread-\$ recovery (min)", False),
+    ("amihud_capital", r"Amihud ratio", True),
+    ("spread_dollar_recovery", r"Recovery (min)", False),
 )
 # Channels aggregated across the surface by SUM (a daily total) rather than by mean/median.
 _FRICTION_SUM_COLS = {"total_option_volume"}
@@ -225,28 +227,50 @@ def _plot_friction_panels(
     # A panel tuple is (column, label, log_y[, dual_axis]); dual_axis (True/"underlying"
     # splits BTC left / ETH right; "exchange" splits deribit left / okex right) puts the two
     # groups on two linear axes both starting at zero so one scale does not swamp the other.
+    # "right_only" draws all series on a right-side axis only (left side hidden).
     for ax, panel in zip(axes, panels, strict=False):
         col, label, logy = panel[0], panel[1], panel[2]
         dual = len(panel) > 3 and panel[3]
+        marker_ax = ax
         if dual:
-            if dual == "exchange":
+            if dual == "right_only":
+                ax2 = ax.twinx()
+                sns.lineplot(data=agg, x="day", y=col, hue="series", palette=palette, ax=ax2, legend=False)
+                if logy:
+                    ax2.set_yscale("log")
+                ax.set_ylabel("")
+                ax.set_yticks([])
+                ax.grid(False)
+                ax.spines["left"].set_visible(False)
+                ax2.grid(False)
+                ax2.set_ylabel(label)
+                marker_ax = ax2
+            elif dual == "exchange":
                 left_mask, left_lab, right_lab = is_deribit, "deribit", "okex"
+                sns.lineplot(data=agg[left_mask], x="day", y=col, hue="series", palette=palette, ax=ax, legend=False)
+                ax2 = ax.twinx()
+                sns.lineplot(data=agg[~left_mask], x="day", y=col, hue="series", palette=palette, ax=ax2, legend=False)
+                ax.set_ylim(bottom=0)
+                ax2.set_ylim(bottom=0)
+                ax2.grid(False)
+                ax.set_ylabel(f"{label}\n({left_lab}, left axis)")
+                ax2.set_ylabel(f"{label}\n({right_lab}, right axis)")
             else:
                 left_mask, left_lab, right_lab = is_btc, "BTC", "ETH"
-            sns.lineplot(data=agg[left_mask], x="day", y=col, hue="series", palette=palette, ax=ax, legend=False)
-            ax2 = ax.twinx()
-            sns.lineplot(data=agg[~left_mask], x="day", y=col, hue="series", palette=palette, ax=ax2, legend=False)
-            ax.set_ylim(bottom=0)
-            ax2.set_ylim(bottom=0)
-            ax2.grid(False)
-            ax.set_ylabel(f"{label}\n({left_lab}, left axis)")
-            ax2.set_ylabel(f"{label}\n({right_lab}, right axis)")
+                sns.lineplot(data=agg[left_mask], x="day", y=col, hue="series", palette=palette, ax=ax, legend=False)
+                ax2 = ax.twinx()
+                sns.lineplot(data=agg[~left_mask], x="day", y=col, hue="series", palette=palette, ax=ax2, legend=False)
+                ax.set_ylim(bottom=0)
+                ax2.set_ylim(bottom=0)
+                ax2.grid(False)
+                ax.set_ylabel(f"{label}\n({left_lab}, left axis)")
+                ax2.set_ylabel(f"{label}\n({right_lab}, right axis)")
         else:
             sns.lineplot(data=agg, x="day", y=col, hue="series", palette=palette, ax=ax, legend=False)
             if logy:
                 ax.set_yscale("log")
             ax.set_ylabel(label)
-        _add_event_markers(ax, labels=show_event_labels)
+        _add_event_markers(marker_ax, labels=show_event_labels)
         ax.set_xlabel("")
     axes[-1].set_xlabel("Day")
     handles = [Line2D([0], [0], color=palette[m], lw=5.0) for m in markets]
@@ -450,28 +474,86 @@ def plot_event_study(frame: pd.DataFrame, output_path: str | Path | None = None,
 
 
 def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None = None, bins: int = 20) -> plt.Figure:
-    y_col = PANEL_AMU_UNCOND_COLUMN  # headline AMU (or rate in R mode)
+    # Figure 18 is fixed to the unfairness rate R regardless of global figure mode.
+    y_col = "mean_amu_rate"
     filtered = filter_analysis_panel(frame)
     filtered = filtered.loc[filtered[y_col].notna()].copy()
-    fig, axes = plt.subplots(1, 4, figsize=(24, 6.2), sharey=True)
+    if "log10_mean_min_quote_size_dollar" not in filtered.columns:
+        if "mean_min_quote_size_dollar" in filtered.columns:
+            depth = pd.to_numeric(filtered["mean_min_quote_size_dollar"], errors="coerce")
+            filtered["log10_mean_min_quote_size_dollar"] = np.log10(depth.clip(lower=1e-12))
+        elif "log_mean_min_quote_size_dollar" in filtered.columns:
+            filtered["log10_mean_min_quote_size_dollar"] = (
+                pd.to_numeric(filtered["log_mean_min_quote_size_dollar"], errors="coerce") / np.log(10.0)
+            )
+    fig, axes = plt.subplots(2, 2, figsize=(16, 10), sharey=True)
+    axes = np.atleast_1d(axes).ravel()
+    for ax in axes:
+        ax.tick_params(axis="both", labelsize=13)
+        for label in ax.get_xticklabels() + ax.get_yticklabels():
+            label.set_fontsize(13)
     if filtered.empty:
         for ax in axes:
             _annotate_empty_panel(ax, "No observations")
-        fig.suptitle("Liquidity-friction gradients")
+        fig.suptitle("Liquidity-friction gradients", fontsize=20)
         return _finalize_figure(fig, output_path)
 
+    # Panel 1: R vs dollar spread with separate BTC/ETH lines.
+    spread_col = "average_put_call_spread_dollar"
+    spread_frame = filtered.loc[filtered[spread_col].notna(), [spread_col, "ref_sym", y_col]].copy()
+    spread_frame["underlying"] = np.where(
+        spread_frame["ref_sym"].str.contains("ETH", na=False), "ETH", "BTC"
+    )
+    spread_binned_parts: list[pd.DataFrame] = []
+    for underlying, part in spread_frame.groupby("underlying"):
+        binned_part = _binned_means(part, spread_col, bins, y_col=y_col)
+        if binned_part.empty:
+            continue
+        binned_part["underlying"] = underlying
+        spread_binned_parts.append(binned_part)
+    spread_binned = pd.concat(spread_binned_parts, ignore_index=True) if spread_binned_parts else pd.DataFrame()
+    if spread_binned.empty:
+        _annotate_empty_panel(axes[0], "No spread observations")
+    else:
+        sns.scatterplot(
+            data=spread_binned,
+            x=spread_col,
+            y=y_col,
+            hue="underlying",
+            hue_order=["BTC", "ETH"],
+            ax=axes[0],
+            alpha=0.9,
+        )
+        sns.lineplot(
+            data=spread_binned,
+            x=spread_col,
+            y=y_col,
+            hue="underlying",
+            hue_order=["BTC", "ETH"],
+            ax=axes[0],
+            legend=False,
+            linewidth=2.0,
+        )
+        axes[0].set_title("$R$ versus dollar spread", fontsize=16)
+        axes[0].set_xlabel("Average put-call spread ($)", fontsize=14)
+        axes[0].legend(title="Underlying", fontsize=11, title_fontsize=12)
+
+    # Panel 2 and 3: R vs log10 depth and staleness.
     for ax, column, title, xlabel in zip(
-        axes[:3],
-        ("average_put_call_spread_bp", "log_mean_min_quote_size_dollar", "stale_proxy"),
-        ("$U_u$ versus option spread", "$U_u$ versus log quote depth", "$U_u$ versus staleness"),
-        ("Average put-call spread (bp)", "Log mean minimum quote size (USD)", "Mean stale-quote fraction"),
+        axes[1:3],
+        ("log10_mean_min_quote_size_dollar", "stale_proxy"),
+        ("$R$ versus $\\log_{10}$ quote depth", "$R$ versus staleness"),
+        ("$\\log_{10}$ mean minimum quote size (USD)", "Mean stale-quote fraction"),
         strict=False,
     ):
         binned = _binned_means(filtered, column, bins, y_col=y_col)
+        if binned.empty:
+            _annotate_empty_panel(ax, f"No observations for {column}")
+            continue
         sns.scatterplot(data=binned, x=column, y=y_col, ax=ax)
         sns.lineplot(data=binned, x=column, y=y_col, ax=ax, legend=False)
-        ax.set_title(title)
-        ax.set_xlabel(xlabel)
+        ax.set_title(title, fontsize=16)
+        ax.set_xlabel(xlabel, fontsize=14)
 
     combo = (
         filtered.groupby(["ref_sym", "exchange"], as_index=False)[y_col]
@@ -485,13 +567,13 @@ def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None =
         hue="exchange",
         ax=axes[3],
     )
-    axes[3].set_title("$U_u$ by underlying and exchange")
-    axes[3].set_xlabel("Underlying")
-    axes[3].set_ylabel("")
-    axes[3].legend(title="Exchange")
+    axes[3].set_title("$R$ by underlying and exchange", fontsize=16)
+    axes[3].set_xlabel("Underlying", fontsize=14)
+    axes[3].set_ylabel("", fontsize=14)
+    axes[3].legend(title="Exchange", fontsize=11, title_fontsize=12)
 
-    axes[0].set_ylabel("$U_u$ (bp)")
-    fig.suptitle("Liquidity-friction gradients")
+    axes[0].set_ylabel("$R$ (fraction)", fontsize=14)
+    fig.suptitle("Liquidity-friction gradients", fontsize=20)
     return _finalize_figure(fig, output_path)
 
 
@@ -551,31 +633,38 @@ def plot_regression_coefficients(
             run_amu_spec1_regression(panel=frame, **build_kwargs),
             run_amu_spec2_regression(panel=frame, **build_kwargs),
             run_amu_spec3_regression(panel=frame, **build_kwargs),
+            run_amu_spec4_regression(panel=frame, **build_kwargs),
         ],
         ignore_index=True,
     )
 
-    specs = [amu_spec1_regression_spec(), amu_spec2_regression_spec(), amu_spec3_regression_spec()]
+    specs = [
+        amu_spec1_regression_spec(),
+        amu_spec2_regression_spec(),
+        amu_spec3_regression_spec(),
+        amu_spec4_regression_spec(),
+    ]
     spec_order = [spec.name for spec in specs]
     pretty_titles = {
-        specs[0].name: "(1) Post",
-        specs[1].name: "(2) + segments",
-        specs[2].name: "(3) + frictions, cell FE",
+        specs[0].name: "(1) Post, cell FE",
+        specs[1].name: "(2) Post + static controls, cell FE",
+        specs[2].name: "(3) Post + static + dynamic controls, cell FE",
+        specs[3].name: "(4) Static + dynamic controls, no Post",
     }
     term_order = {spec.name: list(spec.regressors) for spec in specs}
     term_labels = {
         "post_2024": "Post-2024",
-        "okx": "OKX",
-        "eth": "ETH",
-        "atm": "ATM",
-        "short_tte": "NearExp",
-        "log_mean_min_quote_size_dollar": "Depth",
-        "average_put_call_spread_bp": "Spread",
-        "stale_proxy": "Stale",
+        "Depth": "Depth",
+        "Stale": "Stale",
+        "Spr_BTC": "Spr x BTC",
+        "Spr_ETH": "Spr x ETH",
+        "Rec": "Rec",
+        "Amh_BTC": "Amh x BTC",
+        "Amh_ETH": "Amh x ETH",
     }
 
     sns.set_theme(style="whitegrid", context="talk")
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5), constrained_layout=True)
+    fig, axes = plt.subplots(1, 4, figsize=(24, 5), constrained_layout=True)
     for ax, spec_name in zip(np.atleast_1d(axes).ravel(), spec_order, strict=False):
         spec_results = results.loc[results["specification"] == spec_name].copy()
         spec_results["term"] = pd.Categorical(spec_results["term"], categories=term_order[spec_name], ordered=True)
@@ -591,7 +680,7 @@ def plot_regression_coefficients(
         ax.set_title(pretty_titles[spec_name], fontsize=11)
         ax.set_xlabel("Coefficient with 95% CI")
 
-    fig.suptitle("Nested $U_u$ regressions: coefficient estimates with 95\\% CI")
+    fig.suptitle("Nested $R$ regressions: coefficient estimates with 95\\% CI")
     return _finalize_figure(fig, output_path)
 
 

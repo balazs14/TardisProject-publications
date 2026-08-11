@@ -144,7 +144,7 @@ PCP arbitrage involves opening a costless portfolio of put, call and underlying 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/friction_timeseries_direct.png}
-\caption{Raw quote statistics over time by exchange and underlying, smoothed with a trailing 1-month rolling mean and aggregated over strike and maturity. Bid--ask spread in dollars ($\mathrm{Spr}^{\$}_{g,t}$); the stale-quote fraction $\mathrm{Stale}_{g,t}$; and the quote depth in premium dollars (the resting size times the contract size times the option price, i.e.\ the dollar value of the resting quote). Dashed vertical lines mark the 2024 events: BTC ETP approval (10 Jan), ETH ETF approval (23 May), MiCA stablecoin rules (30 Jun), ETH ETF trading (23 Jul), and MiCA CASP rules (30 Dec).}
+\caption{Raw quote statistics over time by exchange and underlying, smoothed with a trailing 1-month rolling mean and aggregated over strike and maturity. Bid--ask spread in dollars ($\mathrm{Spr}^{\$}_{g,t}$), stale-quote fraction $\mathrm{Stale}_{g,t}$, and quote depth in dollars. The spread and depth dollar values are measured for one trade unit. Dashed vertical lines mark the 2024 events: BTC ETP approval (10 Jan), ETH ETF approval (23 May), MiCA stablecoin rules (30 Jun), ETH ETF trading (23 Jul), and MiCA CASP rules (30 Dec).}
 \label{fig:friction_timeseries_direct}
 \end{figure}
 
@@ -190,10 +190,10 @@ The rest of this paper develops MU, a complementary, model-free measure to test 
 \label{sec:method}
 
 % The organizing idea is the accounting identity of costly arbitrage:
-% \begin{equation}
-% \text{real--synthetic quote difference} \;\leftarrow\; \text{synthetic quote transaction costs} \;+\; \text{absolute market unfairness}.
-% \label{eq:amu-identity}
-% \end{equation}
+\begin{equation}
+\text{real--synthetic quote difference} \;\leftarrow\; \text{synthetic quote transaction costs} \;+\; \text{absolute market unfairness}.
+\label{eq:amu-identity}
+\end{equation}
 
 Market makers post passive orders to the book. If and when the passive order is hit, the resulting exposure can be fully hedged via a PCP arbitrage loop. For example if our bid for a call is lifted, we are long the call, which we can hedge by going short futures and a corresponding put. If we got the call too cheap, we can lock in risk-free profit. A market maker seeking risk-free profits might wait for such parity breaking to occur, and join or improve a book, waiting for takers. The expected payoff is strictly positive, even though issues of queue position and the disappearance of the arbitrage path exist. We deal with these microstructure issues by studying intraday snapshot data, where the quotes involved in the arbitrage are all present at the same time. In addition, the microstructure issues only limit the dollar value and not the sign of this opportunity.
 
@@ -408,7 +408,7 @@ Figure~\ref{fig:all_markets_avg_4_spreads} shows that the 4 arbitrage paths beha
 \label{fig:all_markets_by_exchange_underlying_4_spreads}
 \end{figure}
 
-\subsection{$U_{u}$ across exchanges, moneyness, and maturity}
+\subsection{\texorpdfstring{$U_{u}$}{Uu} across exchanges, moneyness, and maturity}
 \label{sec:rq1}
 
 The global averages (Table~\ref{tab:amu_summary}) show venues and underlyings differ at most moderately. However, over the strike--expiry surface, there are clear patterns of variation. Regarding moneyness, the market is much more unfair in the wings than at the money. Regarding maturity, the market is most unfair at the shortest and longest maturities, and least unfair around one month. The patterns are regular across venues and underlyings.
@@ -526,24 +526,18 @@ This is where market unfairness is useful as a diagnostic. Whatever keeps a pari
 \subsection{Empirical design}
 \label{sec:design}
 
-\lead{The outcome is cell-level unconditional unfairness.} The dependent variable in all four regressions is the cell-level unconditional unfairness, $U_{u,g,t}=R_{g,t}\,U_{c,g,t}$ (Eq.~\ref{eq:amu-decomposition})---a quote-level, panel-observable object. Regressors enter in three blocks: the post-2024 indicator $\mathrm{Post}_t$; segment dummies (exchange, underlying, moneyness, maturity); and three liquidity frictions,
-\begin{align}
-\mathrm{Spr}_{g,t}&=\tfrac{1}{2}\!\left(\texttt{mean\_call\_spread\_bp}_{g,t}+\texttt{mean\_put\_spread\_bp}_{g,t}\right),\\
-\mathrm{Depth}_{g,t}&=\log\!\left(\texttt{mean\_min\_quote\_size\_dollar}_{g,t}\right),\\
-\mathrm{Stale}_{g,t}&=\text{mean stale-quote fraction across call, put, and spot legs}.
-\end{align}
-\lead{Frictions enter as descriptors, not to identify a premium.} The direct-cost term is already subtracted inside every path payoff (Table~\ref{tab:arbitrage_eight_formulas}), so market unfairness is the wedge that survives above that floor (Eq.~\ref{eq:amu-identity}). We add the friction variables not to identify a structural premium but to describe: how much of $U_{u}$, and of its 2024 change, moves with observable book quality---wider spreads, thinner depth, staler quotes \citep{amihud1986asset, shleifer1997limits, garleanu2011margin, bollen2004modeling}---and how much does not.
+The dependent variable in every specification is $R_{g,t}$, the share of positive cost-adjusted parity wedges in a cell-day. We use cell fixed effects in all specifications, so identification is within fixed $(\texttt{exchange},\texttt{ref\_sym},\texttt{rel\_strike\_bucket},\texttt{tte\_bucket})$ cells over time.
 
-\lead{The break date is January 10, 2024.} $\mathrm{Post}_t$ equals one on and after January 10, 2024---the Bitcoin ETP approval, first of the 2024 milestones---treated as a single regime date rather than separate shocks.
-
-\lead{We run four nested specifications.} We estimate four specifications, adding regressors in blocks:
+We run four fixed-effects specifications.
 \begin{align}
-U_{u,g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\varepsilon_{g,t},\\
-U_{u,g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\gamma_g+\varepsilon_{g,t},\\
-U_{u,g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\beta_{\mathrm{OKX}}\mathrm{OKX}_g+\beta_{\mathrm{ETH}}\mathrm{ETH}_g+\beta_{\mathrm{ATM}}\mathrm{ATM}_g+\beta_{\mathrm{NE}}\mathrm{NearExp}_g+\varepsilon_{g,t},\\
-U_{u,g,t}&=\beta_{\mathrm{Post}}\mathrm{Post}_t+\beta_{\mathrm{Depth}}\mathrm{Depth}_{g,t}+\beta_{\mathrm{Spr}}\mathrm{Spr}_{g,t}+\beta_{\mathrm{Stale}}\mathrm{Stale}_{g,t}+\gamma_g+\varepsilon_{g,t},
+R_{g,t}&=\beta_0\mathrm{Post}_t+\gamma_g+\varepsilon_{g,t},\\
+R_{g,t}&=\beta_0\mathrm{Post}_t+\beta_1\mathrm{Depth}_{g,t}+\beta_2\mathrm{Spr}^{\mathrm{BTC}}_{g,t}+\beta_3\mathrm{Spr}^{\mathrm{ETH}}_{g,t}+\beta_4\mathrm{Stale}_{g,t}+\gamma_g+\varepsilon_{g,t},\\
+R_{g,t}&=\beta_0\mathrm{Post}_t+\beta_1\mathrm{Depth}_{g,t}+\beta_2\mathrm{Spr}^{\mathrm{BTC}}_{g,t}+\beta_3\mathrm{Spr}^{\mathrm{ETH}}_{g,t}\nonumber\\
+&\quad+\beta_4\mathrm{Amh}^{\mathrm{BTC}}_{g,t}+\beta_5\mathrm{Amh}^{\mathrm{ETH}}_{g,t}+\beta_6\mathrm{Stale}_{g,t}+\beta_7\mathrm{Rec}_{g,t}+\gamma_g+\varepsilon_{g,t},\\
+R_{g,t}&=\beta_0\mathrm{Depth}_{g,t}+\beta_1\mathrm{Spr}^{\mathrm{BTC}}_{g,t}+\beta_2\mathrm{Spr}^{\mathrm{ETH}}_{g,t}\nonumber\\
+&\quad+\beta_3\mathrm{Amh}^{\mathrm{BTC}}_{g,t}+\beta_4\mathrm{Amh}^{\mathrm{ETH}}_{g,t}+\beta_5\mathrm{Stale}_{g,t}+\beta_6\mathrm{Rec}_{g,t}+\gamma_g+\varepsilon_{g,t}
 \end{align}
-all with a constant and \RegSEdesc{} standard errors. Specification (1) is the raw regime effect. Specification (2) adds cell fixed effects $\gamma_g$, isolating the within-cell shift. Specification (3) instead adds the segment dummies as pooled OLS: there the dummies are the objects of interest (the cross-sectional question), so we estimate rather than absorb them. Specification (4) adds the frictions with cell fixed effects. We prefer cell fixed effects because the surface dependence is strongly nonlinear (Figures~\ref{fig:multi_exchange_amu_by_strike}--\ref{fig:multi_exchange_amu_by_tte}); linear dummies would leave segment structure in the residual. In (4), $\beta_{\mathrm{Post}}$ is the within-cell change net of both the frictions and the full segment structure. Table~\ref{tab:regressor_abbreviations} defines the abbreviations.
+We use interacted spread and Amihud terms to allow different BTC/ETH slopes, necessitated by the significantly different sizes of one trade unit in the two coins. All models report \RegSEdesc{} standard errors. Table~\ref{tab:regressor_abbreviations} defines the abbreviations.
 
 \begin{table}[htbp]
 \centering
@@ -556,15 +550,16 @@ Abbreviation & Definition \\
 $\mathrm{Post}_t$ & Post-2024 regime indicator (1 for dates on/after 2024-01-10, 0 otherwise). \\
 \midrule
 \multicolumn{2}{@{}l}{\textit{Liquidity-friction variables}} \\
-$\mathrm{Spr}_{g,t}$ & Average put--call spread in basis points, $0.5\times(\texttt{mean\_call\_spread\_bp}+\texttt{mean\_put\_spread\_bp})$. \\
-$\mathrm{Depth}_{g,t}$ & Log quote-depth proxy, $\log(\texttt{mean\_min\_quote\_size\_dollar})$, min taken over put/call bid/ask quote sizes. \\
-$\mathrm{Stale}_{g,t}$ & Mean stale-quote fraction across call, put, and spot legs. A stale flag does not by itself mean a quote is wrong or unfillable: it can equally mean the market has not moved enough to warrant a requote, so a correctly-priced quote may sit unchanged for long stretches. It is a proxy for update intensity, not for quote validity. \\
+$\mathrm{Spr}_{g,t}$ & Average put--call dollar spread. \\
+$\mathrm{Depth}_{g,t}$ & Quote depth in dollars for one trade unit (min over put/call bid/ask quote sizes). \\
+$\mathrm{Stale}_{g,t}$ & Mean stale-quote fraction across call, put, and spot legs. \\
+$\mathrm{Amh}_{g,t}$ & Amihud illiquidity ratio defined earlier. \\
+$\mathrm{Rec}_{g,t}$ & Spread recovery half-life (minutes) defined earlier. \\
 \midrule
-\multicolumn{2}{@{}l}{\textit{Segment dummies (components of the cell fixed effect $\gamma_g$)}} \\
-$\mathrm{OKX}_g$ & OKX indicator (1 for OKX, 0 for Deribit). \\
-$\mathrm{ETH}_g$ & ETH-underlying segment indicator. \\
-$\mathrm{ATM}_g$ & At-the-money indicator, $|\texttt{rel\_strike\_bucket}-1|\le\RegNonAtmCutoff$. \\
-$\mathrm{NearExp}_g$ & Near-expiry indicator, $\texttt{tte\_bucket}\le\RegShortTteCutoff$ years. \\
+$\mathrm{Spr}^{\mathrm{BTC}}_{g,t}$ & Cross-term $\mathrm{Spr}_{g,t}\times\mathbf{1}\{\mathrm{BTC}\}$. \\
+$\mathrm{Spr}^{\mathrm{ETH}}_{g,t}$ & Cross-term $\mathrm{Spr}_{g,t}\times\mathbf{1}\{\mathrm{ETH}\}$. \\
+$\mathrm{Amh}^{\mathrm{BTC}}_{g,t}$ & Cross-term $\mathrm{Amh}_{g,t}\times\mathbf{1}\{\mathrm{BTC}\}$. \\
+$\mathrm{Amh}^{\mathrm{ETH}}_{g,t}$ & Cross-term $\mathrm{Amh}_{g,t}\times\mathbf{1}\{\mathrm{ETH}\}$. \\
 \midrule
 $\gamma_g$ & Cell fixed effect for the tuple (\texttt{exchange}, \texttt{ref\_sym}, \texttt{rel\_strike\_bucket}, \texttt{tte\_bucket}). \\
 $\varepsilon_{g,t}$ & Idiosyncratic error. \\
@@ -574,68 +569,45 @@ $\varepsilon_{g,t}$ & Idiosyncratic error. \\
 
 \subsection{Results}
 
-\lead{We use the regressions to check that market unfairness behaves like a market-quality statistic.} We do not try to identify why $U_{u}$ fell. We ask whether it behaves as a good market-quality measure should. Two things are required: it should fall when the market is independently believed to have improved (the 2024 institutionalization), and that fall should not be an artifact of which contracts trade. Table~\ref{tab:regression_coefficients} checks both. The columns are (1) the raw post-2024 shift; (2) plus cell fixed effects; (3) segment dummies (pooled OLS); (4) all three frictions with cell fixed effects; and (5)--(7) each friction on its own, with cell fixed effects. Each cell stacks three rows: the coefficient (with significance stars), the \RegSEdesc{} standard error in parentheses, and, in bold brackets, the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$.
+Table~\ref{tab:regression_effects} is the compact headline regression table. The main conclusion we draw is that MU exhibits an incremental shift around the 2024 regulatory event, even after controlling for the usual liquidity measures. In other words, MU measures an effect (such as the introduction of new participants with different cost structures) that is not captured by the usual liquidity measures. 
 
-\lead{$U_{u}$ is markedly lower after 2024.} \emph{Specification (1).} The post-2024 coefficient is negative and large, and stays highly significant under two-way clustered errors. $U_{u}$ is much lower after 2024---the period the market is widely agreed to have improved. This is the first thing a market-quality measure should show, and addresses the second question: $U_{u}$ did drop upon the 2024 regime shift.
-
-\lead{The drop is within cells, not a change in contract mix.} \emph{Specification (2).} Adding cell fixed effects barely moves the post-2024 coefficient. The drop happens \emph{within} fixed strike--maturity--venue cells over time, not because the traded mix shifted. This rules out the main composition artifact---the second thing we need.
-
-\lead{$U_{u}$ differs across segments, but only slightly.} \emph{Specification (3).} With segment dummies (pooled OLS), $U_{u}$ differs by exchange and moneyness---both strongly significant even under clustered errors---while the underlying (ETH) and near-expiry effects are marginal or insignificant once errors are clustered. All are small next to variation over the surface. The low $R^2$ is expected: linear dummies cannot capture the nonlinear surface, which is why (4) uses fixed effects. This addresses the first question: $U_{u}$ differs across venues and underlyings, but only modestly.
-
-\lead{The three frictions together explain the drop.} \emph{Specification (4).} We add spread, depth, and staleness, still with cell fixed effects. All three are strong under two-way clustered errors (by cell and by day). Together they pull the post-2024 coefficient down to about zero, and it is no longer significant. So on the filtered panel these three book-quality measures fully account for the within-cell drop.
-
-\lead{No single friction does it on its own.} \emph{Specifications (5)--(7).} Here we add the frictions one at a time. With depth alone (5), or staleness alone (7), the post-2024 coefficient barely moves and stays large and significant. With spread alone (6) it falls a lot but is still significant. Only all three together, in (4), bring it to zero. So the drop is a mix of the three frictions, and spread does most of the work.
+The liquidity measures we regress against are strongly correlated, so the individual coefficients are not as informative as the $R^2$ improvement due to the introduction of the Post$_t$ indicator.  
 
 \begin{table}[htbp]
 \centering
-{\renewcommand{\arraystretch}{1.2}\normalfont\small\input{artifacts/regression_coefficients_table.tex}}
-\caption{Regressions of the cell-level unconditional unfairness $U_{u}$. All columns include cell fixed effects (absorbed, not shown); the two pooled specifications are omitted from the table. Column (2) is the post-2024 indicator alone; (4) adds the depth, spread, and staleness controls and the log BTCUSD index; (5)--(7) add the frictions one at a time (depth, spread, staleness); (8) is the full set of controls without the Post indicator; (9) is the Post indicator with only the log BTCUSD index. Each coefficient cell stacks three rows: the coefficient, the \RegSEdesc{} standard error in parentheses, and, in bold brackets, the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$ (the change in $U_{u}$, in standard deviations of $U_{u}$, per one-standard-deviation increase in the regressor). Stars denote $p$-value bands from the $t$-statistic. Standard errors are two-way clustered, by cell and by day.}
-\label{tab:regression_coefficients}
+{\renewcommand{\arraystretch}{1.15}\normalfont\small\input{artifacts/regression_effects_table.tex}}
+\caption{Regressions of the cell-level unfairness rate $R$. Column (1) regresses $R$ on the post-2024 indicator; (2) adds static liquidity measures, (3) adds dynamic ones and (4) removes the Post term. Each coefficient cell has $\beta$ with significance stars and, in bold brackets, the standardized effect $\beta\,\mathrm{std}(X)/\mathrm{std}(Y)$ (the change in $R$, in standard deviations of $R$, per one-standard-deviation increase in the regressor). }
+\label{tab:regression_effects}
 \end{table}
 
-\lead{The same picture holds in capital and in dollar units.} Tables~\ref{tab:regression_coefficients_capital} and~\ref{tab:regression_coefficients_dollar} repeat the specifications on the option-capital and the dollar footing. In the capital table the dependent is the unconditional unfairness in basis points of capital ($U_u^{\mathrm{cap}}$), the depth control is quoted in shares ($\mathrm{Depth}^{\mathrm{sh}}$), and the spread control is in basis points of capital ($\mathrm{Spr}^{\mathrm{cap}}$); in the dollar table the dependent is $U_u^{\$}$ (dollars per contract), with the dollar depth and dollar spread as controls. Both also add the log BTCUSD index as a market covariate, and a column (9) with the Post indicator and the log BTCUSD index alone. The post-2024 compression and the role of the frictions survive both changes of units, so the result is not an artifact of the notional (bp-of-underlying) normalization.
-
-\begin{table}[htbp]
-\centering
-{\renewcommand{\arraystretch}{1.2}\normalfont\small\IfFileExists{artifacts/regression_coefficients_capital_table.tex}{\input{artifacts/regression_coefficients_capital_table.tex}}{\textit{(rebuild the panel to generate this table)}}}
-\caption{Regressions of the cell-level unconditional unfairness in \emph{capital} units. Same shown columns and layout as Table~\ref{tab:regression_coefficients} (all include cell fixed effects), but the dependent is $U_u^{\mathrm{cap}}$ (bp of option capital $K=C^{\mathrm{mid}}+P^{\mathrm{mid}}$), the depth control is depth-in-shares $\mathrm{Depth}^{\mathrm{sh}}$ (log), the spread control is $\mathrm{Spr}^{\mathrm{cap}}$ (bp of capital), and the full-control columns add the log BTCUSD index $\log\mathrm{BTC}_t$ (column (9) is Post with $\log\mathrm{BTC}_t$ only). Standard errors are two-way clustered by cell and day.}
-\label{tab:regression_coefficients_capital}
-\end{table}
-
-\begin{table}[htbp]
-\centering
-{\renewcommand{\arraystretch}{1.2}\normalfont\small\IfFileExists{artifacts/regression_coefficients_dollar_table.tex}{\input{artifacts/regression_coefficients_dollar_table.tex}}{\textit{(rebuild the panel to generate this table)}}}
-\caption{Regressions of the cell-level unconditional unfairness in \emph{dollar} units. Same shown columns and layout as Table~\ref{tab:regression_coefficients} (all include cell fixed effects), but the dependent is $U_u^{\$}$ (dollars per contract), the depth control is the dollar depth $\mathrm{Depth}^{\$}$ (log), the spread control is the dollar spread $\mathrm{Spr}^{\$}$, and the full-control columns add the log BTCUSD index $\log\mathrm{BTC}_t$ (column (9) is Post with $\log\mathrm{BTC}_t$ only). Standard errors are two-way clustered by cell and day.}
-\label{tab:regression_coefficients_dollar}
-\end{table}
-
-\lead{Is the compression fewer wedges, or smaller ones?} The regime effect has two margins. Because the per-quote wedge factors as $U_{u}=R\,U_{c}$, regressing $\log R$ and $\log U_{c}$ on the post-2024 indicator with cell fixed effects splits the log change in unconditional unfairness \emph{exactly} into an extensive margin (how often an executable wedge exists) and an intensive margin (how large it is when it does): the two semi-elasticities sum to the unconditional one. Table~\ref{tab:frequency_size_decomposition} reports the split over the within-cell, positive-wedge sample.
-
-\begin{table}[htbp]
-\centering
-{\renewcommand{\arraystretch}{1.2}\normalfont\small\IfFileExists{artifacts/frequency_size_decomposition_table.tex}{\input{artifacts/frequency_size_decomposition_table.tex}}{\textit{(regenerate artifacts to populate this table)}}}
-\caption{Two-part (extensive/intensive) decomposition of the post-2024 $U_{u}$ compression. Each column regresses the log of one channel---the unfairness rate $R$, the conditional wedge size $U_{c}$, and their product the unconditional unfairness $U_{u}$---on the post-2024 indicator with cell fixed effects, over the common sample of cell-days that carry a positive wedge. Entries are the Post coefficients (in log points, i.e.\ semi-elasticities: approximately the fractional change in the channel), with significance stars from \RegSEdesc{} $t$-statistics. Because $\log U_{u}=\log R+\log U_{c}$ row by row, the frequency and size coefficients sum to the unconditional coefficient by construction.}
-\label{tab:frequency_size_decomposition}
-\end{table}
+% Table 9 (extensive/intensive decomposition) intentionally commented out in
+% this R-focused specification set.
+%\begin{table}[htbp]
+%\centering
+%{\renewcommand{\arraystretch}{1.2}\normalfont\small\IfFileExists{artifacts/frequency_size_decomposition_table.tex}{\input{artifacts/frequency_size_decomposition_table.tex}}{\textit{(regenerate artifacts to populate this table)}}}
+%\caption{Two-part (extensive/intensive) decomposition of the post-2024 compression.}
+%\label{tab:frequency_size_decomposition}
+%\end{table}
 
 \begin{figure}[htbp]
 \centering
 \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_friction_gradient.png}
-\caption{Unconditional unfairness against average put--call spread, log quote depth, and stale-quote fraction, and by underlying and exchange. $U_{u}$ rises steeply with the spread and with staleness---the friction channels that specification (4) controls for---while its dependence on depth is weak and non-monotone. Cross-sectionally it is slightly higher on OKX than Deribit and for ETH than BTC, echoing the segment dummies in specification (3).}
+\caption{Unfairness rate $R$ against liquidity frictions. Panel 1 plots $R$ against dollar spread with separate BTC and ETH lines. Panel 2 plots $R$ against $\log_{10}$ quote depth (USD). Panel 3 plots $R$ against stale-quote fraction; panel 4 reports average $R$ by underlying and exchange. $R$ rises with spread and staleness, while depth loads negatively in the fixed-effects regressions.}
 \label{fig:liquidity_friction_gradient}
 \end{figure}
-\lead{$U_{u}$ tracks the spread channel tightly.} Figure~\ref{fig:liquidity_friction_gradient} shows how closely the wedge moves with spread---which is why spread does most of the work in specification (4).
-\lead{$U_{u}$ behaves like a market-quality measure.} Put together: $U_{u}$ differs only a little across segments; it is much lower after 2024; and that drop is within cells and is explained by the frictions, mostly spread. So $U_{u}$ moves with book quality, and it fell when the market is agreed to have improved. We do not claim market unfairness adds information beyond the frictions, and we do not identify which participants drove the change.
+\lead{$R$ tracks the static controls tightly.} Figure~\ref{fig:liquidity_friction_gradient} is consistent with Table~\ref{tab:regression_effects}: the static controls explain a large share of within-cell variation, while depth contributes with the opposite sign.
+\lead{$R$ behaves like a market-quality outcome.} Across the four specifications, $R$ is lower after 2024, and the friction controls account for substantial within-cell variation without removing the negative post coefficient. The regressions are descriptive and do not identify participants or mechanisms.
 
 \clearpage
 \section{Robustness}
 \label{sec:robustness}
 
-\lead{Standard errors are clustered, not treated as independent.} The regression uses one observation per cell-day, but these are not independent draws. A cell---a fixed strike/maturity/venue bucket---is observed on many days and its wedge is persistent, so its residuals are correlated over time; and all cells share market-wide conditions on a given day, so residuals are correlated across cells within a date. Heteroskedasticity-robust (HC1) errors assume independence across cell-days and are, in consequence, far too small: with hundreds of cells observed over hundreds of days, the effective amount of independent information is closer to the number of cells or days than to the number of cell-days. We therefore report \RegSEdesc{} standard errors, clustering two ways---by cell and by day \citep{cameron2011robust}. Only the covariance changes; the coefficients are identical. The mechanism is that the clustered variance sums each cluster's aggregated score \emph{before} squaring it, so positively correlated within-cluster residuals no longer cancel. In our panel the clustered errors are several times larger than HC1; that is what the reported standard errors and significance stars reflect. The 2024 compression and the friction gradients remain significant under this more conservative variance, but their $t$-statistics are far smaller than a naive HC1 calculation would suggest.
+The regression uses one observation per cell-day, but these are not independent draws. A cell---a fixed strike/maturity/venue bucket---is observed on many days and its wedge is persistent, so its residuals are correlated over time; and all cells share market-wide conditions on a given day, so residuals are correlated across cells within a date. Heteroskedasticity-robust (HC1) errors assume independence across cell-days and are, in consequence, far too small: with hundreds of cells observed over hundreds of days, the effective amount of independent information is closer to the number of cells or days than to the number of cell-days. We therefore report \RegSEdesc{} standard errors, clustering two ways---by cell and by day \citep{cameron2011robust}. Only the covariance changes; the coefficients are identical. The mechanism is that the clustered variance sums each cluster's aggregated score \emph{before} squaring it, so positively correlated within-cluster residuals no longer cancel. In our panel the clustered errors are several times larger than HC1; that is what the reported standard errors and significance stars reflect. The 2024 compression and the friction gradients remain significant under this more conservative variance, but their $t$-statistics are far smaller than a naive HC1 calculation would suggest.
 
-\lead{The friction controls enter jointly, and collinearity does not distort the regime effect.} Spread, depth, and staleness are strongly correlated---a thin book tends to be wide, shallow, and slow to update at once. Collinearity of this kind inflates the variances of the \emph{individual} friction coefficients and makes them hard to read one by one, but it does not bias the coefficient of interest, the post-2024 indicator, which is identified off variation orthogonal to the frictions. We verified this with a principal-component check: because the principal components are an orthogonal rotation of the three standardized frictions, entering all three components reproduces specification (4) exactly, and any full-rank recombination of the frictions leaves the post-2024 coefficient unchanged. (A single component is not a substitute: keeping only the first principal component is a rank-one control that discards the other two friction directions---one of which is strongly related to $U_{u}$ despite carrying little of the frictions' variance---so it merely under-controls and inflates the apparent regime effect.) We therefore report the three frictions jointly in specification (4).
+Spread, depth, staleness, amihud ratio and recovery rate are correlated --- a thin book tends to be wide, shallow, and slow to update at once. Collinearity inflates the variances of the individual friction coefficients, but it does not bias the post-2024 coefficient, which is identified from variation orthogonal to the friction set. The significance of the Post$_t$ regressor shows how MU carries information beyond the usual liquidity measures. 
 
-\lead{The results do not hinge on the cost or the discount rate.} Two auxiliary parameters enter the construction: the round-trip cost (baseline \CostBp~bp) and the discount rate (baseline $r=5\%$). Neither is crucial. The cost only sets the scale of market unfairness---a fixed proportional cost shifts the level, but the pre/post \emph{difference} in unconditional unfairness barely moves with it (the conditional form is more cost-sensitive, one reason the headline uses the unconditional measure), and a common cost keeps cross-venue comparisons coherent. The discount rate matters even less, for a structural reason: $r$ enters only through $e^{-rT}$, which multiplies a small quantity---the futures leg $(F-K)$ in each payoff and the futures half-spread $\tfrac12(F_{ask}-F_{bid})$ in $\mathrm{cost}'$. Its effect on a payoff is $\partial\!\left[(F-K)e^{-rT}\right]/\partial r=-T(F-K)e^{-rT}$, of order $T\,(F-K)/\mathrm{index}$; since our strikes sit within $\pm 21\%$ of the forward and most observation mass sits in near-the-money, short-dated cells where $(F-K)$ and $T$ are smallest, plausible changes in $r$ move $U_{u}$ negligibly---and the pre/post difference more negligibly still, since $r$ shifts both regimes almost identically. Evaluating $U_{u}$ across grids of both parameters---the cost grid read off the same filtered panel as the regressions, the discount-rate grid recomputed at each $r$ (Table~\ref{tab:cost_r_sensitivity})---bears this out. A higher assumed cost lowers the $U_{u}$ level and shrinks the compression somewhat, but the pre/post drop stays large and negative across the whole cost grid; across $r$ it is essentially constant. Under every choice the 2024 compression is present and sizable.
+
+Among the exogenous parameters two stand out for robustness checks: the round-trip cost (baseline \CostBp~bp) and the discount rate (baseline $r=5\%$). Neither turns out to be crucial in identifying MU as carrying more information than the friction terms. The cost only sets the scale of market unfairness---a fixed proportional cost shifts the level, but the pre/post \emph{difference} in unconditional unfairness barely moves with it (the conditional form is more cost-sensitive, one reason the headline uses the unconditional measure), and a common cost keeps cross-venue comparisons coherent. The discount rate matters even less, for a structural reason: $r$ enters only through $e^{-rT}$, which multiplies a small quantity---the futures leg $(F-K)$ in each payoff and the futures half-spread $\tfrac12(F_{ask}-F_{bid})$ in $\mathrm{cost}'$. Its effect on a payoff is $\partial\!\left[(F-K)e^{-rT}\right]/\partial r=-T(F-K)e^{-rT}$, of order $T\,(F-K)/\mathrm{index}$; since our strikes sit within $\pm 21\%$ of the forward and most observation mass sits in near-the-money, short-dated cells where $(F-K)$ and $T$ are smallest, plausible changes in $r$ move $R$ negligibly---and the pre/post difference more negligibly still, since $r$ shifts both regimes almost identically. Evaluating $R$ across grids of both parameters---the cost grid read off the same filtered panel as the regressions, the discount-rate grid recomputed at each $r$ (Table~\ref{tab:cost_r_sensitivity})---bears this out. A higher assumed cost lowers the $R$ level and shrinks the compression somewhat, but the pre/post drop stays large and negative across the whole cost grid; across $r$ it is essentially constant. Under every choice the 2024 compression is present and sizable.
 
 \begin{table}[htbp]
 \centering\small
@@ -645,28 +617,25 @@ $\varepsilon_{g,t}$ & Idiosyncratic error. \\
 \IfFileExists{artifacts/r_sensitivity_table.tex}{\input{artifacts/r_sensitivity_table.tex}}{\emph{\texttt{r\_sensitivity\_table.tex}: run \texttt{run\_r\_sensitivity.sh}.}}
 \\
 \end{tabular}
-\caption{$U_{u}$ pre- and post-2024, in basis points of notional, across a grid of round-trip costs (left; read off the same filtered panel as the regressions, so the baseline-cost column matches the headline pre/post $U_{u}$) and of discount rates $r$ (right; recomputed at each rate; baseline $5\%$). Both grids share one estimand at their baselines. $\Delta$ is the post$-$pre change.}
+\caption{$R$ pre- and post-2024, as a fraction, across a grid of round-trip costs (baseline \CostBp~bp) and of discount rates $r$ (baseline $5\%$). $\Delta$ is the post$-$pre change.}
 \label{tab:cost_r_sensitivity}
 \end{table}
 
-\lead{The compression survives every reasonable filter choice.} A final check varies the construction one choice at a time---the positive-part clip, the stale-quote filter, the spread and size cuts, the moneyness window, and tick- versus notional-weighting---recomputing the pre/post unconditional unfairness for each (Table~\ref{tab:robustness_grid}). The level moves with the filters, as it must, but the post-2024 drop is large and negative under every setting; none of the choices manufactures the compression or erases it.
+A final check varies the construction one choice at a time---the positive-part clip, the stale-quote filter, the spread and size cuts, the moneyness window, and tick- versus notional-weighting---recomputing the pre/post unconditional unfairness for each (Table~\ref{tab:robustness_grid}). The level moves with the filters, as it must, but the post-2024 drop is large and negative under every setting; none of the choices manufactures the compression or erases it.
 
 \begin{table}[htbp]
 \centering\small
 {\renewcommand{\arraystretch}{1.15}\IfFileExists{artifacts/robustness_grid_table.tex}{\input{artifacts/robustness_grid_table.tex}}{\emph{\texttt{robustness\_grid\_table.tex}: run the rebuild.}}}
-\caption{Robustness of the pre/post-2024 unconditional unfairness (bp of notional) to the filter and aggregation choices, each varied one at a time from the baseline (top row): the positive-part clip, the stale-quote filter, the spread and minimum-size cuts, the moneyness window, and notional- versus tick-weighting. $U_{u}$ is pooled over ticks and the four paths at the baseline cost, over the same tick-level filtered sample the panel is built from, so the baseline row (top) reproduces the headline pre/post $U_{u}$; the invariant of interest is the stability of the pre/post drop across settings. $\Delta$ is the post$-$pre change.}
+\caption{Robustness of the pre/post-2024 unfairness rate $R$ to the filter and aggregation choices, each varied one at a time from the baseline (top row): the positive-part clip, the stale-quote filter, the spread and minimum-size cuts, the moneyness window, and notional- versus tick-weighting. The table shows the stability of $\Delta$, the post$-$pre $R$ change.}
 \label{tab:robustness_grid}
 \end{table}
 
-\clearpage
 \section{Conclusion}
 \label{sec:concl}
+We propose \emph{Market Unfairness}: the cost-adjusted put--call-parity violation left in the standing quotes as a measure of market imperfection. We propose the \emph{rate} of these violations as a stable unit-free number, which carries more information than the usual liquidity frictions. It is stable across venues and underlyings, but changes in a statistically significant manner across a known regime shift. 
 
-\lead{$U_{u}$ is a model-free symptom of imperfect quoting.} We propose \emph{Absolute Market Unfairness}: the cost-adjusted put--call-parity violation left in the standing quotes of inverse cryptocurrency option markets. It is model-free and comparable in basis points---a transparent sign that the top of the book is not where frictionless parity would put it---not a full account of a venue's liquidity or a cleanly identified risk premium. It says nothing about fundamental mispricing and guarantees no dollar profit.
+Since MU has an ideal value (0) which is attainable under realistic market dynamics, it is a useful way to judge option trading venues for purposes of market quality. Retail investors and regulators may use it to rank venues and products. MU also shows which parts of the option surface are least served by market makers and by how much.
 
-\lead{$U_{u}$ is small across venues, shaped by the surface, and fell in 2024.} Using Deribit and OKX BTCUSD and ETHUSD options from 2020 through June 2026: $U_{u}$ differs across venues and underlyings, but little next to its variation over the surface, where it is governed mainly by how often a wedge appears---smallest for month-scale, near-the-money contracts, largest in the illiquid corners. It fell sharply over 2023--2024, around the ETF and MiCA dates---though much of the decline was already under way before them---and the compression is present at every cost level we examine; most of the drop survives controls for spreads, depth, and staleness within cells. This is consistent with the entry of participants whose quoting improved market quality, not just more passive depth---though the design is descriptive and does not identify the mechanism. The value of market unfairness is that it turns a qualitative worry about quote quality into a model-free number, comparable across venues, underlyings, and maturities, and trackable through regulatory change.
-
-\lead{The three questions, answered.} \emph{How large is $U_{u}$, and does it differ across exchanges and underlyings?} It is small---about \AmuMeanBp~bp of notional on average (\AmuPreBp~bp before 2024, \AmuPostBp~bp after)---and it differs across venues and underlyings only modestly; far more of its variation comes from position on the option surface. \emph{Did $U_{u}$ drop upon the 2024 regulatory and institutional regime shift?} Yes: it fell sharply over 2023--2024 around the ETF and MiCA dates (much of the decline preceding them), the drop is highly significant under standard errors clustered by cell and day, and it is present at every trading cost and discount rate we examine. \emph{Is the drop fully explained by the usual liquidity frictions, or does it partly reflect a new class of parity-enforcing participants?} It is not fully explained by spreads, depth, and staleness: a substantial within-cell drop survives them. This is consistent with---though our descriptive design does not identify---the entry of participants whose quoting improved market quality rather than merely adding passive depth.
 
 \bibliography{bibl}
 
