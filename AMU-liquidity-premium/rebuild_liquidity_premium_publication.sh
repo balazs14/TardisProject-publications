@@ -9,6 +9,11 @@ VENV_PYTHON="$ROOT_DIR/venv/bin/python"
 FROM_DATE=${FROM_DATE:-2020-01-01}
 TO_DATE=${TO_DATE:-2026-06-05}
 BUILD_PDF=${BUILD_PDF:-0}
+BUILD_FULL_PDF=${BUILD_FULL_PDF:-0}
+CLEAN_BUILD=${CLEAN_BUILD:-0}
+# BUILD_PDF_ONLY=1 skips all Python-side artifact/cache regeneration and runs
+# only the LaTeX compilation/copy steps below.
+BUILD_PDF_ONLY=${BUILD_PDF_ONLY:-0}
 LOG_LEVEL=${LOG_LEVEL:-INFO}
 # Recreate the two caches selectively (0 = reuse if present, 1 = rebuild from raw):
 #   RECREATE_STAT_CACHE  -> the tick-level statistics frame (18 GB)
@@ -37,6 +42,9 @@ ARTIFACTS_DIR=${ARTIFACTS_DIR:-artifacts_long_nofilterstale}
 export FROM_DATE
 export TO_DATE
 export BUILD_PDF
+export BUILD_FULL_PDF
+export CLEAN_BUILD
+export BUILD_PDF_ONLY
 export LOG_LEVEL
 export RECREATE_STAT_CACHE
 export RECREATE_PANEL_CACHE
@@ -60,6 +68,14 @@ fi
 ln -sfn "$ARTIFACTS_DIR" artifacts
 echo "artifacts -> $ARTIFACTS_DIR"
 
+if [[ "$BUILD_PDF_ONLY" == "1" ]]; then
+	echo "BUILD_PDF_ONLY=1"
+	echo "  -> skipping statistics/panel/figure regeneration; compiling PDFs only."
+	# Ensure the PDF block executes even if BUILD_PDF was not explicitly set.
+	BUILD_PDF=1
+	export BUILD_PDF
+fi
+
 if [[ "${SUBSAMPLE_DAYS:-1}" -gt 1 ]]; then
 	echo "SUBSAMPLE_DAYS=$SUBSAMPLE_DAYS"
 	echo "  -> DEVELOPMENT MODE: rebuilding caches from only 1 calendar day in every $SUBSAMPLE_DAYS."
@@ -71,6 +87,7 @@ if [[ -n "${ONLY_RECREATE_ARTIFACTS:-}" ]]; then
 	echo "  -> regenerating only those artifacts (tags = figures-tables-overview.tex \\label strings, e.g. fig:friction_timeseries_direct, or file stems). Everything else is left as-is."
 fi
 
+if [[ "$BUILD_PDF_ONLY" != "1" ]]; then
 "$VENV_PYTHON" - <<'PY'
 import os
 import logging
@@ -148,11 +165,16 @@ generate_all_figures(
 if art_filter.wanted("fig:cross_exchange_quote_diff", "cross_exchange_quote_diff"):
 	plot_cross_exchange_quote_diff(from_date, to_date, artifacts_dir)
 PY
+else
+	echo "Skipping artifact regeneration (BUILD_PDF_ONLY=1)."
+fi
 
 # Optional, very expensive: recompute AMU across discount rates and refresh the
 # r-dependence table + plot. Gated behind RECREATE_R_SENSITIVITY so a normal
 # rebuild never triggers it.
-if [[ "$RECREATE_R_SENSITIVITY" == "1" ]]; then
+if [[ "$BUILD_PDF_ONLY" == "1" ]]; then
+	echo "Skipping r-sensitivity sweep (BUILD_PDF_ONLY=1)."
+elif [[ "$RECREATE_R_SENSITIVITY" == "1" ]]; then
 	echo "RECREATE_R_SENSITIVITY=1: running the r-sensitivity sweep (expensive)"
 	# shellcheck disable=SC2086
 	FROM_DATE="$FROM_DATE" TO_DATE="$TO_DATE" VENV_PYTHON="$VENV_PYTHON" \
@@ -162,36 +184,67 @@ else
 fi
 
 if [[ "$BUILD_PDF" == "1" ]]; then
-    latexmk -C >/dev/null 2>&1 || true
-        rm -fr build    
+	if [[ "$CLEAN_BUILD" == "1" ]]; then
+		latexmk -C >/dev/null 2>&1 || true
+		rm -fr build
+	fi
 	mkdir -p build
-	latexmk \
-	  -pdf \
-	  -synctex=1 \
-	  -interaction=nonstopmode \
-	  -file-line-error \
-	  -outdir=build/ \
-	  liquidity-premium.tex
+	if [[ "$BUILD_FULL_PDF" == "1" ]]; then
+		# Full publication build: latexmk handles re-runs and bibliography.
+		latexmk \
+		  -pdf \
+		  -synctex=1 \
+		  -interaction=nonstopmode \
+		  -file-line-error \
+		  -outdir=build/ \
+		  liquidity-premium.tex
+	else
+		# Fast dev build: single TeX pass only (no bibtex/multi-pass convergence).
+		pdflatex \
+		  -synctex=1 \
+		  -interaction=nonstopmode \
+		  -file-line-error \
+		  -output-directory=build \
+		  liquidity-premium.tex
+	fi
 	cp build/liquidity-premium.pdf liquidity-premium.pdf
 	cp build/liquidity-premium.synctex.gz liquidity-premium.synctex.gz
 
 	# Figures/tables-only overview (same artifacts, packed several per page).
-	latexmk \
-	  -pdf \
-	  -synctex=1 \
-	  -interaction=nonstopmode \
-	  -file-line-error \
-	  -outdir=build/ \
-	  figures-tables-overview.tex
+	if [[ "$BUILD_FULL_PDF" == "1" ]]; then
+		latexmk \
+		  -pdf \
+		  -synctex=1 \
+		  -interaction=nonstopmode \
+		  -file-line-error \
+		  -outdir=build/ \
+		  figures-tables-overview.tex
+	else
+		pdflatex \
+		  -synctex=1 \
+		  -interaction=nonstopmode \
+		  -file-line-error \
+		  -output-directory=build \
+		  figures-tables-overview.tex
+	fi
 	cp build/figures-tables-overview.pdf figures-tables-overview.pdf
 
 	# Presentation deck (built and copied in the same way as figures/tables overview).
-	latexmk \
-	  -pdf \
-	  -synctex=1 \
-	  -interaction=nonstopmode \
-	  -file-line-error \
-	  -outdir=build/ \
-	  presentation.tex
+	if [[ "$BUILD_FULL_PDF" == "1" ]]; then
+		latexmk \
+		  -pdf \
+		  -synctex=1 \
+		  -interaction=nonstopmode \
+		  -file-line-error \
+		  -outdir=build/ \
+		  presentation.tex
+	else
+		pdflatex \
+		  -synctex=1 \
+		  -interaction=nonstopmode \
+		  -file-line-error \
+		  -output-directory=build \
+		  presentation.tex
+	fi
 	cp build/presentation.pdf presentation.pdf
 fi

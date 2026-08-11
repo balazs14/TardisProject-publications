@@ -190,10 +190,10 @@ def _schematic_mma_distribution_figure(art: Path) -> Path:
 
     ax.set_xlim(-100, 60)
     ax.set_ylim(0, peak * 1.22)
-    ax.set_xlabel("MMA ($)", fontsize=15)
+    ax.set_xlabel("MMA", fontsize=15)
     ax.set_ylabel("density", fontsize=15)
     ax.set_title("Schematic MMA distribution", fontsize=17, fontweight="bold")
-    ax.tick_params(axis="x", labelsize=13)
+    ax.tick_params(axis="x", which="both", labelbottom=False)
     ax.set_yticks([])
     for s in ("top", "right", "left"):
         ax.spines[s].set_visible(False)

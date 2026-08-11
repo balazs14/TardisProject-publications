@@ -445,7 +445,7 @@ def write_liquidity_pca_table(output_dir: str | Path) -> Path:
 # cost parameters; point AMU_DEPENDENT at one of those to run the regression in that unit,
 # or at "mean_amu_conditional_bp" for the conditional size. The cost-sensitivity grid
 # (mean_amu_uncond_bp_c{cc}) is kept separately for the robustness analysis.
-AMU_DEPENDENT = "mean_amu_unconditional_bp"
+AMU_DEPENDENT = "mean_amu_rate"
 
 # Covariance estimator for the reported standard errors. Cluster keys must be
 # columns carried in the analysis panel. An empty tuple falls back to HC1
@@ -1049,6 +1049,7 @@ def _regression_summary_table(results: pd.DataFrame) -> pd.DataFrame:
         "mean_mma_bp": "MMA",
         "mean_amu_conditional_bp": "$U_c$",
         "mean_amu_unconditional_bp": "$U_u$",
+        "mean_amu_rate": "$R$",
         "std_mma_bp": "Std MMA",
     }).fillna(summary["dependent"])
     return summary.set_index("specification")

@@ -33,9 +33,8 @@ from amu_metrics import (
 )
 
 # Which AMU flavour the single-series tick figures (by date, avg-events) plot.
-# Set to "amu_rate" to regenerate them on the extensive margin (fraction of
-# positive tickpaths); see build_R_overview.py.
-AMU_STAT_METRIC = "amu_unconditional_bp"
+# Figure 12 uses the extensive-margin unfairness rate R.
+AMU_STAT_METRIC = "amu_rate"
 
 
 logger = logging.getLogger(__name__)
@@ -519,8 +518,8 @@ def write_summary_daily_table_from_parquet(parquet_path: str | Path, *, output_d
         "Avg num expirations",
         "Avg num strikes",
         "Num days in sample",
-        "Avg call spread (bp)",
-        "Avg put spread (bp)",
+        "Avg call spread (bp of index)",
+        "Avg put spread (bp of index)",
     ]:
         summary_pd[column] = pd.to_numeric(summary_pd[column], errors="coerce").round(0).astype("Int64")
 
@@ -540,9 +539,9 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
         lf.select(
             pl.col("ref_sym").alias("underlying"),
             "exchange",
-            pl.col("amu_conditional_bp").alias("U_c (bp)"),
-            pl.col("amu_unconditional_bp").alias("U_u (bp)"),
-            pl.col("amu_rate").alias("R"),
+            pl.col("amu_conditional_bp").alias("$U_{c}$ (bp)"),
+            pl.col("amu_unconditional_bp").alias("$U_{u}$ (bp)"),
+            pl.col("amu_rate").alias("$R$"),
             pl.col("num_pairs").alias("num pairs"),
         )
         .sort(["underlying", "exchange"])
@@ -550,9 +549,9 @@ def write_amu_summary_table_from_parquet(parquet_path: str | Path, *, output_dir
         .to_pandas()
     )
     table = table.set_index(["underlying", "exchange"])
-    for amu_column in ["U_c (bp)", "U_u (bp)"]:
+    for amu_column in ["$U_{c}$ (bp)", "$U_{u}$ (bp)"]:
         table[amu_column] = table[amu_column].map(lambda value: f"{value:.2f}" if pd.notna(value) else "")
-    table["R"] = table["R"].map(lambda value: f"{value:.3f}" if pd.notna(value) else "")
+    table["$R$"] = table["$R$"].map(lambda value: f"{value:.3f}" if pd.notna(value) else "")
     for column in ["num pairs"]:
         table[column] = table[column].map(lambda value: f"{int(value):,}" if pd.notna(value) else "")
 
@@ -718,52 +717,97 @@ def plot_4_spreads_from_parquet(parquet_path: str | Path, *, output_dir: Path, r
     ax.set_xlabel("MMA bp")
     ax.set_ylabel("Density")
     ax.set_title("MMA distribution")
-    ax.legend(title="Spread")
+    # Lower-right (the flat positive tail) keeps the legend clear of the AMU annotation
+    # boxes (upper right) and the "no MM arbitrage" label (centre left).
+    ax.legend(title="Spread", loc="lower right", fontsize=14, title_fontsize=14, bbox_to_anchor=(1.0, 0.18))
+    overall_amu_rate = (
+        overall_amu_uncond_bp / overall_amu_cond_bp
+        if (overall_amu_cond_bp and np.isfinite(overall_amu_cond_bp) and overall_amu_cond_bp > 0)
+        else np.nan
+    )
+    cost_bp_index = abs(cost_per_notional_bp)
+    # "no arbitrage" label for the region left of zero, placed low so the (upper-left)
+    # legend does not cover it.
     ax.text(
-        0.16,
-        0.90,
-        "no MM arbitrage",
-        color="#b2182b",
-        transform=ax.transAxes,
+        0.05, 0.45, "no MM arbitrage", color="#b2182b", transform=ax.transAxes,
         bbox=dict(boxstyle="round", facecolor="white", edgecolor="#b2182b", alpha=0.85),
-        va="top",
-        ha="left",
+        va="center", ha="left",
     )
-    ax.text(
-        0.98,
-        0.90,
-        f"AMU uncond = {overall_amu_uncond_bp:.1f} bp",
-        color="#1b9e77",
-        transform=ax.transAxes,
-        bbox=dict(boxstyle="round", facecolor="white", edgecolor="#1b9e77", alpha=0.85),
-        va="top",
-        ha="right",
-    )
-    ax.text(
-        0.98,
-        0.82,
-        f"AMU cond = {overall_amu_cond_bp:.1f} bp",
-        color="#1b9e77",
-        transform=ax.transAxes,
-        bbox=dict(boxstyle="round", facecolor="white", edgecolor="#1b9e77", alpha=0.85),
-        va="top",
-        ha="right",
-    )
-    ax.text(
-        0.98,
-        0.74,
-        f"Cost = {cost_per_notional_bp:.1f} bp",
-        color="black",
-        transform=ax.transAxes,
-        va="top",
-        ha="right",
-    )
+    _r_txt = f"avg $R \\approx {int(np.rint(overall_amu_rate * 100))}$%" if np.isfinite(overall_amu_rate) else "avg $R$ = n/a"
+    _amu_lines = [
+        (f"avg $U_u \\approx {int(np.rint(overall_amu_uncond_bp))}$ bp", "#1b9e77", True),
+        (f"avg $U_c \\approx {int(np.rint(overall_amu_cond_bp))}$ bp", "#1b9e77", True),
+        (_r_txt, "#1b9e77", True),
+        (f"Cost = {cost_bp_index:.0f} bp of index", "black", False),
+    ]
+    for _y, (_txt, _col, _boxed) in zip((0.90, 0.82, 0.74, 0.66), _amu_lines):
+        ax.text(
+            0.98, _y, _txt, color=_col, transform=ax.transAxes,
+            bbox=(dict(boxstyle="round", facecolor="white", edgecolor=_col, alpha=0.85) if _boxed else None),
+            va="top", ha="right",
+        )
     output_path_avg = output_dir / "all_markets_avg_4_spreads.pdf"
     fig.tight_layout()
     fig.savefig(output_path_avg, dpi=220, bbox_inches="tight", transparent=True)
     plt.close(fig)
     output_paths.append(output_path_avg)
     logger.debug("Saved aggregate spread figure %s", output_path_avg)
+
+    # Same distribution, but one curve per exchange/underlying market (each curve is
+    # the mean of its four path-level densities).
+    fig, ax = plt.subplots(figsize=(10, 6))
+    visible_max = 0.0
+    market_palette = sns.color_palette("deep", n_colors=len(target_markets))
+    for (exchange, ref_sym), color in zip(target_markets, market_palette, strict=False):
+        market_curves: list[np.ndarray] = []
+        for column in spread_columns:
+            key = (exchange, ref_sym, column)
+            if key not in hist_counts or sample_sizes.get(key, 0) == 0:
+                continue
+            market_curves.append(hist_counts[key] / (sample_sizes[key] * bin_width))
+        if not market_curves:
+            continue
+        avg_market_density = np.mean(np.vstack(market_curves), axis=0)
+        visible_max = max(visible_max, float(np.nanmax(avg_market_density)) if avg_market_density.size else 0.0)
+        centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+        x_fine = np.linspace(-rng, rng, 800)
+        y_fine = np.interp(x_fine, centers, avg_market_density, left=0.0, right=0.0)
+        ax.plot(x_fine, y_fine, color=color, linewidth=2.4, alpha=1.0, label=f"{exchange} {ref_sym}")
+
+    ax.axvline(0, color="black", linestyle="-", linewidth=3.0, alpha=0.8)
+    ax.axvline(cost_per_notional_bp, color="black", linestyle="--", linewidth=2.0, alpha=0.8)
+    ax.set_xlim(-rng, rng)
+    ax.set_ylim(0, visible_max * 1.05 if visible_max > 0 else 1.0)
+    ax.set_xlabel("MMA bp")
+    ax.set_ylabel("Density")
+    ax.set_title("MMA distribution by exchange and underlying")
+    # Mirror the main aggregate chart annotations for direct comparability.
+    ax.text(
+        0.05, 0.45, "no MM arbitrage", color="#b2182b", transform=ax.transAxes,
+        bbox=dict(boxstyle="round", facecolor="white", edgecolor="#b2182b", alpha=0.85),
+        va="center", ha="left",
+    )
+    _r_txt = f"avg $R \\approx {int(np.rint(overall_amu_rate * 100))}$%" if np.isfinite(overall_amu_rate) else "avg $R$ = n/a"
+    _amu_lines = [
+        (f"avg $U_u \\approx {int(np.rint(overall_amu_uncond_bp))}$ bp", "#1b9e77", True),
+        (f"avg $U_c \\approx {int(np.rint(overall_amu_cond_bp))}$ bp", "#1b9e77", True),
+        (_r_txt, "#1b9e77", True),
+        (f"Cost = {cost_bp_index:.0f} bp of index", "black", False),
+    ]
+    for _y, (_txt, _col, _boxed) in zip((0.90, 0.82, 0.74, 0.66), _amu_lines):
+        ax.text(
+            0.98, _y, _txt, color=_col, transform=ax.transAxes,
+            bbox=(dict(boxstyle="round", facecolor="white", edgecolor=_col, alpha=0.85) if _boxed else None),
+            va="top", ha="right",
+        )
+    ax.legend(title="Market", loc="lower right", fontsize=14, title_fontsize=14, bbox_to_anchor=(1.0, 0.18))
+
+    output_path_market = output_dir / "all_markets_by_exchange_underlying_4_spreads.pdf"
+    fig.tight_layout()
+    fig.savefig(output_path_market, dpi=220, bbox_inches="tight", transparent=True)
+    plt.close(fig)
+    output_paths.append(output_path_market)
+    logger.debug("Saved market-level aggregate spread figure %s", output_path_market)
 
     return output_paths
 
@@ -851,6 +895,16 @@ def plot_total_mma_hist_pre_post_btc_etp_from_parquet(parquet_path: str | Path, 
     post_amu_cond_bp = (post_clipped_sum / post_positive_count) if post_positive_count > 0 else np.nan
     pre_amu_uncond_bp = (pre_clipped_sum / pre_count) if pre_count > 0 else np.nan
     post_amu_uncond_bp = (post_clipped_sum / post_count) if post_count > 0 else np.nan
+    pre_amu_rate = (
+        pre_amu_uncond_bp / pre_amu_cond_bp
+        if (np.isfinite(pre_amu_cond_bp) and pre_amu_cond_bp > 0)
+        else np.nan
+    )
+    post_amu_rate = (
+        post_amu_uncond_bp / post_amu_cond_bp
+        if (np.isfinite(post_amu_cond_bp) and post_amu_cond_bp > 0)
+        else np.nan
+    )
     ax.text(
         0.16,
         0.90,
@@ -861,11 +915,21 @@ def plot_total_mma_hist_pre_post_btc_etp_from_parquet(parquet_path: str | Path, 
         va="top",
         ha="left",
     )
+
+    pre_uc_txt = f"pre $U_c \\approx {int(np.rint(pre_amu_cond_bp))}$ bp" if np.isfinite(pre_amu_cond_bp) else "pre $U_c$ = n/a"
+    pre_uu_txt = f"pre $U_u \\approx {int(np.rint(pre_amu_uncond_bp))}$ bp" if np.isfinite(pre_amu_uncond_bp) else "pre $U_u$ = n/a"
+    pre_r_txt = f"pre $R \\approx {int(np.rint(pre_amu_rate * 100))}$%" if np.isfinite(pre_amu_rate) else "pre $R$ = n/a"
+    post_uc_txt = f"post $U_c \\approx {int(np.rint(post_amu_cond_bp))}$ bp" if np.isfinite(post_amu_cond_bp) else "post $U_c$ = n/a"
+    post_uu_txt = f"post $U_u \\approx {int(np.rint(post_amu_uncond_bp))}$ bp" if np.isfinite(post_amu_uncond_bp) else "post $U_u$ = n/a"
+    post_r_txt = f"post $R \\approx {int(np.rint(post_amu_rate * 100))}$%" if np.isfinite(post_amu_rate) else "post $R$ = n/a"
+
     for y_pos, text, color in [
-        (0.90, f"Pre AMU uncond = {pre_amu_uncond_bp:.1f} bp", "#1f77b4"),
-        (0.82, f"Pre AMU cond = {pre_amu_cond_bp:.1f} bp", "#1f77b4"),
-        (0.72, f"Post AMU uncond = {post_amu_uncond_bp:.1f} bp", "#d62728"),
-        (0.64, f"Post AMU cond = {post_amu_cond_bp:.1f} bp", "#d62728"),
+        (0.90, pre_uc_txt, "#1f77b4"),
+        (0.82, pre_uu_txt, "#1f77b4"),
+        (0.74, pre_r_txt, "#1f77b4"),
+        (0.66, post_uc_txt, "#d62728"),
+        (0.58, post_uu_txt, "#d62728"),
+        (0.50, post_r_txt, "#d62728"),
     ]:
         ax.text(
             0.98,
@@ -1407,7 +1471,7 @@ def _render_amu_bins_figure(curve_df, x_col: str, x_label: str, title: str):
     curve_df["amu_freq"] = curve_df["num_has_amu"] / curve_df["num_pairs"].where(curve_df["num_pairs"] > 0)
 
     sns.set_theme(style="whitegrid", context="talk")
-    fig, (ax_top, ax_bottom) = plt.subplots(2, 1, figsize=(11, 9), sharex=True, gridspec_kw={"height_ratios": [2, 1]})
+    fig, (ax_top, ax_mid, ax_bottom) = plt.subplots(3, 1, figsize=(11, 12), sharex=True, gridspec_kw={"height_ratios": [2, 2, 1]})
 
     # Top: AMU conditional size, raw (unsmoothed), y-axis anchored at 0.
     sns.lineplot(data=curve_df, x=x_col, y="amu_conditional_bp", hue="market", linewidth=2.0, palette="deep", ax=ax_top)
@@ -1415,6 +1479,11 @@ def _render_amu_bins_figure(curve_df, x_col: str, x_label: str, title: str):
     ax_top.set_ylim(bottom=0.0)
     ax_top.set_title(title)
     ax_top.legend(title="", loc="best")
+
+    # Middle: unconditional unfairness U_u.
+    sns.lineplot(data=curve_df, x=x_col, y="amu_unconditional_bp", hue="market", linewidth=2.0, palette="deep", legend=False, ax=ax_mid)
+    ax_mid.set_ylabel("$U_u$ (bp)")
+    ax_mid.set_ylim(bottom=0.0)
 
     if lower_panel == "counts":
         counts_long = curve_df[["market", x_col, "num_has_amu", "num_pairs"]].melt(
@@ -1558,24 +1627,24 @@ def generate_all_statistics(
     output_root = Path(output_dir)
     output_root.mkdir(parents=True, exist_ok=True)
 
-    # (result-key, overview LaTeX label, plotting/writing fn). cost_sensitivity_table
+    # (result-key, overview LaTeX labels, plotting/writing fn). cost_sensitivity_table
     # and amu_bps_by_cost_pre_post come from the aggregated panel instead, so all
     # pre/post AMU numbers share one estimand with the regressions.
     jobs = [
-        ("summary_daily_option_coverage_table", "tab:summary_daily_option_coverage", write_summary_daily_table_from_parquet),
-        ("amu_summary_table", "tab:amu_summary", write_amu_summary_table_from_parquet),
-        ("spread_figures", "fig:all_markets_avg_4_spreads", plot_4_spreads_from_parquet),
-        ("robustness_grid_table", "tab:robustness_grid", write_robustness_grid_table_from_parquet),
-        ("total_mma_hist_pre_post_btc_etp", "fig:total_mma_hist_pre_post_btc_etp", plot_total_mma_hist_pre_post_btc_etp_from_parquet),
-        ("total_mma_hist_pre_post_3units", "fig:total_mma_hist_pre_post_3units", plot_total_mma_hist_pre_post_3units_from_parquet),
-        ("multi_exchange_amu_bps_by_date", "fig:multi_exchange_amu_by_date", plot_amu_bps_by_date_from_parquet),
-        ("multi_exchange_amu_bps_by_date_2023_2024_avg_events", "fig:multi_exchange_amu_by_date_2023_2024_avg_events", plot_amu_bps_avg_2023_2024_with_events_from_parquet),
-        ("multi_exchange_amu_bps_by_rel_strike", "fig:multi_exchange_amu_by_strike", plot_amu_bps_by_rel_strike_from_parquet),
-        ("multi_exchange_amu_bps_by_tte", "fig:multi_exchange_amu_by_tte", plot_amu_bps_by_tte_from_parquet),
+        ("summary_daily_option_coverage_table", ("tab:summary_daily_option_coverage",), write_summary_daily_table_from_parquet),
+        ("amu_summary_table", ("tab:amu_summary",), write_amu_summary_table_from_parquet),
+        ("spread_figures", ("fig:all_markets_avg_4_spreads", "fig:all_markets_by_exchange_underlying_4_spreads"), plot_4_spreads_from_parquet),
+        ("robustness_grid_table", ("tab:robustness_grid",), write_robustness_grid_table_from_parquet),
+        ("total_mma_hist_pre_post_btc_etp", ("fig:total_mma_hist_pre_post_btc_etp",), plot_total_mma_hist_pre_post_btc_etp_from_parquet),
+        ("total_mma_hist_pre_post_3units", ("fig:total_mma_hist_pre_post_3units",), plot_total_mma_hist_pre_post_3units_from_parquet),
+        ("multi_exchange_amu_bps_by_date", ("fig:multi_exchange_amu_by_date",), plot_amu_bps_by_date_from_parquet),
+        ("multi_exchange_amu_bps_by_date_2023_2024_avg_events", ("fig:multi_exchange_amu_by_date_2023_2024_avg_events",), plot_amu_bps_avg_2023_2024_with_events_from_parquet),
+        ("multi_exchange_amu_bps_by_rel_strike", ("fig:multi_exchange_amu_by_strike",), plot_amu_bps_by_rel_strike_from_parquet),
+        ("multi_exchange_amu_bps_by_tte", ("fig:multi_exchange_amu_by_tte",), plot_amu_bps_by_tte_from_parquet),
     ]
     # Under a selective run, if nothing tick-based was requested, skip the (18 GB)
     # tick-frame load entirely.
-    all_tags = [t for key, tag, _ in jobs for t in (tag, key)]
+    all_tags = [t for key, tags, _ in jobs for t in (*tags, key)]
     if not art_filter.any_wanted(*all_tags):
         return {}
 
@@ -1590,8 +1659,8 @@ def generate_all_statistics(
     inspect_pcpb_input_from_parquet(pcpb_parquet_path)
 
     results: dict[str, Path | list[Path]] = {}
-    for key, tag, fn in jobs:
-        if art_filter.wanted(tag, key):
+    for key, tags, fn in jobs:
+        if art_filter.wanted(*tags, key):
             results[key] = fn(pcpb_parquet_path, output_dir=output_root)
     return results
 

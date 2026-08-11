@@ -109,22 +109,21 @@ def plot_amu_by_cost_pre_post(frame: pd.DataFrame, output_path: str | Path) -> P
     post = filtered[filtered["post_2024"] == 1.0]
     costs = list(range(5, 51, 5))
 
-    def series(sub: pd.DataFrame, *, conditional: bool) -> list[float]:
-        return [_panel_pooled_amu(sub, c, conditional=conditional) for c in costs]
+    # Figure 15 in the paper is now the extensive-margin rate R over the cost grid.
+    def rate_series(sub: pd.DataFrame) -> list[float]:
+        return [_panel_pooled_amu(sub, c, conditional=False, metric="rate") for c in costs]
 
     c0_bp = float(CONFIG["pcp"]["cost_per_notional"]) * 10_000.0
     sns.set_theme(style="whitegrid", context="talk")
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(costs, series(pre, conditional=True), color="#1f77b4", linestyle="-", linewidth=2.2, label="Pre 2024, conditional")
-    ax.plot(costs, series(post, conditional=True), color="#d62728", linestyle="-", linewidth=2.2, label="Post 2024, conditional")
-    ax.plot(costs, series(pre, conditional=False), color="#1f77b4", linestyle="--", linewidth=2.2, label="Pre 2024, unconditional")
-    ax.plot(costs, series(post, conditional=False), color="#d62728", linestyle="--", linewidth=2.2, label="Post 2024, unconditional")
+    ax.plot(costs, rate_series(pre), color="#1f77b4", linestyle="-", linewidth=2.2, label="Pre 2024")
+    ax.plot(costs, rate_series(post), color="#d62728", linestyle="-", linewidth=2.2, label="Post 2024")
     ax.axvline(c0_bp, color="black", linestyle=":", linewidth=1.4, alpha=0.7)
     ax.text(c0_bp, ax.get_ylim()[1], "  primary cost", color="black", fontsize=9, va="top", ha="left")
     ax.set_xlabel("Round-trip cost (bp)")
-    ax.set_ylabel("$U_u$ (bp)")
+    ax.set_ylabel("$R$ (fraction)")
     ax.set_ylim(bottom=0.0)
-    ax.set_title("$U_u$ versus assumed cost, pre/post 2024")
+    ax.set_title("$R$ versus assumed cost, pre/post 2024")
     ax.legend(title="", fontsize=11)
     fig.tight_layout()
     fig.savefig(output_path, dpi=220, bbox_inches="tight", transparent=True)
@@ -362,14 +361,15 @@ def plot_amu_units_timeseries(frame: pd.DataFrame, output_path: str | Path | Non
 
 def plot_pre_post_heatmaps(frame: pd.DataFrame, output_path: str | Path | None = None) -> plt.Figure:
     filtered = filter_analysis_panel(frame)
+    rate_col = "mean_amu_rate"
     fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
     heatmaps: list[pd.DataFrame] = []
     for ax, post_flag, title in zip(axes, (0.0, 1.0), ("Pre-2024", "Post-2024"), strict=False):
         heatmap = (
             filtered.loc[filtered["post_2024"] == post_flag]
-            .groupby(["rel_strike_bucket", "tte_bucket"], as_index=False)[PANEL_AMU_COLUMN]
+            .groupby(["rel_strike_bucket", "tte_bucket"], as_index=False)[rate_col]
             .mean()
-            .pivot(index="tte_bucket", columns="rel_strike_bucket", values=PANEL_AMU_COLUMN)
+            .pivot(index="tte_bucket", columns="rel_strike_bucket", values=rate_col)
         )
         heatmaps.append(heatmap)
 
@@ -394,12 +394,12 @@ def plot_pre_post_heatmaps(frame: pd.DataFrame, output_path: str | Path | None =
             vmin=shared_vmin,
             vmax=shared_vmax,
             ax=ax,
-            cbar_kws={"label": "$U_c$ (bp)"},
+            cbar_kws={"label": "$R$"},
         )
         ax.set_title(title)
         ax.set_xlabel("Relative strike bucket")
     axes[0].set_ylabel("TTE bucket")
-    fig.suptitle("$U_c$ across strike and maturity buckets")
+    fig.suptitle("$R$ across strike and maturity buckets")
     return _finalize_figure(fig, output_path)
 
 
@@ -497,25 +497,26 @@ def plot_friction_gradient(frame: pd.DataFrame, output_path: str | Path | None =
 
 def plot_compression_decomposition(frame: pd.DataFrame, output_path: str | Path | None = None) -> plt.Figure:
     filtered = filter_analysis_panel(frame)
+    rate_col = "mean_amu_rate"
     segment_configs = [
         (
             "Underlying",
-            _segment_delta(filtered, "underlying", {"BTC": filtered["eth"] == 0.0, "ETH": filtered["eth"] == 1.0}),
+            _segment_delta(filtered, "underlying", {"BTC": filtered["eth"] == 0.0, "ETH": filtered["eth"] == 1.0}, y_col=rate_col),
             "Blues",
         ),
         (
             "Exchange",
-            _segment_delta(filtered, "exchange", {"Deribit": filtered["exchange"] == "deribit", "OKX": filtered["exchange"] == "okex"}),
+            _segment_delta(filtered, "exchange", {"Deribit": filtered["exchange"] == "deribit", "OKX": filtered["exchange"] == "okex"}, y_col=rate_col),
             "Greens",
         ),
         (
             "Moneyness",
-            _segment_delta(filtered, "moneyness", {"ATM": filtered["nonatm"] == 0.0, "Non-ATM": filtered["nonatm"] == 1.0}),
+            _segment_delta(filtered, "moneyness", {"ATM": filtered["nonatm"] == 0.0, "Non-ATM": filtered["nonatm"] == 1.0}, y_col=rate_col),
             "Oranges",
         ),
         (
             "Maturity",
-            _segment_delta(filtered, "maturity", {"NearExp": filtered["short_tte"] == 1.0, "FarExp": filtered["short_tte"] == 0.0}),
+            _segment_delta(filtered, "maturity", {"NearExp": filtered["short_tte"] == 1.0, "FarExp": filtered["short_tte"] == 0.0}, y_col=rate_col),
             "Purples",
         ),
     ]
@@ -533,10 +534,10 @@ def plot_compression_decomposition(frame: pd.DataFrame, output_path: str | Path 
         ax.set_xlabel("")
         ax.tick_params(axis="x", rotation=0)
 
-    axes_flat[0].set_ylabel("Post-Pre 2024 $U_c$ (bp)")
+    axes_flat[0].set_ylabel("Post-Pre 2024 $R$ (fraction)")
     for ax in axes_flat[1:]:
         ax.set_ylabel("")
-    fig.suptitle("$U_c$ compression by segment")
+    fig.suptitle("$R$ compression by segment")
     return _finalize_figure(fig, output_path)
 
 
@@ -607,14 +608,12 @@ def _binned_means(frame: pd.DataFrame, column: str, bins: int, y_col: str = "mea
     return work.groupby("bin", as_index=False).agg({column: "mean", y_col: "mean"})
 
 
-def _segment_delta(frame: pd.DataFrame, segment: str, groups: dict[str, pd.Series]) -> pd.DataFrame:
+def _segment_delta(frame: pd.DataFrame, segment: str, groups: dict[str, pd.Series], y_col: str = PANEL_AMU_COLUMN) -> pd.DataFrame:
     rows = []
     for label, mask in groups.items():
         segment_frame = frame.loc[mask]
-        pre = segment_frame.loc[segment_frame["post_2024"] == 0.0, "mean_mma_bp"].mean()
-        post = segment_frame.loc[segment_frame["post_2024"] == 1.0, "mean_mma_bp"].mean()
-        pre_amu = segment_frame.loc[segment_frame["post_2024"] == 0.0, PANEL_AMU_COLUMN].mean()
-        post_amu = segment_frame.loc[segment_frame["post_2024"] == 1.0, PANEL_AMU_COLUMN].mean()
+        pre_amu = segment_frame.loc[segment_frame["post_2024"] == 0.0, y_col].mean()
+        post_amu = segment_frame.loc[segment_frame["post_2024"] == 1.0, y_col].mean()
         rows.append({"segment": segment, "group": label, "delta_amu_bp": post_amu - pre_amu})
     return pd.DataFrame(rows)
 
