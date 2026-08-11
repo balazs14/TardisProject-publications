@@ -79,14 +79,16 @@
 
 \begin{document}
 
-\title{\textbf{Market Unfairness and the Compression of Bid--Ask Spreads in Cryptocurrency Option Markets}}
+\title{\textbf{Market Unfairness: a Model-Free Approach to Cryptocurrency Option Market Quality}}
 
 \author{Bal\'azs Kr\'alik\thanks{Corresponding Author. Assistant Professor at Corvinus University of Budapest, Institute of Finance, F\H{o}v\'am square 8. Budapest, Hungary, 1093. E-mail: balazs.kralik@uni-corvinus.hu.}, N\'ora Felf\"oldi-Sz\H{u}cs\thanks{Associate Professor at Corvinus University of Budapest, Institute of Finance.}, Tam\'as Rutai\thanks{Student at Corvinus University of Budapest.}, Kata V\'aradi\thanks{Associate Professor at Corvinus University of Budapest, Institute of Finance.}}
 \date{}
 \maketitle
 
 \begin{abstract}
-Put--call parity ties a European call, a put, and a matching future into a one-to-one correspondence, so on a single venue their standing quotes should be mutually consistent up to transaction costs. We propose to call the inconsistency in top of book quotes \emph{market unfairness} (MU): the part of the quoted put--call-parity violation that remains, at the top of the book, after netting out direct transaction costs. Unlike the put--call-parity literature, which tests \emph{trade} prices, MU is a statement about \emph{quotes}. It is a model-free symptom of poor liquidity provision---in the spirit of the best-execution (NBBO) rules that police quote quality where identical instruments trade frictionlessly on several venues. It does not fully characterize a market's liquidity, but it gives a clean benchmark for comparison. Using high-frequency Deribit and OKX BTCUSD and ETHUSD inverse options and matching futures over 2020--2026, we describe the level and cross-section of market unfairness and its evolution through the 2024 regulatory changes (the U.S. spot Bitcoin and Ether ETFs and MiCA). Market unfairness differs only moderately across venues and underlyings, but varies significantly over the option surface and it compressed markedly around 2024. We find evidence consistent with the entry of participants whose quoting improved market quality, as opposed to a mere increase in passive depth or tightening of spreads. 
+Put--call parity (PCP) ties a European call, a put, and a matching future into a one-to-one correspondence, so their \emph{standing quotes} on a single venue should be mutually consistent up to transaction costs. We propose \emph{market unfairness} (MU): the residual PCP violation in top-of-book quotes after netting out direct transaction costs. Unlike the PCP literature, which tests trade prices, MU is a statement about quotes---a model-free, cost-robust symptom of imperfect liquidity provision, in the spirit of the best-execution rules that police quote quality for instruments that should trade at parity. It does not fully characterize a market's liquidity, but it provides a clean, model-free benchmark for comparison across venues, products, and time.
+
+We apply this framework to high-frequency Deribit and OKX BTCUSD and ETHUSD inverse options and matching futures over 2020--2026. We characterize the level and cross-section of MU across exchanges, underlyings, moneyness, and maturity, and document its evolution through the 2024 regulatory shift (U.S.\ spot Bitcoin and Ether ETF approvals and MiCA). MU differs only moderately across venues and underlyings but varies significantly over the option surface and compressed markedly around 2024. Regression analysis confirms that the compression is not fully explained by the standard liquidity frictions (spreads, depth, staleness, Amihud ratio, spread recovery time). The residual improvement is instead consistent with the entry of participants whose quoting behavior enforces put--call parity more tightly---an improvement in quote \emph{quality} rather than a mere increase in depth or a tightening of spreads.
 
 \medskip
 \textbf{Keywords:} cryptocurrency options, bid--ask spreads, market unfairness, put--call parity, limits to arbitrage, ETF approval, MiCA
@@ -108,7 +110,7 @@ There are other situations which might seem similar: The ETF and ADR markets, as
 
 In this paper we show a situation where there are equivalent instruments traded on a single market, where price differentials should not exist at all: These are markets in European options with matching futures. The put-call parity (PCP) relationship establishes a one-to-one correspondence between a put, a futures, and a call. The breaking of the PCP has been extensively studied in various markets \citep{klemkosky1979put, kamara1995daily, cremers2010deviations, ofek2004limited}, and it has been shown that most apparent PCP breaking is due to transaction costs involved in replicating a call from a put. PCP breaking remaining beyond what can be explained by transactions costs are assumed to be idiosyncratic. 
 
-We propose to use the PCP breaking remaining in quotes after accounting for transaction costs for a new purpose: a measure of the quality of a market or venue for particular option chains. This measure we propose to call market unfairness (MU), where ``unfairness'' is a standardized statistic rather than a welfare judgment: it flags quotes that sit outside the cost-implied no-arbitrage band, a symptom of imperfect quote consistency. Market unfairness is not meant to characterize a venue's market quality completely, but it does provide a model-free measure for comparison as long a trading costs are known. 
+We propose to use the PCP breaking remaining in quotes after accounting for transaction costs for a new purpose: a measure of the quality of a market or venue for particular option chains. This measure we propose to call market unfairness (MU), where ``unfairness'' is a standardized statistic rather than a welfare judgment: it flags quotes that sit outside the cost-implied no-arbitrage band, a symptom of imperfect quote consistency. Market unfairness is not meant to characterize a venue's market quality completely, but it does provide a model-free measure for comparison as long a trading costs are known. We will show that MU comparisons among regimes, venues or products are robust to the cost parameter.
 
 Our paper will focus on characterizing MU on cryptocurrency option markets. We describe empirical facts about market unfairness, including its response to regulatory changes in 2024. We find evidence corroborating the fact that the regulatory changes have introduced new players whose market making behavior improves quoting quality, not just increased volumes or tightened spreads.
 
@@ -149,7 +151,7 @@ PCP arbitrage involves opening a costless portfolio of put, call and underlying 
 \begin{figure}[htbp]
     \centering
     \maybeincludegraphics[width=0.95\textwidth]{artifacts/friction_timeseries_direct.png}
-    \caption{Raw quote statistics over time by exchange and underlying, smoothed with a trailing 1-month rolling mean and aggregated over strike and maturity. Bid--ask spread in dollars ($\mathrm{Spr}^{\$}_{g,t}$), stale-quote fraction $\mathrm{Stale}_{g,t}$, and quote depth in dollars. The spread and depth dollar values are measured for one trade unit. Dashed vertical lines mark the 2024 events: BTC ETP approval (10 Jan), ETH ETF approval (23 May), MiCA stablecoin rules (30 Jun), ETH ETF trading (23 Jul), and MiCA CASP rules (30 Dec).}
+    \caption{Raw quote statistics (aka frictions) over time by exchange and underlying, smoothed with a trailing 1-month rolling mean and aggregated over strike and maturity. Bid--ask spread in dollars ($\mathrm{Spr}^{\$}_{g,t}$), stale-quote fraction $\mathrm{Stale}_{g,t}$, and quote depth in dollars. The spread and depth dollar values are measured for one trade unit. Dashed vertical lines mark the 2024 events: BTC ETP approval (10 Jan), ETH ETF approval (23 May), MiCA stablecoin rules (30 Jun), ETH ETF trading (23 Jul), and MiCA CASP rules (30 Dec).}
     \label{fig:friction_timeseries_direct}
 \end{figure}
 
@@ -194,12 +196,6 @@ The rest of this paper develops MU, a complementary, model-free measure to test 
 %======================================================================
 \section{Market Unfairness: concept and measurement}
 \label{sec:method}
-
-% The organizing idea is the accounting identity of costly arbitrage:
-\begin{equation}
-\text{real--synthetic quote difference} \;\leftarrow\; \text{synthetic quote transaction costs} \;+\; \text{absolute market unfairness}.
-\label{eq:amu-identity}
-\end{equation}
 
 Market makers post passive orders to the book. If and when the passive order is hit, the resulting exposure can be fully hedged via a PCP arbitrage loop. For example if our bid for a call is lifted, we are long the call, which we can hedge by going short futures and a corresponding put. If we got the call too cheap, we can lock in risk-free profit. A market maker seeking risk-free profits might wait for such parity breaking to occur, and join or improve a book, waiting for takers. The expected payoff is strictly positive, even though issues of queue position and the disappearance of the arbitrage path exist. We deal with these microstructure issues by studying intraday snapshot data, where the quotes involved in the arbitrage are all present at the same time. In addition, the microstructure issues only limit the dollar value and not the sign of this opportunity.
 
@@ -282,14 +278,6 @@ U_{u\,g,d}=\frac{1}{4\,n_{g,d}}\sum_{i\in g,p,t\in d}\max\!\left(0,\,m_{i,p,t}\r
 \end{equation}
 
 As is often the case with measuring long-tail averages, $U_c$ and $U_u$ are sensitive to outliers and therefore sensitive to capping or censoring $m$. Being dollar denominated, they also suffer from scaling issues. As we'll see in the empirical section, $R$ is quite a natural proxy that can be used to characterize MU. Think of market unfairness through an imaginary maker who joins a quote only when the parity payoff is in her favor. It is a imaginary expectation, conditional on getting filled, not a realized profit, which depends on queue position, adverse selection and on a taker crossing. The compensation of the market maker in general is the bid--ask spread which already pays her for the usual costs of making a market---order processing, inventory, adverse selection, queue risk. Market unfairness is separate:it measures only how differently the two equivalent instruments---the real quote and its parity-implied synthetic---are priced against one another. 
-% Underlying each tickpath is a dollar payoff \emph{per contract}---one unit of the underlying---$m^{\$}_{i,p,t}$, formed with no venue contract-size multiplier so that every statistic is invariant to the contract-size convention. We normalize it three ways:
-% \begin{equation}
-% m^{\$}_{i,p,t}\ \text{(dollars)},\qquad
-% m^{\mathrm{bp}}_{i,p,t}=10^{4}\,\frac{m^{\$}_{i,p,t}}{S_{t}},\qquad
-% m^{\mathrm{cap}}_{i,p,t}=10^{4}\,\frac{m^{\$}_{i,p,t}}{K_{i,t}},
-% \end{equation}
-% where $S_{t}$ is the index level (so $m^{\mathrm{bp}}$ is in basis points of notional, the baseline used above) and $K_{i,t}=C^{\mathrm{mid}}_{i,t}+P^{\mathrm{mid}}_{i,t}$ is the \emph{option capital}, the sum of the call and put mid prices---the premium actually deployed in the two legs, so $m^{\mathrm{cap}}$ is in basis points of that capital, a return-on-capital view of the wedge. Each summary inherits the normalization as a superscript: $\mathrm{MMA}^{\bullet}$, $U_c^{\bullet}$ and $U_u^{\bullet}$ for $\bullet\in\{\$,\mathrm{bp},\mathrm{cap}\}$. The rate $R$ is unitless, and the decomposition $U_u^{\bullet}=R\,U_c^{\bullet}$ holds in every unit. Correspondingly we report the quoted put--call \emph{spread} in the same three units, $\mathrm{Spr}^{\$}$, $\mathrm{Spr}^{\mathrm{bp}}$ and $\mathrm{Spr}^{\mathrm{cap}}$ (dollars, and basis points of the underlying and of the option capital); unlike MMA and MU, the spread carries no cost term. Unless a superscript is shown, $\mathrm{MMA}$ and $U$ denote the basis-point-of-notional version.
-
 
 %---------------------------------------------------------------------------
 \subsection{Description of arbitrage configurations}
@@ -333,20 +321,15 @@ P_{ask}+(F_{ask}-K)e^{-rT}+\mathrm{cost}.
 \label{eq:cask-band}
 \end{equation}
 For later convenience let's define $\mathrm{cost}'\equiv\mathrm{cost}+\frac{1}{2}(F_{ask}-F_{bid})e^{-rT}$, which is the cost plus half the futures spread.  
-Both bounds use the \emph{same-side} put quote $P_{ask}$, so the band is centred on the synthetic ask at the futures ask, $C^{\mathrm{syn}}_{ask}\equiv P_{ask}+(F_{mid}-K)e^{-rT}$, with half-width $\mathrm{cost}'$. So a fair real market must track the synthetic market side by side, to within $\pm\mathrm{cost}'$ (Figure~\ref{fig:amu_fair_band_synthetic}). It is \emph{not} that $C_{ask}$ must lie inside the synthetic bid--ask up to some cost. Rather, $C_{ask}$ is tied to the synthetic \emph{ask} within the $\pm\mathrm{cost}$ cushion. Limits to the other quote-sides are analogous.
-
-\begin{figure}[htbp]
-    \centering
-    \maybeincludegraphics[width=0.82\textwidth]{artifacts/amu_schematic_mma_distribution.pdf}
-    \caption{Schematic MMA distribution. The dashed rectangle over $(-2\,\mathrm{cost}',0)$ is the no-MU band (uniform quoting), with $\mathrm{cost}'\equiv\mathrm{cost}+\tfrac12(F_{ask}-F_{bid})e^{-rT}$. Competitive quoting instead concentrates the mode at $-\mathrm{cost}'$, the symmetric equilibrium of the conjugate backward/forward paths; the mass that crosses zero into positive territory is the $U_{u}$. Note that this shape assumes a constant dollar cost, if cost scales with the index or the premium, skewed shapes may arise. Schematic, illustrative levels.}
-    \label{fig:amu_schematic_mma_distribution}
-\end{figure}
+Both bounds use the \emph{same-side} put quote $P_{ask}$, so the band is centred on the synthetic ask at the futures mid, $C^{\mathrm{syn}}_{ask}\equiv P_{ask}+(F_{mid}-K)e^{-rT}$, with half-width $\mathrm{cost}'$. So a fair real market must track the synthetic market side by side, to within $\pm\mathrm{cost}'$ (Figure~\ref{fig:amu_fair_band_synthetic}). It is \emph{not} that $C_{ask}$ must lie inside the synthetic bid--ask up to some cost. Rather, $C_{ask}$ is tied to the synthetic \emph{ask} within the $\pm\mathrm{cost}$ cushion. Limits to the other quote-sides are analogous.
 
 Equation~\eqref{eq:cask-band} also fixes the shape of the MMA distribution. Write $u=C_{ask}-C^{\mathrm{syn}}_{ask}$; the two conjugate $C_{ask}$ payoffs are exactly $u-\mathrm{cost}'$ (backward, join put ask) and $-u-\mathrm{cost}'$ (forward, join call ask). As $C_{ask}$ ranges over its fair band $u\in(-\mathrm{cost}',\mathrm{cost}')$, each sweeps linearly over $(-2\,\mathrm{cost}',0)$. If makers quoted with no preferred point inside the band, the implied MMA would be \emph{uniform} on $(-2\,\mathrm{cost}',0)$: a rectangle of width $2\,\mathrm{cost}'$ just left of zero. That rectangle is the no-information benchmark (dashed in Figure~\ref{fig:amu_schematic_mma_distribution}).
 
 The observed distribution instead peaks near $-\mathrm{cost}'$. Two things to point here. First just as $C_{ask}$ depends on $P_{ask}$ with a correction, $P_{ask}$ is limited by $C_{ask}$ with the same offset. Each unfair quote has a conjugate pair: if $C_{ask}$ is too rich, then $P_{ask}$ is too cheap by the same amound. Assembling tickpaths by conjugate pairs shows that the distribution of MMA must be symmetric around $\mathrm{cost}'$ 
 
 Second, market makers have an interest in not posting negative MMA quotes. Heuristically, if we assume similar pressure on both conjugate paths to be more positive, an equilibrium would form where they are equally negative, and the distribution would peak at $-\mathrm{cost}'$. (Figure~\ref{fig:amu_schematic_mma_distribution}). Stale or aggressive quotes populate the tails; the right tail crossing zero is the MU.
+
+We'll see empirical evidence of this shape in Section~\ref{sec:descriptive}. 
 
 %---------------------------------------------------------------------------
 \subsection{Data}
@@ -383,7 +366,6 @@ Observations are synchronized on a regular time grid, filtered to matched pairs 
     Subsampling & Last-known observation carried forward to the configured interval (default \texttt{\SampleFreqDefault}); a leg with a missing or non-updated bid/ask price or size is marked stale.\\
     Stale-quote filter & \FilterStale{}: when enabled, ticks with a stale call, put, or spot leg are dropped before any $U_{u}$/MMA aggregation. \\
     Discount rate & Risk-free rate assumed $r=5\%$; it enters only through the factor $e^{-rT}$. Not a crucial assumption---see the sensitivity analysis (Section~\ref{sec:robustness}). \\
-    %Trading cost & Round-trip cost for one notional: $\texttt{cost\_per\_notional}\,(\CostPerNotional)\times\mathrm{index}+\texttt{cost\_per\_option\_value}\times(C^{\mathrm{mid}}+P^{\mathrm{mid}})+\texttt{flat\_dollar\_amount}$, a proportional-to-notional, a proportional-to-premium, and a flat per-cycle term. Not a crucial assumption---see the sensitivity analysis (Section~\ref{sec:robustness}). \\
     Trading cost & Round-trip cost for one trade unit: $\texttt{cost\_per\_notional}\,(\CostPerNotional)\times\mathrm{index}$, a proportional-to-notional (Section~\ref{sec:robustness}). \\
     \bottomrule
     \end{tabularx}
@@ -402,14 +384,7 @@ The empirical shape of the MMA distribution depends on the units of measurement.
 
 Cost structures are not uniform across venues and underlyings, the volume traded by the market maker in question, and the location of the contract on the strike-expiry surface. We choose a single cost parameter for the sake of exposition, and we show in Section~\ref{sec:robustness} that the results are not sensitive to this choice.
 
-\begin{figure}[htbp]
-    \centering
-    \maybeincludegraphics[width=0.8\textwidth]{artifacts/all_markets_avg_4_spreads.pdf}
-    \caption{Average density of the four MMA paths across all markets. The distribution peaks at minus the round-trip cost (dashed line); everything to the left of zero yields no maker profit, and only the positive tail to the right of zero contributes to $U_{u}$.}
-    \label{fig:all_markets_avg_4_spreads}
-\end{figure}
-
-Figure~\ref{fig:all_markets_avg_4_spreads} shows that the 4 arbitrage paths behave identically, and correspond nicely to our schematic guess in Figure~\ref{fig:amu_schematic_mma_distribution}. The density peaks around minus the trading cost, which was chosen at $-\CostBp$ basis points for this plot.
+Figure~\ref{fig:all_markets_by_exchange_underlying_4_spreads} shows that the 4 arbitrage paths behave identically  The density peaks, as expected,  around minus the trading cost, which was chosen at $-\CostBp$ basis points for this plot.
 
 \begin{figure}[htbp]
     \centering
@@ -562,15 +537,6 @@ The liquidity measures we regress against are strongly correlated, so the indivi
     \label{tab:regression_effects}
 \end{table}
 
-% Table 9 (extensive/intensive decomposition) intentionally commented out in
-% this R-focused specification set.
-%\begin{table}[htbp]
-    %\centering
-    %{\renewcommand{\arraystretch}{1.2}\normalfont\small\IfFileExists{artifacts/frequency_size_decomposition_table.tex}{\input{artifacts/frequency_size_decomposition_table.tex}}{\textit{(regenerate artifacts to populate this table)}}}
-    %\caption{Two-part (extensive/intensive) decomposition of the post-2024 compression.}
-    %\label{tab:frequency_size_decomposition}
-%\end{table}
-
 \begin{figure}[htbp]
     \centering
     \maybeincludegraphics[width=0.95\textwidth]{artifacts/liquidity_friction_gradient.png}
@@ -590,7 +556,7 @@ The regression uses one observation per cell-day, but these are not independent 
 Spread, depth, staleness, amihud ratio and recovery rate are correlated --- a thin book tends to be wide, shallow, and slow to update at once. Collinearity inflates the variances of the individual friction coefficients, but it does not bias the post-2024 coefficient, which is identified from variation orthogonal to the friction set. The significance of the Post$_t$ regressor shows how MU carries information beyond the usual liquidity measures. 
 
 
-Among the exogenous parameters two stand out for robustness checks: the round-trip cost (baseline \CostBp~bp) and the discount rate (baseline $r=5\%$). Neither turns out to be crucial in identifying MU as carrying more information than the friction terms. The cost only sets the scale of market unfairness---a fixed proportional cost shifts the level, but the pre/post \emph{difference} in unconditional unfairness barely moves with it (the conditional form is more cost-sensitive, one reason the headline uses the unconditional measure), and a common cost keeps cross-venue comparisons coherent. The discount rate matters even less, for a structural reason: $r$ enters only through $e^{-rT}$, which multiplies a small quantity---the futures leg $(F-K)$ in each payoff and the futures half-spread $\tfrac12(F_{ask}-F_{bid})$ in $\mathrm{cost}'$. Its effect on a payoff is $\partial\!\left[(F-K)e^{-rT}\right]/\partial r=-T(F-K)e^{-rT}$, of order $T\,(F-K)/\mathrm{index}$; since our strikes sit within $\pm 21\%$ of the forward and most observation mass sits in near-the-money, short-dated cells where $(F-K)$ and $T$ are smallest, plausible changes in $r$ move $R$ negligibly---and the pre/post difference more negligibly still, since $r$ shifts both regimes almost identically. Evaluating $R$ across grids of both parameters---the cost grid read off the same filtered panel as the regressions, the discount-rate grid recomputed at each $r$ (Table~\ref{tab:cost_r_sensitivity})---bears this out. A higher assumed cost lowers the $R$ level and shrinks the compression somewhat, but the pre/post drop stays large and negative across the whole cost grid; across $r$ it is essentially constant. Under every choice the 2024 compression is present and sizable.
+Among the exogenous parameters two stand out for robustness checks: the round-trip cost (baseline \CostBp~bp) and the discount rate (baseline $r=5\%$). Neither turns out to be crucial in identifying MU as carrying more information than the friction terms. The cost only sets the scale of market unfairness---a fixed proportional cost shifts the level, but the pre/post \emph{difference} in the unfairness rate $R$ barely moves with it (the conditional form is more cost-sensitive, one reason the headline uses the rate-based measure), and a common cost keeps cross-venue comparisons coherent. The discount rate matters even less, for a structural reason: $r$ enters only through $e^{-rT}$, which multiplies a small quantity---the futures leg $(F-K)$ in each payoff and the futures half-spread $\tfrac12(F_{ask}-F_{bid})$ in $\mathrm{cost}'$. Its effect on a payoff is $\partial\!\left[(F-K)e^{-rT}\right]/\partial r=-T(F-K)e^{-rT}$, of order $T\,(F-K)/\mathrm{index}$; since our strikes sit within $\pm 21\%$ of the forward and most observation mass sits in near-the-money, short-dated cells where $(F-K)$ and $T$ are smallest, plausible changes in $r$ move $R$ negligibly---and the pre/post difference more negligibly still, since $r$ shifts both regimes almost identically. Evaluating $R$ across grids of both parameters---the cost grid read off the same filtered panel as the regressions, the discount-rate grid recomputed at each $r$ (Table~\ref{tab:cost_r_sensitivity})---bears this out. A higher assumed cost lowers the $R$ level and shrinks the compression somewhat, but the pre/post drop stays large and negative across the whole cost grid; across $r$ it is essentially constant. Under every choice the 2024 compression is present and sizable.
 
 \begin{table}[htbp]
     \centering\small
@@ -604,7 +570,7 @@ Among the exogenous parameters two stand out for robustness checks: the round-tr
     \label{tab:cost_r_sensitivity}
 \end{table}
 
-A final check varies the construction one choice at a time---the positive-part clip, the stale-quote filter, the spread and size cuts, the moneyness window, and tick- versus notional-weighting---recomputing the pre/post unconditional unfairness for each (Table~\ref{tab:robustness_grid}). The level moves with the filters, as it must, but the post-2024 drop is large and negative under every setting; none of the choices manufactures the compression or erases it.
+A final check varies the construction one choice at a time---the positive-part clip, the stale-quote filter, the spread and size cuts, the moneyness window, and tick- versus notional-weighting---recomputing the pre/post unfairness rate $R$ for each (Table~\ref{tab:robustness_grid}). The level moves with the filters, as it must, but the post-2024 drop is large and negative under every setting; none of the choices manufactures the compression or erases it.
 
 \begin{table}[htbp]
     \centering\small
