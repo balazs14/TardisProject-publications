@@ -44,11 +44,11 @@ def write_table(rows: list[tuple[float, float, float, float]]) -> Path:
     lines = [
         r"\begin{tabular}{rrrr}",
         r"\toprule",
-        r"$r$ & pre & post & $\Delta$ \\",
+        r"$r$ & $R$ pre & $R$ post & $\Delta R$ \\",
         r"\midrule",
     ]
     for r, pre, post, delta in rows:
-        lines.append(rf"{r:.3f} & {pre:.2f} & {post:.2f} & {delta:+.2f} \\")
+        lines.append(rf"{r:.3f} & {pre:.3f} & {post:.3f} & {delta:+.3f} \\")
     lines += [r"\bottomrule", r"\end{tabular}"]
     out = Path("artifacts") / "r_sensitivity_table.tex"
     out.write_text("\n".join(lines) + "\n")
@@ -63,7 +63,10 @@ def collect_rows(rvalues: list[str]) -> list[tuple[float, float, float, float]]:
             print(f"skip r={r}: no text_numbers.tex found")
             continue
         d = read_macros(path)
-        pre, post = float(d["AmuPreBp"]), float(d["AmuPostBp"])
+        if "AmuPreRate" not in d or "AmuPostRate" not in d:
+            print(f"skip r={r}: {path} has no AmuPreRate/AmuPostRate macros -- re-run the r-sweep to refresh")
+            continue
+        pre, post = float(d["AmuPreRate"]), float(d["AmuPostRate"])
         rows.append((float(r), pre, post, post - pre))
     rows.sort()
     return rows

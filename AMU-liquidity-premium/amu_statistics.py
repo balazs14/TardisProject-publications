@@ -1184,24 +1184,23 @@ def write_cost_sensitivity_table_from_parquet(parquet_path: str | Path, *, outpu
 
     costs = [10.0, 20.0, 30.0, 40.0, 50.0]
 
-    def uncond(hist: np.ndarray, c: float) -> float:
+    def rate(hist: np.ndarray, c: float) -> float:
+        # Unfairness rate R: fraction of pooled tickpaths with value above the cost offset.
         total = hist.sum()
         if total <= 0:
             return float("nan")
         delta = c - c0_bp
-        mask = centers > delta
-        weights = np.clip(centers[mask] - delta, 0.0, max_amu)
-        return float((hist[mask] * weights).sum()) / total
+        return float(hist[centers > delta].sum()) / total
 
     lines = [
         r"\begin{tabular}{rrrr}",
         r"\toprule",
-        r"cost (bp) & pre & post & $\Delta$ \\",
+        r"cost (bp) & $R$ pre & $R$ post & $\Delta R$ \\",
         r"\midrule",
     ]
     for c in costs:
-        pre, post = uncond(hist_pre, c), uncond(hist_post, c)
-        lines.append(rf"{int(c)} & {pre:.2f} & {post:.2f} & {post - pre:+.2f} \\")
+        pre, post = rate(hist_pre, c), rate(hist_post, c)
+        lines.append(rf"{int(c)} & {pre:.3f} & {post:.3f} & {post - pre:+.3f} \\")
     lines += [r"\bottomrule", r"\end{tabular}"]
     output_path = output_dir / "cost_sensitivity_table.tex"
     output_path.write_text("\n".join(lines) + "\n")
@@ -1211,12 +1210,16 @@ def write_cost_sensitivity_table_from_parquet(parquet_path: str | Path, *, outpu
 
 @debug_runtime("write_robustness_grid_table_from_parquet")
 def write_robustness_grid_table_from_parquet(parquet_path: str | Path, *, output_dir: Path) -> Path:
-    """Pre/post-2024 unconditional AMU under one-at-a-time perturbations of the
-    filter and aggregation choices (a robustness grid). Every setting is evaluated
-    in a single streaming pass over the tick frame; AMU is pooled over ticks and the
-    four paths at the baseline cost, so the levels sit a little below the cell
-    -weighted headline---the object of interest is the stability of the pre->post
-    drop across settings. Output: robustness_grid_table.tex."""
+    """DEPRECATED / UNWIRED: the robustness grid is now produced from the aggregated
+    cell-day panel by panel_regressions.write_robustness_grid_table_from_panel, so its
+    baseline row shares one estimand with the regressions and the cost-sensitivity
+    table (this tick-pooled version left the baseline ~0.001 off, filtering ticks
+    individually rather than on cell-day means). Retained for reference only.
+
+    Pre/post-2024 unfairness rate R under one-at-a-time perturbations of the filter
+    and aggregation choices. Every setting is evaluated in a single streaming pass
+    over the tick frame; R is pooled over ticks and the four paths at the baseline
+    cost. Output: robustness_grid_table.tex."""
     parquet = pq.ParquetFile(str(parquet_path))
     schema_names = set(parquet.schema_arrow.names)
     path_cols = ["bck_joincall_bp", "bck_joinput_bp", "fwd_joincall_bp", "fwd_joinput_bp"]
@@ -1264,10 +1267,12 @@ def write_robustness_grid_table_from_parquet(parquet_path: str | Path, *, output
                 continue
             mdy = pd.to_datetime(chunk.get_column("mdy").to_numpy(), errors="coerce")
             pre = np.asarray(mdy < event_ts)
-            possum = np.zeros(chunk.height, dtype=float)
+            # Unfairness RATE R: count the positive-MMA tickpaths (paths with value > 0),
+            # not the positive-part magnitude. R does not depend on the clip cap.
+            poscount = np.zeros(chunk.height, dtype=float)
             for col in path_cols:
                 values = chunk.get_column(col).cast(pl.Float64, strict=False).to_numpy()
-                possum += np.clip(np.nan_to_num(values, nan=0.0), 0.0, cap)
+                poscount += (np.nan_to_num(values, nan=0.0) > 0.0).astype(float)
             if weighted:
                 weight = np.nan_to_num(
                     chunk.get_column("min_quote_size_dollar").cast(pl.Float64, strict=False).to_numpy(), nan=0.0
@@ -1275,17 +1280,17 @@ def write_robustness_grid_table_from_parquet(parquet_path: str | Path, *, output
             else:
                 weight = np.ones(chunk.height, dtype=float)
             a = acc[label]
-            a[0] += float((weight * possum)[pre].sum())
+            a[0] += float((weight * poscount)[pre].sum())
             a[1] += float(4.0 * weight[pre].sum())
-            a[2] += float((weight * possum)[~pre].sum())
+            a[2] += float((weight * poscount)[~pre].sum())
             a[3] += float(4.0 * weight[~pre].sum())
 
-    lines = [r"\begin{tabular}{lrrr}", r"\toprule", r"setting & pre & post & $\Delta$ \\", r"\midrule"]
+    lines = [r"\begin{tabular}{lrrr}", r"\toprule", r"setting & $R$ pre & $R$ post & $\Delta R$ \\", r"\midrule"]
     for label, *_ in settings:
         a = acc[label]
         pre_v = a[0] / a[1] if a[1] > 0 else float("nan")
         post_v = a[2] / a[3] if a[3] > 0 else float("nan")
-        lines.append(rf"{label} & {pre_v:.2f} & {post_v:.2f} & {post_v - pre_v:+.2f} \\")
+        lines.append(rf"{label} & {pre_v:.3f} & {post_v:.3f} & {post_v - pre_v:+.3f} \\")
         if label == "baseline":
             lines.append(r"\midrule")
     lines += [r"\bottomrule", r"\end{tabular}"]
@@ -1627,14 +1632,14 @@ def generate_all_statistics(
     output_root = Path(output_dir)
     output_root.mkdir(parents=True, exist_ok=True)
 
-    # (result-key, overview LaTeX labels, plotting/writing fn). cost_sensitivity_table
-    # and amu_bps_by_cost_pre_post come from the aggregated panel instead, so all
-    # pre/post AMU numbers share one estimand with the regressions.
+    # (result-key, overview LaTeX labels, plotting/writing fn). cost_sensitivity_table,
+    # robustness_grid_table and amu_bps_by_cost_pre_post come from the aggregated panel
+    # (panel_regressions) instead, so all pre/post AMU numbers share one estimand with
+    # the regressions -- including the robustness-grid baseline row.
     jobs = [
         ("summary_daily_option_coverage_table", ("tab:summary_daily_option_coverage",), write_summary_daily_table_from_parquet),
         ("amu_summary_table", ("tab:amu_summary",), write_amu_summary_table_from_parquet),
         ("spread_figures", ("fig:all_markets_avg_4_spreads", "fig:all_markets_by_exchange_underlying_4_spreads"), plot_4_spreads_from_parquet),
-        ("robustness_grid_table", ("tab:robustness_grid",), write_robustness_grid_table_from_parquet),
         ("total_mma_hist_pre_post_btc_etp", ("fig:total_mma_hist_pre_post_btc_etp",), plot_total_mma_hist_pre_post_btc_etp_from_parquet),
         ("total_mma_hist_pre_post_3units", ("fig:total_mma_hist_pre_post_3units",), plot_total_mma_hist_pre_post_3units_from_parquet),
         ("multi_exchange_amu_bps_by_date", ("fig:multi_exchange_amu_by_date",), plot_amu_bps_by_date_from_parquet),

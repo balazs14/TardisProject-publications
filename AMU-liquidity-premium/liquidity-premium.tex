@@ -67,7 +67,16 @@
   \newcommand{\AmuMeanBp}{N/A}%
   \newcommand{\AmuPreBp}{N/A}%
   \newcommand{\AmuPostBp}{N/A}%
+  \newcommand{\AmuMeanRate}{N/A}%
+  \newcommand{\AmuPreRate}{N/A}%
+  \newcommand{\AmuPostRate}{N/A}%
+  \newcommand{\AmuDeltaRate}{N/A}%
 }
+% Fallbacks for the rate macros even when text_numbers.tex exists but predates them.
+\providecommand{\AmuMeanRate}{N/A}%
+\providecommand{\AmuPreRate}{N/A}%
+\providecommand{\AmuPostRate}{N/A}%
+\providecommand{\AmuDeltaRate}{N/A}%
 
 \titleformat{\section}{\bfseries\large}{\thesection}{1em}{}
 \titleformat{\subsection}{\bfseries\itshape\normalsize}{\thesubsection}{1em}{}
@@ -115,13 +124,6 @@ We propose to use the PCP breaking remaining in quotes after accounting for tran
 Our paper will focus on characterizing MU on cryptocurrency option markets. We describe empirical facts about market unfairness, including its response to regulatory changes in 2024. We find evidence corroborating the fact that the regulatory changes have introduced new players whose market making behavior improves quoting quality, not just increased volumes or tightened spreads.
 
 
-% The empirical analysis is organized around three research questions:
-% \begin{quote}
-% \textbf{1.} How large is $U_{u}$, and does it differ across exchanges and underlyings?\\
-% \textbf{2.} Did $U_{u}$ drop significantly upon the 2024 regulatory and institutional regime shift\\
-% \textbf{3.} Is any post-2024 drop fully explained by the usual liquidity frictions, or does it partly reflect the emergence of a new class of parity-enforcing participants?
-% \end{quote}
-% We answer all three. 
 Section~\ref{sec:lit} places market unfairness in the literature. Section~\ref{sec:frictions} describes the market through the standard liquidity measures. Section~\ref{sec:method} defines market maker advantage MMA,  MU, and describes the data and panel. Section~\ref{sec:descriptive} presents the level and cross-section of market unfairness. Section~\ref{sec:regulation} describes the 2024 regulatory shift. Section~\ref{sec:rq2} documents the regulation induced compression and its robustness to assumptions. Section~\ref{sec:regressions} reports regressions . Section~\ref{sec:concl} concludes.
 
 \clearpage
@@ -245,7 +247,7 @@ A \emph{tick} is indexed by (pair, time). A \emph{pair} is indexed by (exchange,
 
 We aggregate tickpaths in \emph{cells} $(g,t)$ with cell $g$ corresponding to a group of pairs with exchange, underlying, time, strike, expiration, each in some range. A cell with $n_{g,t}$ pairs has $4\,n_{g,t}$ tickpaths. 
 
-\textbf{Market maker advantage (MMA)} is the mean of $m_{i,p,t}$ taken over \emph{all} tickpaths in a cell $(g,t)$:
+Market maker advantage (MMA) is the mean of $m_{i,p,t}$ taken over \emph{all} tickpaths in a cell $(g,t)$:
 \begin{equation}
 \mathrm{MMA}_{g,t}=\frac{1}{4n_{g,t}}\sum_{i\in g}\sum_{p=1}^{4} m_{i,p,t},
 \end{equation}
@@ -526,6 +528,8 @@ We use interacted spread and Amihud terms to allow different BTC/ETH slopes, nec
 %---------------------------------------------------------------------------
 \subsection{Results}
 
+Pooled across all cell-days at the baseline \CostBp~bp round-trip cost, the unfairness rate averages $R=\AmuMeanRate$: a fraction $\AmuPreRate$ of tickpaths violate parity net of cost before 2024, falling to $\AmuPostRate$ after, a change of $\Delta R=\AmuDeltaRate$.
+
 Table~\ref{tab:regression_effects} is the compact headline regression table. The main conclusion we draw is that MU exhibits an incremental shift around the 2024 regulatory event, even after controlling for the usual liquidity measures. In other words, MU measures an effect (such as the introduction of new participants with different cost structures) that is not captured by the usual liquidity measures. 
 
 The liquidity measures we regress against are strongly correlated, so the individual coefficients are not as informative as the $R^2$ improvement due to the introduction of the Post$_t$ indicator.  
@@ -575,7 +579,7 @@ A final check varies the construction one choice at a time---the positive-part c
 \begin{table}[htbp]
     \centering\small
     {\renewcommand{\arraystretch}{1.15}\IfFileExists{artifacts/robustness_grid_table.tex}{\input{artifacts/robustness_grid_table.tex}}{\emph{\texttt{robustness\_grid\_table.tex}: run the rebuild.}}}
-    \caption{Robustness of the pre/post-2024 unfairness rate $R$ to the filter and aggregation choices, each varied one at a time from the baseline (top row): the positive-part clip, the stale-quote filter, the spread and minimum-size cuts, the moneyness window, and notional- versus tick-weighting. The table shows the stability of $\Delta$, the post$-$pre $R$ change.}
+    \caption{Robustness of the pre/post-2024 unfairness rate $R$ to the filter and aggregation choices, each varied one at a time from the baseline (top row): the positive-part clip, the stale-quote filter, the spread and minimum-size cuts, the moneyness window, and whether we average R with weights corresponding to the maximum tradable size on a tickpath, or whether each tickpath has equal weights. The table shows the stability of $\Delta$, the post$-$pre $R$ change.}
     \label{tab:robustness_grid}
 \end{table}
 
