@@ -1,0 +1,159 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+
+% ---------------------------------------------------------------------------
+% OREF discussant deck. Discussion of Maurer & Reichmann, "Optimizing
+% Household Portfolios with Securitized Real Estate: Insights from a
+% Lifecycle Model" (Goethe University Frankfurt).
+%
+% Setup mirrors the AMU conference deck (../AMU-liquidity-premium/
+% presentation.tex): same Corvinus branded PNG background from the parent
+% publications/ folder, same colour / frametitle settings, same helper
+% macros. This deck is a sibling of the other papers, not a standalone
+% imitation. (The AMU deck is the source of the *theme only* -- none of its
+% content appears here.)
+% ---------------------------------------------------------------------------
+
+\usetheme{default}
+\setbeamertemplate{navigation symbols}{}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{ragged2e}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{multirow}
+\usepackage{adjustbox}
+
+% --- branded background + colours (identical to the AMU deck) ---------------
+\usebackgroundtemplate{%
+  \includegraphics[width=\paperwidth,height=\paperheight]{../Online_Conference_background_04_white.png}}
+\setbeamercolor{frametitle}{fg=black}
+\setbeamercolor{title}{fg=black}
+\setbeamercolor{subtitle}{fg=black}
+\setbeamercolor{author}{fg=black}
+\setbeamercolor{institute}{fg=black}
+\setbeamercolor{date}{fg=black}
+\setbeamercolor{normal text}{fg=black}
+\renewcommand{\colorbox}[2]{#2}
+\setbeamerfont{frametitle}{series=\bfseries,size=\large}
+% centred frame title (clears the logo in the top-left of the background)
+\setbeamertemplate{frametitle}{%
+  \vspace{0.30cm}\centering
+  \usebeamercolor[fg]{frametitle}\usebeamerfont{frametitle}\insertframetitle\par}
+\setbeamersize{text margin left=2.5mm,text margin right=2.5mm}
+\setlength{\fboxsep}{2pt}
+
+% --- itemize: quiet, on-brand, tight -----------------------------------------
+\setbeamertemplate{itemize items}[circle]
+\setbeamertemplate{enumerate items}[default]
+\setbeamercolor{itemize item}{fg=black}
+\setbeamercolor{itemize subitem}{fg=black}
+\setbeamercolor{enumerate item}{fg=black}
+
+% --- content card that clears the arch band on both sides --------------------
+\newcommand{\card}[1]{%
+  \begin{columns}\begin{column}{0.92\textwidth}#1\end{column}\end{columns}}
+
+\newcommand{\lead}[1]{\textbf{#1}}
+
+\begin{document}
+
+% ===== 1. Title =====
+\begin{frame}[plain]
+  \vfill\centering
+  {\footnotesize\textsc{Discussion}}\\[1.4em]
+  {\Large\textbf{Optimizing Household Portfolios with}}\\[0.25em]
+  {\Large\textbf{Securitized Real Estate}}\\[0.5em]
+  {\large Insights from a Lifecycle Model}\\[1.0em]
+  {\normalsize by Raimond Maurer \& Timo Reichmann (Goethe University Frankfurt)}\\[2.0em]
+  {\normalsize Discussant: Kr\'alik Bal\'azs}\\[0.3em]
+  {\footnotesize Budapesti Corvinus Egyetem, Institute of Finance}
+  \vfill
+\end{frame}
+
+% ===== 2. The paper, as I read it =====
+\begin{frame}{The paper, as I read it}
+  \vfill
+  \card{\small
+  \begin{itemize}\setlength{\itemsep}{0.8ex}
+    \item \lead{What they do:} put German open-end real estate funds (OREFs)
+      into a standard lifecycle savings-and-portfolio model. As far as I can
+      tell this is the first time these funds have been placed in such a model.
+    \item \lead{How they do it:} illiquidity is built into the model rather
+      than added as a cost. Fund holdings are tracked as a separate state
+      variable, and the 12-month notice period, ${\sim}5\%$ front-end load, and
+      German taxes are all inside the optimization.
+    \item \lead{Main finding:} OREFs barely feature during working life but
+      become the largest holding in retirement (${\sim}60\%$ of the portfolio
+      at the very end). The authors attribute this to the bequest motive, the
+      funds' very low volatility, and a tax advantage.
+    \item \lead{What I found convincing:} preference parameters are fitted only
+      to survey wealth and stock shares, yet the model then lines up with fund
+      holdings and investor ages in a separate 1.4\,M-investor dataset. If I
+      understand correctly, that is an out-of-sample check.
+  \end{itemize}}
+  \vfill
+\end{frame}
+
+
+% ===== 4. A rough attempt to size the tax break =====
+\begin{frame}{A rough attempt to size the tax break}
+  \vfill\centering
+  \adjustbox{width=0.92\linewidth}{%
+  \begin{tabular}{@{}lccccc@{}}
+  \toprule
+  Asset (expected real return) & Effective tax & Tax drag & Fee $\varphi$ & Net-of-tax real \\
+  \midrule
+  OREF, 60\% exemption (2.79\%) & 10.55\%   & $-0.29$pp & ---        & 2.50\% \\
+  OREF, no exemption (2.79\%)   & 26.375\%  & $-0.74$pp & ---        & 2.05\% \\
+  Bonds / REXP (3.66\%)         & 26.375\%  & $-0.97$pp & $-0.50$pp  & 2.20\% \\
+  \bottomrule
+  \end{tabular}}\\[1.2ex]
+  \card{\footnotesize
+  \begin{itemize}\setlength{\itemsep}{0.7ex}
+     \item The 5\% load pushes the other
+        way; my rough sums suggest you need something like a 15--17 year horizon
+        to work it off, which a bequest motive would extend. And the 0.5\% fee on
+        bonds is doing a fair amount of the work --- at 0.2\% the gap looks like
+        it closes.
+      \item I wasn't sure whether the $\varphi$ fee is deductible from the
+        taxable base, or why 0.5\% rather than a lower modern figure --- could
+        you clarify?
+      \item \lead{On the smoothed returns.} You argue the smoothed NAV is the
+        price investors actually trade at, which makes sense to me. But the
+        latent-risk section shows much higher volatility and discounts in stress.
+        Should I think of these funds as genuinely low-risk, or as low-risk most
+        of the time with occasional sharp episodes?
+  \end{itemize}}
+  \vfill
+\end{frame}
+
+% ===== 5. Questions I'd like to ask (1) =====
+
+% ===== 6. Questions I'd like to ask (2) + close =====
+\begin{frame}{Questions I'd like to ask}
+  \vfill
+  \card{\footnotesize
+  \begin{enumerate}\setlength{\itemsep}{0.7ex}\setcounter{enumi}{3}
+    \item How were the states discretized in the simulations
+    \item \lead{The notice period.} Could you say a little more about how the
+      one-year notice period changes behaviour? I was interested how the facty that a
+      household selling still carries fund risk for a further year influences behavior.
+    \item \lead{Acting on predictability.} In the AR predictability model  version,
+      households keep buying after good returns even very late in life. Is that
+      something investors could/would actually act on, and are the loads and holding
+      periods partly there to prevent it?
+    \item \lead{How much is specific to Germany?} Germany has both the tax
+      exemption and these specific liquidity rules. Do you have a sense of what
+      the model would predict where those features are absent --- which of your
+      results would you most expect to travel? Europe? USA?
+  \end{enumerate}}
+  \vspace{1.0ex}
+  
+  \vfill
+\end{frame}
+
+
+\end{document}
